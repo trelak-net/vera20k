@@ -612,6 +612,7 @@ impl Simulation {
         self.hash_voxel_anims(&mut hasher);
         self.hash_particle_systems(&mut hasher);
         self.session.fold_identity(&mut hasher);
+        self.waypoint_plans.hash_state(&mut hasher);
         self.session.pixel_conversion_bounds.hash(&mut hasher);
 
         hasher.finish()

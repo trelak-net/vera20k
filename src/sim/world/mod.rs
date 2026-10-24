@@ -965,6 +965,7 @@ pub struct Simulation {
     /// from the app-layer descriptor; serialized + hashed except for that
     /// diagnostic accumulator. See `sim::scenario_session`.
     pub session: ScenarioSession,
+    pub(crate) waypoint_plans: crate::sim::planning::WaypointPlans,
     /// Native A8E7AC is a synchronous, wrapping placement/destruction scope,
     /// independent of GameMode. Balanced at frame boundaries; not saved/hash
     /// state. Only lifecycle's nested scope API mutates it.
@@ -3200,6 +3201,7 @@ impl Simulation {
             rule_handles: None,
             production: ProductionState::default(),
             session,
+            waypoint_plans: Default::default(),
             object_placement_scope_depth: 0,
             scenario_rng: SimRng::new(seed),
             main_rng: MainRng::new(seed),
@@ -6597,6 +6599,7 @@ impl Simulation {
         let object_pass = self.advance_live_object_pass(rules, overlay_registry, effects)?;
         let ownership_changed = object_pass.ownership_changed();
         spawned_entities |= std::mem::take(&mut self.mission_spawned_entities);
+        self.tick_waypoint_plans(rules, overlay_registry, effects);
         let movement_stats = object_pass.movement;
         destroyed_structure |= object_pass.destroyed_structure;
         bridge_state_changed |= object_pass.bridge_state_changed;
@@ -6869,7 +6872,13 @@ impl Simulation {
             self.natural_outcome_exit_ready() && self.finalize_terminal_score_snapshot();
         let profile_tail = std::time::Instant::now();
         let state_hash = effects.state_hash_requested().then(|| self.state_hash());
-        profile_sim([profile_start, profile_objects, profile_vision, profile_tail, std::time::Instant::now()]);
+        profile_sim([
+            profile_start,
+            profile_objects,
+            profile_vision,
+            profile_tail,
+            std::time::Instant::now(),
+        ]);
         Ok(MasterFrameOutput {
             admitted_commands: commands,
             tick: TickResult {
@@ -7054,7 +7063,9 @@ mod ore_spread_oracle_tests;
 
 fn profile_sim(points: [std::time::Instant; 5]) {
     static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    if !*ENABLED.get_or_init(|| std::env::var_os("VERA_PROFILE_FRAMES").is_some()) { return; }
+    if !*ENABLED.get_or_init(|| std::env::var_os("VERA_PROFILE_FRAMES").is_some()) {
+        return;
+    }
     thread_local! { static SAMPLES: std::cell::RefCell<(usize, [f64; 4])> = const { std::cell::RefCell::new((0, [0.0; 4])) }; }
     SAMPLES.with(|samples| {
         let mut samples = samples.borrow_mut(); samples.0 += 1;

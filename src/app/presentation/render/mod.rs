@@ -432,8 +432,26 @@ fn upload_to_gpu(
     );
     pool.upload(&state.renderer.gpu, "self_heal_pips", &ui.self_heal_pip);
     pool.upload(&state.renderer.gpu, "cargo_pips", &ui.cargo_pip);
-    pool.upload(&state.renderer.gpu, "group_label_boxes", &ui.group_labels.boxes);
-    pool.upload(&state.renderer.gpu, "group_label_text", &ui.group_labels.text);
+    pool.upload(
+        &state.renderer.gpu,
+        "group_label_boxes",
+        &ui.group_labels.boxes,
+    );
+    pool.upload(
+        &state.renderer.gpu,
+        "group_label_text",
+        &ui.group_labels.text,
+    );
+    pool.upload(
+        &state.renderer.gpu,
+        "waypoint_boxes",
+        &ui.waypoint_paths.boxes,
+    );
+    pool.upload(
+        &state.renderer.gpu,
+        "waypoint_text",
+        &ui.waypoint_paths.text,
+    );
     pool.upload(&state.renderer.gpu, "software_cursor", &ui.software_cursor);
     pool.upload(&state.renderer.gpu, "placement_valid", &ui.placement_valid);
     pool.upload(

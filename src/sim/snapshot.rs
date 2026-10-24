@@ -944,7 +944,8 @@ use crate::sim::world::Simulation;
 // (HouseClass+0x54E0). Version 327 records lack this field.
 // 328 -> 329: persist map TruckCrate/TrainCrate. Earlier sessions lack
 // these bytes and cannot be decoded as the new positional bincode layout.
-const SNAPSHOT_VERSION: u32 = 329;
+// 329 -> 330: deterministic waypoint paths, members and per-unit progress.
+const SNAPSHOT_VERSION: u32 = 330;
 
 const SNAPSHOT_PRODUCT_MAGIC: [u8; 8] = *b"VERA20K\0";
 const SNAPSHOT_ENVELOPE_VERSION: u32 = 1;
@@ -4076,7 +4077,7 @@ mod tests {
         // LoadObject registry, and neutral Tactical view/focus metadata.
         // 327 -> 328: each house's last lost building (+0x54E0).
         // 328 -> 329: persisted TruckCrate/TrainCrate map flags.
-        assert_eq!(super::SNAPSHOT_VERSION, 329);
+        assert_eq!(super::SNAPSHOT_VERSION, 330);
     }
 
     #[test]

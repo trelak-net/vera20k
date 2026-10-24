@@ -1102,6 +1102,8 @@ pub struct GeneralRules {
     /// then Voc FindIndex7514D0, retaining the prior ID on missing, empty or
     /// unresolved text. The fixed SOUNDMD binder owns name resolution.
     pub guard_sound: Option<String>,
+    pub max_waypoint_path_length: usize,
+    pub planning_sounds: [Option<String>; 3],
     /// `[AudioVisual] ScoldSound=` (`Rules+0x700`, read at `0x0066ABE8`
     /// through `VocClass::FindByName`; retail `MenuScold`): ToggleRepair's
     /// sound when a repair is switched on at full Strength (`0x00447068`).
@@ -2186,6 +2188,8 @@ impl Default for GeneralRules {
             gui_move_out_sound: None,
             generic_click_sound: None,
             guard_sound: None,
+            max_waypoint_path_length: 15,
+            planning_sounds: Default::default(),
             scold_sound: None,
             generic_beep_sound: None,
             gui_checkbox_sound: None,
@@ -3158,6 +3162,8 @@ impl GeneralRules {
                 .map(str::to_owned),
             // Native constructor -1; resolved by the fixed SOUNDMD binder.
             guard_sound: None,
+            max_waypoint_path_length: 15,
+            planning_sounds: Default::default(),
             scold_sound: audio_visual
                 .read_name("ScoldSound", 0x80)
                 .map(str::to_owned),
@@ -3873,6 +3879,18 @@ impl RuleSet {
         self.general.spy_plane_camera = ini
             .section("AudioVisual")
             .and_then(|section| sounds.read_rules_reference(section, "SpyPlaneCamera"));
+        self.general.max_waypoint_path_length = ini.section("General").map_or(15, |s| {
+            s.read_int("MaxWaypointPathLength", 15).max(0) as usize
+        });
+        self.general.planning_sounds = [
+            "StartPlanningModeSound",
+            "EndPlanningModeSound",
+            "AddPlanningModeCommandSound",
+        ]
+        .map(|key| {
+            ini.section("AudioVisual")
+                .and_then(|s| sounds.read_rules_reference(s, key))
+        });
         self.general.guard_sound = ini
             .section("AudioVisual")
             .and_then(|section| sounds.read_rules_reference(section, "GuardSound"));

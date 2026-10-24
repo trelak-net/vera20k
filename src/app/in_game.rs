@@ -83,6 +83,7 @@ impl App {
         if state.platform.window_active == active {
             return;
         }
+        crate::app::input::planning::finish(state);
         state.platform.window_active = active;
         state.match_state.input.keys_held.clear();
         state.match_state.input.hotkey_modifiers = ModifiersState::empty();

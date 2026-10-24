@@ -530,11 +530,19 @@ pub enum Command {
         queue: bool,
     },
     /// Stop movement/combat intent on one entity.
-    Stop { entity_id: u64 },
+    Stop {
+        entity_id: u64,
+    },
     /// Attack an explicit target.
-    Attack { attacker_id: u64, target_id: u64 },
+    Attack {
+        attacker_id: u64,
+        target_id: u64,
+    },
     /// Force-attack a target (ignores friendship — Ctrl+click).
-    ForceAttack { attacker_id: u64, target_id: u64 },
+    ForceAttack {
+        attacker_id: u64,
+        target_id: u64,
+    },
     /// Attack-move toward a cell (logic can retarget along path).
     AttackMove {
         entity_id: u64,
@@ -550,10 +558,14 @@ pub enum Command {
     },
     /// Unit DEPLOY event: convert an MCV or toggle a SimpleDeployer.
     /// The existing wire spelling is retained for saved commands/replays.
-    DeployMcv { entity_id: u64 },
+    DeployMcv {
+        entity_id: u64,
+    },
     /// Undeploy a structure back into its mobile unit (e.g. ConYard → MCV).
     /// Reads UndeploysInto from rules.ini to determine the spawned unit type.
-    UndeployBuilding { entity_id: u64 },
+    UndeployBuilding {
+        entity_id: u64,
+    },
     /// Archive a rally cell on each selected factory the command owner owns.
     SetRally {
         rx: u16,
@@ -565,12 +577,18 @@ pub enum Command {
     // 0x004C6CB0` reads it at `0x004C6CC4`); none names another.
     /// PRODUCE (`EventClass::Execute` type 14 → `HouseClass::Begin_Production
     /// @ 0x004FA350`): start, queue or resume a build of this type.
-    QueueProduction { type_id: InternedId },
+    QueueProduction {
+        type_id: InternedId,
+    },
     /// SUSPEND (type 15 → `HouseClass::Suspend_Production @ 0x004FA910`):
     /// put the category's running build on hold.
-    SuspendProduction { category: ProductionCategory },
+    SuspendProduction {
+        category: ProductionCategory,
+    },
     /// Cycle the active producer facility of one category.
-    CycleProducerFocus { category: ProductionCategory },
+    CycleProducerFocus {
+        category: ProductionCategory,
+    },
     /// Place one completed building that is waiting for placement.
     PlaceReadyBuilding {
         type_id: InternedId,
@@ -580,11 +598,18 @@ pub enum Command {
     /// ABANDON (type 16) or, with `all`, ABANDON_ALL (type 46) →
     /// `HouseClass::Abandon_Production @ 0x004FAA10`: cancel a queued copy, or
     /// every copy, of this type and then the active build of it.
-    CancelProductionByType { type_id: InternedId, all: bool },
+    CancelProductionByType {
+        type_id: InternedId,
+        all: bool,
+    },
     /// Sell a building, refunding a percentage of its cost and despawning it.
-    SellBuilding { entity_id: u64 },
+    SellBuilding {
+        entity_id: u64,
+    },
     /// Toggle repair mode on a building (spend credits to heal over time).
-    ToggleRepair { entity_id: u64 },
+    ToggleRepair {
+        entity_id: u64,
+    },
     /// Force a miner to return to its refinery (right-click on own refinery or 'D' key).
     /// Both kinds run the Harvest return; a Chrono Miner warps onto the pad
     /// from within `ChronoHarvTooFarDistance`.
@@ -596,7 +621,10 @@ pub enum Command {
     },
     /// Send a unit to a repair depot for repairs.
     /// The unit pathfinds to the depot, docks, and auto-repairs until full HP or out of credits.
-    RepairAtDepot { entity_id: u64, depot_id: u64 },
+    RepairAtDepot {
+        entity_id: u64,
+        depot_id: u64,
+    },
     /// Order an infantry/vehicle to enter a friendly transport or garrisonable building.
     /// The passenger pathfinds to the transport's cell and boards on arrival.
     EnterTransport {
@@ -608,13 +636,20 @@ pub enum Command {
     /// over on arrival (turn → slide onto the cell → turn south → hide). Gating
     /// happens in `world_commands`: own-owner, the bunker idle/empty, and the
     /// unit admitted by `bunker_link::can_auto_deploy_here` (`0x0070FB50`).
-    EnterBunker { unit_id: u64, bunker_id: u64 },
+    EnterBunker {
+        unit_id: u64,
+        bunker_id: u64,
+    },
     /// Eject the occupant of a friendly occupied tank bunker. Targets the bunker
     /// (the hidden occupant is not selectable in this slice); the occupant
     /// reappears on a passable cell SW of the bunker and drives out.
-    EjectBunker { bunker_id: u64 },
+    EjectBunker {
+        bunker_id: u64,
+    },
     /// Order a transport or garrison to unload: the Unload mission of its class.
-    UnloadPassengers { transport_id: u64 },
+    UnloadPassengers {
+        transport_id: u64,
+    },
     /// Direct a harvester to go harvest a specific ore cell.
     /// The miner will path to the cell, then enter Harvest state on arrival.
     HarvestCell {
@@ -656,7 +691,9 @@ pub enum Command {
     /// - mid-transition (Deploying / Undeploying) → no-op (matches gamemd)
     ///
     /// Silently no-op if the entity's type is not `DeployFire=yes`.
-    ToggleInfantryDeploy { entity_id: u64 },
+    ToggleInfantryDeploy {
+        entity_id: u64,
+    },
     /// Force-attack on a ground cell (Ctrl + left-click on empty terrain).
     ///
     /// Bypasses friendship check and entity-targeting — fires the attacker's
@@ -671,17 +708,38 @@ pub enum Command {
     },
     /// Sell the wall overlay at one native signed `CellStruct` coordinate.
     /// The command envelope names the receiver, not necessarily the wall owner.
-    SellWallAtCell { x: i16, y: i16 },
+    SellWallAtCell {
+        x: i16,
+        y: i16,
+    },
     /// Execute the local player's native EXIT event and end the active scenario.
     ExitMatch,
     /// Apply an offline in-game Options speed transition before the next logic
     /// frame. The dialog emits only the stored range 0..=6; live network opcode
     /// 0x0D keeps its separate EventClass-tail timing when networking is added.
-    SetGameSpeed { speed: u8 },
+    SetGameSpeed {
+        speed: u8,
+    },
     /// Strip6A8EB8's mobile PLACE event. House4FB0E0 resolves the category's
     /// current completed head at execution; native carries type_index=-1,
     /// with no product identity or nonce. Appended to preserve saved indices.
-    PlaceProducedMobile { category: ProductionCategory },
+    PlaceProducedMobile {
+        category: ProductionCategory,
+    },
+    /// Stream a waypoint click without starting its missions. Actor orders
+    /// share one route; commit launches every draft owned by this House.
+    PlanConnect {
+        orders: Vec<crate::sim::planning::PlannedOrder>,
+    },
+    PlanCommit,
+    PlanDelete {
+        path_id: u32,
+        node: usize,
+    },
+    PlanLoop {
+        path_id: u32,
+        node: usize,
+    },
 }
 
 /// Command with deterministic execution metadata.

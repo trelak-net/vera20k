@@ -71,7 +71,7 @@ pub(super) fn apply(state: &mut AppState, result: u16) -> bool {
         return false;
     }
     // Original6D0660 routes these IDs by command identity. Existing action
-    // owners retain gameplay authority; unsupported Planning/Beacon/Cheer
+    // owners retain gameplay authority; unsupported Beacon/Cheer
     // mechanics remain the same explicit residual as their keyboard commands.
     crate::app::input::dispatch::dispatch_command_bar(
         state,
@@ -93,6 +93,7 @@ pub(super) fn publish(state: &mut AppState) {
     });
     let out = &mut state.match_state.match_presentation.sidebar_gadget_state;
     out.command_pressed.copy_from_slice(&pressed[..11]);
+    out.command_pressed[9] = state.match_state.input.planning.active();
     out.command_thumb_pressed = pressed[11];
 }
 

@@ -645,7 +645,44 @@ impl Simulation {
         overlay_registry: Option<&crate::rules::overlay_types::OverlayTypeRegistry>,
         frame_effects: FrameEffects<'_>,
     ) -> bool {
+        // An explicit replacement order detaches only its admitted actor.
+        // Plan execution temporarily owns its routes outside this aggregate,
+        // so its own missions do not cancel the path being advanced.
+        if let Some(id) = crate::sim::planning::command_actor(cmd)
+            && self.entity_owned_by_id(command_owner, id)
+            && self.order_actor_admits(id)
+        {
+            self.waypoint_plans.detach(id);
+        }
         match cmd {
+            Command::PlanConnect { orders } => self.connect_waypoints(
+                command_owner,
+                orders,
+                rules,
+                overlay_registry,
+                frame_effects,
+            ),
+            Command::PlanCommit => {
+                if let Some(owner) = self.interner.get(command_owner) {
+                    self.waypoint_plans.commit(owner);
+                    self.tick_waypoint_plans(rules, overlay_registry, frame_effects);
+                    true
+                } else {
+                    false
+                }
+            }
+            Command::PlanDelete { path_id, node } => self.delete_waypoint(
+                command_owner,
+                *path_id,
+                *node,
+                rules,
+                overlay_registry,
+                frame_effects,
+            ),
+            Command::PlanLoop { path_id, node } => self
+                .interner
+                .get(command_owner)
+                .is_some_and(|owner| self.waypoint_plans.loop_path(owner, *path_id, *node)),
             Command::Select { entity_ids, .. } => self.apply_selection_snapshot(entity_ids, rules),
             Command::Move {
                 entity_id,

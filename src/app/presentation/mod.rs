@@ -23,6 +23,7 @@ pub(crate) mod state;
 pub(crate) mod super_timers;
 pub(crate) mod target_lines;
 pub(crate) mod ui_overlays;
+pub(crate) mod waypoint_paths;
 
 pub(crate) mod lighting;
 

@@ -46,8 +46,8 @@ use crate::sim::intern::InternedId;
 ///   therefore sends no mission; on a cell it returns the plain Move action, an
 ///   ordinary immediate move. Represented Walk Infantry and Drive Unit Cell
 ///   producers resolve and encode that Move through the shared owner. Other
-///   receiver and object contexts retain VERA's queue adapter. Retail Planning
-///   Mode has its own event opcodes and remains unimplemented.
+///   receiver and object contexts retain VERA's queue adapter. Held-Z planning
+///   captures resolved orders separately in the simulation's waypoint paths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum OrderModifier {
     /// No modifier held — the object/cell context action stands.
@@ -641,6 +641,9 @@ fn finish_order(
     queued: Vec<CommandEnvelope>,
     speaker_id: Option<u64>,
 ) -> bool {
+    if state.match_state.input.planning.active() {
+        return crate::app::input::planning::capture_orders(state, queued);
+    }
     let mut queued = if let Some(sim) = state
         .match_state
         .sim_runtime
@@ -879,6 +882,9 @@ pub(crate) fn try_queue_context_order_at_screen_point(
 ) -> bool {
     if state.match_state.sim_runtime.is_none() {
         return false;
+    }
+    if crate::app::input::planning::click_node(state, screen_x, screen_y) {
+        return true;
     }
     let (world_x, world_y) =
         crate::app::match_runtime::sim_tick::screen_point_to_world(state, screen_x, screen_y);

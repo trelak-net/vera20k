@@ -27,27 +27,27 @@ pub(crate) mod ai_base_site;
 pub mod anim_class;
 #[cfg(test)]
 pub(crate) mod arena_fixture;
-pub(crate) mod build_site;
-pub(crate) mod building_art;
-pub(crate) mod building_entry;
-pub(crate) mod building_construction;
 pub(crate) mod base_plan;
 pub(crate) mod base_plan_generation;
 pub mod bomb;
+pub(crate) mod build_site;
+pub(crate) mod building_art;
+pub(crate) mod building_construction;
+pub(crate) mod building_entry;
 pub mod capture_manager;
 pub mod cloak_disguise;
 pub mod command;
 pub mod components;
-#[cfg(test)]
-pub(crate) mod health_ratio_fixture;
+pub(crate) mod conversion_health;
 pub mod crates; // scenario-start crate placement (Post_Map_Init step 3)
 pub mod credit_income; // oil-derrick ProduceCash + Floating Disc money drain (object-loop money)
-pub(crate) mod conversion_health;
 pub(crate) mod crew_survival; // building SpawnSurvivors and vehicle crew escape
 pub mod economy; // per-house wallet/storage/statistics value-type (production+economy substrate)
 pub mod entity_store;
 pub(crate) mod estimated_health;
 pub mod game_entity;
+#[cfg(test)]
+pub(crate) mod health_ratio_fixture;
 pub(crate) mod house_threat;
 pub mod intern;
 pub(crate) mod kamikaze; // missiles out of their launcher's control (0x00ABC5F8)
@@ -55,6 +55,7 @@ pub(crate) mod lifecycle_request;
 pub(crate) mod light_sources;
 pub mod multiplayer_checksum;
 pub(crate) mod native_identity;
+pub mod planning;
 pub(crate) mod radiation_light;
 pub mod rng;
 pub(crate) mod scenario_bootstrap;

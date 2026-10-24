@@ -24,5 +24,6 @@ mod bridge_click_tests;
 
 pub(crate) mod sound;
 
-pub(crate) mod keyboard;
 pub(crate) mod campaign_input;
+pub(crate) mod keyboard;
+pub(crate) mod planning;

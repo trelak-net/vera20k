@@ -366,7 +366,9 @@ pub(crate) fn try_begin_minimap_drag(state: &mut AppState) -> bool {
     // gains selected-unit Move/AttackMove precedence.
     state.match_state.input.minimap_dragging = true;
     state.match_state.input.selection_state.cancel_drag();
-    update_camera_from_minimap_cursor(state);
+    if !crate::app::input::planning::radar_click(state) {
+        update_camera_from_minimap_cursor(state);
+    }
     true
 }
 

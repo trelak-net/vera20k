@@ -428,6 +428,7 @@ pub(crate) fn apply_map_load_result(state: &mut AppState, result: init::MapLoadR
     state.match_state.input.minimap_dragging = false;
     state.match_state.input.tactical_mouse.reset_for_new_view();
     state.match_state.input.keys_held.clear();
+    state.match_state.input.planning = Default::default();
     let (tactical_width, tactical_height) = crate::app::input::camera::tactical_viewport_size_px(
         state.render_width(),
         state.render_height(),
