@@ -400,6 +400,9 @@ pub struct ObjectType {
     /// to 0 for a train (0x4B34DE / 0x6A2B2D) and passes it as Find_Path's
     /// append flag (0x4B3EF2).
     pub is_train: bool,
+    /// UnitType+E1A, read at74771F..74773F. Enables the Unit death-crate
+    /// tail, subject to the map TruckCrate/TrainCrate and session Crates.
+    pub carries_crate: bool,
     /// Lepton distance from destination at which braking begins (SlowdownDistance=).
     /// Native default500 leptons.
     pub slowdown_distance: i32,
@@ -2241,6 +2244,8 @@ impl ObjectType {
             accelerates: section.read_bool("Accelerates", true),
             passive: category == ObjectCategory::Vehicle && section.read_bool("Passive", false),
             is_train: section.read_bool("IsTrain", false),
+            carries_crate: category == ObjectCategory::Vehicle
+                && section.read_bool("CarriesCrate", false),
             slowdown_distance: section.read_int("SlowdownDistance", 500),
             flight_level: section.read_int("FlightLevel", -1),
             is_dropship: section.read_bool("IsDropship", false),

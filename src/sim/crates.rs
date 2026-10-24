@@ -30,6 +30,9 @@ mod runtime;
 mod speed;
 mod state;
 
+#[cfg(test)]
+mod unit_death_tests;
+
 pub(crate) use pickup::pickup_crate;
 pub(crate) use runtime::tick_crate_regeneration;
 pub use state::{CrateAuthority, CrateSlot};
@@ -48,7 +51,8 @@ use crate::rules::ruleset::RuleSet;
 use crate::rules::terrain_rules::LandType;
 use crate::sim::cell_rect::cell_is_in_playfield_height_aware;
 use crate::sim::find_nearby_cell::{
-    NearbyAnchorGate, NearbyFootprint, NearbyQuery, PassabilityArgs, find_nearby_passable_cell,
+    NearbyAnchorGate, NearbyFootprint, NearbyQuery, NearbySearchOptions, PassabilityArgs,
+    find_nearby_passable_cell_with_options,
 };
 use crate::sim::occupancy::OBJECT_OCCUPATION_BIT;
 use crate::sim::world::Simulation;
@@ -412,6 +416,53 @@ pub(crate) fn place_crate(
         write_crate_mark_raw_data(sim, (snapped.0 as i16, snapped.1 as i16), powerup);
     }
     true
+}
+
+/// UnitClass::ReceiveDamage's crate tail (73838A..738457), after Mark(UP)
+/// and passenger/crew release, before Crash/UnInit. CarriesCrate applies to
+/// all vehicle types; IsTrain selects the map flag, not the type's name.
+/// The first Track search rejects overlays (arg8=1 at7383E7); Place_Crate
+/// then performs its ordinary surface search and creates a random pickup.
+/// Like the original, the match Crates option gates the final placer.
+pub(crate) fn drop_unit_crate(
+    sim: &mut Simulation,
+    rules: &RuleSet,
+    registry: &OverlayTypeRegistry,
+    dead_id: u64,
+) {
+    let Some(entity) = sim.substrate.entities.get(dead_id) else {
+        return;
+    };
+    let Some(object) = sim.object_type(entity.type_ref(), rules) else {
+        return;
+    };
+    if !object.carries_crate
+        || !(if object.is_train {
+            sim.session.train_crate
+        } else {
+            sim.session.truck_crate
+        })
+    {
+        return;
+    }
+    let origin = (i32::from(entity.position.rx), i32::from(entity.position.ry));
+    let Some(frame) = crate_random_frame(sim) else {
+        return;
+    };
+    let Some(cell) = snap_to_passable_with_options(
+        sim,
+        origin,
+        CrateSurface::Land,
+        frame.radius_cap,
+        NearbySearchOptions {
+            reject_any_overlay: true,
+        },
+    ) else {
+        return;
+    };
+    if sim.session.game_options.crates {
+        place_crate(sim, rules, registry, (cell.0 as i16, cell.1 as i16), None);
+    }
 }
 
 /// Active Map rectangle used by random placement ([`Simulation::map_rect`]);
@@ -1176,6 +1227,22 @@ fn snap_to_passable_with_radius(
     surface: CrateSurface,
     radius_cap: u16,
 ) -> Option<(u16, u16)> {
+    snap_to_passable_with_options(
+        sim,
+        drawn,
+        surface,
+        radius_cap,
+        NearbySearchOptions::default(),
+    )
+}
+
+fn snap_to_passable_with_options(
+    sim: &Simulation,
+    drawn: (i32, i32),
+    surface: CrateSurface,
+    radius_cap: u16,
+    options: NearbySearchOptions,
+) -> Option<(u16, u16)> {
     let query = NearbyQuery {
         native_cells: None,
         raw_occupation: None,
@@ -1211,7 +1278,7 @@ fn snap_to_passable_with_radius(
         zone_grid: sim.zone_grid.as_ref(),
         playfield_bounds: sim.playfield_bounds,
     };
-    find_nearby_passable_cell(drawn, &query, sim.session.binary_frame)
+    find_nearby_passable_cell_with_options(drawn, &query, options, sim.session.binary_frame)
 }
 
 #[cfg(test)]

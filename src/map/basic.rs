@@ -41,6 +41,10 @@ pub struct BasicSection {
     /// Native Scenario+34A4 (`0068A5E3..0068A61A`). Missing/invalid keys
     /// preserve the caller's prior value; a fresh scenario resets it to false.
     pub free_radar: Option<bool>,
+    /// Unit death drops: Scenario+34B1/34A5. Both reset false; the
+    /// original Basic reader preserves the prior value for missing keys.
+    pub truck_crate: Option<bool>,
+    pub train_crate: Option<bool>,
     /// Native Scenario+34B4 (`ScenarioClass::Read_INI_Basic
     /// 0x0068A271..0x0068A289`, `Set_Defaults` false at `0x00683899`): the
     /// AI triggers of `AIMD.INI` never qualify (`sim::ai_team_creation`).
@@ -138,6 +142,8 @@ pub fn parse_basic_section(ini: &IniFile) -> BasicSection {
             .then(|| section.read_int("NewINIFormat", 0)),
         tiberium_growth_enabled: section.read_bool_value("TiberiumGrowthEnabled"),
         free_radar: section.read_bool_value("FreeRadar"),
+        truck_crate: section.read_bool_value("TruckCrate"),
+        train_crate: section.read_bool_value("TrainCrate"),
         // ReadBool with the current Scenario+0x34B4 as default (`0x0068A284`).
         ignore_global_ai_triggers: section.read_bool_value("IgnoreGlobalAITriggers"),
     }

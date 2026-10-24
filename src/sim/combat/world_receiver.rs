@@ -1679,6 +1679,9 @@ fn finish_concrete_death(
             selected_by_player,
             frame_effects,
         );
+        if let Some(registry) = overlay_registry {
+            crate::sim::crates::drop_unit_crate(world, rules, registry, dead_id);
+        }
     }
 
     let inf_death = killing_warhead.as_ref().map_or(1, |(wh, _)| wh.inf_death);
