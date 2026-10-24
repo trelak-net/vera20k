@@ -952,7 +952,8 @@ use crate::sim::world::Simulation;
 // 334 -> 335: per-building Secret Lab fallback reward.
 // 335 -> 336: resolved trigger sounds, object ambient overrides and one-time superweapons.
 // 336 -> 337: Squid grapple phase, animation and roll.
-const SNAPSHOT_VERSION: u32 = 337;
+// 337 -> 338: Magnetron lift and drop relationships.
+const SNAPSHOT_VERSION: u32 = 338;
 
 const SNAPSHOT_PRODUCT_MAGIC: [u8; 8] = *b"VERA20K\0";
 const SNAPSHOT_ENVELOPE_VERSION: u32 = 1;
@@ -1946,6 +1947,16 @@ fn restore_object_references(
                 "parasite.grapple.anim",
                 "AnimObjects",
                 anim,
+            )?;
+        }
+        for target_id in entity.magnetron.references() {
+            require_resolved_reference(
+                entity_ids.contains(&target_id),
+                "EntityStore",
+                entity_id,
+                "magnetron",
+                "EntityStore",
+                target_id,
             )?;
         }
         for target_id in entity.tesla_charging.references() {
@@ -4126,7 +4137,7 @@ mod tests {
         // LoadObject registry, and neutral Tactical view/focus metadata.
         // 327 -> 328: each house's last lost building (+0x54E0).
         // 328 -> 329: persisted TruckCrate/TrainCrate map flags.
-        assert_eq!(super::SNAPSHOT_VERSION, 337);
+        assert_eq!(super::SNAPSHOT_VERSION, 338);
     }
 
     #[test]

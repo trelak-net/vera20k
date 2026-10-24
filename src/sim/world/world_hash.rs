@@ -1578,6 +1578,10 @@ impl Simulation {
             entity.foot_speed.crate_multiplier().hash(hasher);
             entity.foot_occupation_enabled.hash(hasher);
             entity.foot_locomotor_swap_active.hash(hasher);
+            if entity.magnetron != Default::default() {
+                0x710000u32.hash(hasher);
+                entity.magnetron.hash(hasher);
+            }
             // Techno+0x1F8 is up only between the Teleporter arm's can't-end
             // branch and the next Unit setter call; the tag keeps every
             // established stream unchanged while it is clear.

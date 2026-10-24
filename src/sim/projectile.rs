@@ -756,7 +756,7 @@ pub enum SpecialDetonationAction {
     Temporal,
     /// `IsLocomotor=` (`+0x15b`), test `0x004694cb` -> the Magnetron's lift,
     /// `TechnoClass::ImbueLocomotor @ 0x00710000` with the warhead's
-    /// `Locomotor=` CLSID. UNIMPLEMENTED.
+    /// `Locomotor=` CLSID, implemented by `sim::magnetron`.
     Locomotor,
     /// `Airstrike=` (`+0x16c`), test `0x00469705` ->
     /// `AirstrikeClass::SetTarget @ 0x0041d830`. UNIMPLEMENTED.

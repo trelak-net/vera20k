@@ -51,6 +51,7 @@ struct CruiseHost<'a> {
     touched_down: bool,
     impact: bool,
     crash_latched: bool,
+    magnetron_arrival: bool,
 }
 
 impl CruiseHost<'_> {
@@ -237,7 +238,9 @@ impl JumpjetFlightHost for CruiseHost<'_> {
     fn piggyback_active(&self) -> bool {
         self.owner().foot_locomotor_swap_active
     }
-    fn piggyback_arrival(&mut self) {}
+    fn piggyback_arrival(&mut self) {
+        self.magnetron_arrival = true;
+    }
     fn simple_deployer(&self) -> bool {
         self.object_type()
             .is_some_and(|object| object.is_simple_deployer)
@@ -457,6 +460,10 @@ impl JumpjetFlightHost for CruiseHost<'_> {
         let deploy_to_land = self.owner_kind() == FlightOwnerKind::Unit && self.type_flag_6ad();
         let owner = self.sim.substrate.entities.get_mut(id).unwrap();
         owner.crashing = false;
+        if owner.foot_locomotor_swap_active {
+            owner.magnetron.dropped = false;
+            owner.magnetron.end_requested = true;
+        }
         if deploy_to_land {
             owner.set_landing_for_deploy(false);
         }
@@ -470,6 +477,21 @@ impl JumpjetFlightHost for CruiseHost<'_> {
         })
     }
     fn crash_relocate(&mut self, coord: [i32; 3]) {
+        if self.owner().foot_locomotor_swap_active {
+            let xy = [coord[0], coord[1]];
+            let deck = self
+                .floor_height(xy)
+                .wrapping_add(crate::util::lepton::BRIDGE_DECK_HEIGHT_LEPTONS);
+            let crossed =
+                self.cell_high_bridge(xy) && self.location()[2] >= deck && coord[2] < deck;
+            self.sim
+                .substrate
+                .entities
+                .get_mut(self.stable_id)
+                .unwrap()
+                .magnetron
+                .bridge_impact = crossed;
+        }
         self.mark(false);
         self.set_location(coord);
         self.mark(true);
@@ -601,6 +623,7 @@ impl Simulation {
         self.apply_jumpjet_adapter_order(stable_id, rules);
         let frame = self.session.binary_frame;
         let trig = TrigTable::embedded();
+        let mut magnetron_arrival = false;
         let stats = self.with_jumpjet_process(stable_id, |runtime, sim| {
             let entry_state = runtime.phase();
             let mut host = CruiseHost {
@@ -614,8 +637,10 @@ impl Simulation {
                 touched_down: false,
                 impact: false,
                 crash_latched: false,
+                magnetron_arrival: false,
             };
             let state = jumpjet_flight::process(runtime, &mut host);
+            magnetron_arrival = host.magnetron_arrival;
             let ended_cruise =
                 entry_state == STATE_TRANSLATE && matches!(state, STATE_HOLD | STATE_DESCEND);
             let height = host.height_above_ground();
@@ -645,6 +670,15 @@ impl Simulation {
                 touched_down: host.touched_down,
             }
         })?;
+        if magnetron_arrival
+            && let Some(source) = self
+                .substrate
+                .entities
+                .get(stable_id)
+                .and_then(|e| e.magnetron.source)
+        {
+            self.magnetron_release(source, true, rules, registry, frame_effects);
+        }
         Some(stats)
     }
 

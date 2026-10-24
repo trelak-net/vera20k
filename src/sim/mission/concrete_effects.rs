@@ -323,6 +323,25 @@ impl ConcreteMissionEffects for RepresentedConcreteMissionEffects<'_> {
             entity.clear_live_path_head();
         }
         represented_assign_target_admitted(entity, requested, commits);
+        if sim
+            .substrate
+            .entities
+            .get(prepared.receiver)
+            .is_some_and(|entity| {
+                entity.magnetron.target.is_some_and(|target| {
+                    entity.attack_target.as_ref().map(|a| a.target)
+                        != Some(TargetKind::Entity(target))
+                })
+            })
+        {
+            sim.magnetron_release(
+                prepared.receiver,
+                false,
+                self.rules,
+                self.overlay_registry,
+                self.frame_effects,
+            );
+        }
         //51B2B1..51B33F: an Infiltrate= infantryman with no NavCom heads for
         // a building target it may enter (vt+0x480(target, 1)).
         if infantry

@@ -168,6 +168,8 @@ pub struct WarheadType {
     /// (ReadINI `0x0075D87C`), read by
     /// `TechnoClass::What_Weapon_Should_I_Use @ 0x006F352E`.
     pub is_locomotor: bool,
+    /// Warhead+15C, IsLocomotor detonation4696CE installs this CLSID.
+    pub locomotor: Option<crate::rules::locomotor_type::LocomotorKind>,
     /// Terror drone / attack dog / squid attach. `WarheadTypeClass+0x159`
     /// (ReadINI `0x0075D84E`, key string `0x0081717C`), tested by the
     /// detonation chain at `BulletClass::DetonateAtCoord @ 0x004693d3`.
@@ -385,6 +387,9 @@ impl WarheadType {
             wall_absolute_destroyer: section.read_bool("WallAbsoluteDestroyer", false),
             temporal: section.read_bool("Temporal", false),
             is_locomotor: section.read_bool("IsLocomotor", false),
+            locomotor: section
+                .read_name("Locomotor", 0x80)
+                .and_then(crate::rules::locomotor_type::kind_from_clsid),
             parasite: section.read_bool("Parasite", false),
             psychedelic: section.read_bool("Psychedelic", false),
             ivan_bomb: section.read_bool("IvanBomb", false),

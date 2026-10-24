@@ -289,6 +289,10 @@ impl Simulation {
         let Some(entity) = self.substrate.entities.get(id) else {
             return false;
         };
+        if entity.foot_locomotor_swap_active {
+            self.magnetron_impact(id, rules, overlay_registry, frame_effects);
+            return false;
+        }
         debug_assert_eq!(entity.category, EntityCategory::Unit);
         let (crashable, balloon_hover) = self
             .object_type(entity.type_ref(), rules)

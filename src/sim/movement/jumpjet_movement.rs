@@ -155,6 +155,16 @@ impl JumpjetRuntime {
         self.destination
     }
 
+    /// State5 survivor54CF9F starts the normal descent/touchdown continuation.
+    pub(crate) fn land_magnetron_drop(&mut self, coordinate: DriveCoord) {
+        self.phase = STATE_DESCEND;
+        self.destination = coordinate;
+        self.moving = false;
+        self.flight.target_height = 0;
+        self.flight.current_speed_bits = 0;
+        self.flight.target_speed_bits = 0;
+    }
+
     pub(crate) fn moving(&self) -> bool {
         self.moving
     }

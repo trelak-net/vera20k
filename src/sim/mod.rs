@@ -43,7 +43,6 @@ pub mod crates; // scenario-start crate placement (Post_Map_Init step 3)
 pub mod credit_income; // oil-derrick ProduceCash + Floating Disc money drain (object-loop money)
 pub(crate) mod crew_survival; // building SpawnSurvivors and vehicle crew escape
 pub(crate) mod distributed_fire;
-pub(crate) mod secret_labs;
 pub mod economy; // per-house wallet/storage/statistics value-type (production+economy substrate)
 pub mod entity_store;
 pub(crate) mod estimated_health;
@@ -64,6 +63,7 @@ pub(crate) mod scenario_bootstrap;
 pub(crate) mod scenario_post_map;
 pub mod scenario_session; // app->sim launch descriptor (per-match seed pipeline)
 pub(crate) mod score;
+pub(crate) mod secret_labs;
 pub mod sensor_lifecycle;
 pub mod spy_infiltration; // BuildingClass::Infiltrate (a spy's effects on the building it enters)
 pub(crate) mod stage;
@@ -148,6 +148,7 @@ mod spawn_manager_tests;
 pub mod transport_unload;
 
 // --- Economy, map resources ---
+pub(crate) mod magnetron;
 pub mod ore_growth;
 pub(crate) mod ore_twinkle;
 pub mod radar;

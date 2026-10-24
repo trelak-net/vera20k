@@ -634,11 +634,13 @@ pub struct GameEntity {
     /// Foot+6B6 raw occupation enable; shared by Drive/Ship and world Mark.
     /// Foot ctor4D344A initializes1; Unit7353CE invokes that base ctor.
     pub(crate) foot_occupation_enabled: bool,
-    /// Foot+6AD, constructor4D3414=0. PerformDeploy710352 sets it after a
-    /// forced locomotor swap; that producer is still an unimplemented receiver.
+    /// Foot+6AD, constructor4D3414=0. ImbueLocomotor710352 sets it after
+    /// assigning the Magnetron victim its temporary locomotor and destination.
     /// This is independent from MCV Unit+68C and infantry deploy animation.
     #[serde(default)]
     pub(crate) foot_locomotor_swap_active: bool,
+    #[serde(default)]
+    pub(crate) magnetron: crate::sim::magnetron::MagnetronState,
     /// Techno+0x1F8, constructor zero (`0x006F2CE1`). The Unit setter's
     /// Teleporter arm raises it when a Drive cannot end yet (`0x007425C6`), so
     /// the next setter call runs for an unchanged NavCom (`0x00741A88`); every
@@ -1744,6 +1746,7 @@ impl GameEntity {
             flight_attitude: Default::default(),
             foot_occupation_enabled: true,
             foot_locomotor_swap_active: false,
+            magnetron: Default::default(),
             setter_force_reassign: false,
             chrono_warp_delay: 0,
             attack_target: None,

@@ -49,13 +49,23 @@ pub(crate) fn try_end_piggyback(entity: &mut GameEntity) -> bool {
 }
 
 /// The active locomotor's END gate for an entity-level caller. VERA installs
-/// two piggybacks, each over whatever is active: a Drive (the Unit setter's
+/// three piggybacks, each over whatever is active: a Drive (the Unit setter's
 /// Teleporter arm), behind the Drive's own gate, and the Chrono Warp's
 /// Teleport (`SuperClass::Launch @ 0x006CCB4A`), behind Teleport's
-/// ([`teleport_end_admitted`]). Each END restores the next object of the
+/// ([`teleport_end_admitted`]), and the Magnetron Jumpjet54DB00. Each END restores the next object of the
 /// chain.
 pub(crate) fn piggyback_end_admitted(entity: &GameEntity) -> bool {
-    drive_end_admitted(entity) || teleport_end_admitted(entity)
+    drive_end_admitted(entity) || teleport_end_admitted(entity) || jumpjet_end_admitted(entity)
+}
+
+/// Jumpjet54DB00: IsMoving false, a stash, and !Foot6AD || Foot6AE.
+/// The class+91 refusal byte remains its constructor zero (no live writer).
+fn jumpjet_end_admitted(entity: &GameEntity) -> bool {
+    entity
+        .locomotor
+        .as_ref()
+        .is_some_and(|l| l.piggyback.is_some() && l.jumpjet_runtime().is_some_and(|r| !r.moving()))
+        && (!entity.foot_locomotor_swap_active || entity.magnetron.end_requested)
 }
 
 /// `TeleportLocomotionClass::Is_Ok_To_End @ 0x00719F30`: not moving (its
@@ -99,11 +109,16 @@ pub(crate) fn end_admitted_piggyback(entity: &mut GameEntity) -> bool {
     let Some(locomotor) = entity.locomotor.as_mut() else {
         return false;
     };
+    let was_jumpjet = locomotor.active_kind() == LocomotorKind::Jumpjet;
     let restored = locomotor.end_piggyback();
     if restored {
         // END transfers the controller without moving Object+9C. Restored
         // altitude is controller state, not an addition to this exact XYZ.
         entity.position.exact_z_leptons = Some(physical.z);
+        if was_jumpjet {
+            entity.foot_locomotor_swap_active = false;
+            entity.magnetron = Default::default();
+        }
     }
     restored
 }

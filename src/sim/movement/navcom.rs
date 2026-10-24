@@ -495,8 +495,8 @@ fn ship_stop_moving(entity: &mut GameEntity) {
 impl crate::sim::world::Simulation {
     /// Foot4D94B0 clears NavComAux before its three nonnull admission gates.
     /// Class preprocessing precedes this call; publication, locomotor dispatch
-    /// and accepted timers follow it. Linked-lift and retained-particle cleanup
-    /// still require their missing native owners and are not implied here.
+    /// and accepted timers follow it. Retained-particle cleanup remains
+    /// separate from the linked-lift cleanup in the null setter.
     pub(crate) fn begin_foot_destination(&mut self, id: u64, nonnull: bool) -> bool {
         let Some(entity) = self.substrate.entities.get(id) else {
             return false;
@@ -518,8 +518,8 @@ impl crate::sim::world::Simulation {
     /// class setter's null arm ends: Unit's at `0x0074314F`, Infantry's at
     /// `0x0051B1D2` and Aircraft's at once (`0x0041AA8B` -> `0x0041ADAC`).
     /// - NavComAux (`0x004D94C7`) and NavCom (`0x004D9510`) clear.
-    /// - The linked-lift release (`0x004D9518..0x004D953F`) needs Foot+0x6AD,
-    ///   the Magnetron latch, which VERA never raises.
+    /// - A lifted Foot releases its Magnetron link before stopping
+    ///   (`0x004D9518..0x004D953F`). Release clears the reciprocal link first.
     /// - An Aircraft (What_Am_I 2) whose current (`+0xAC`) or queued
     ///   (`+0xB4`) mission is Attack and which holds a TarCom (`+0x2B4`) skips
     ///   the locomotor Stop (`0x004D9672..0x004D969C`): its Fly flies on.
@@ -542,6 +542,16 @@ impl crate::sim::world::Simulation {
             return;
         };
         publish_null_nav_com(entity);
+        let lift_source = entity
+            .foot_locomotor_swap_active
+            .then_some(entity.magnetron.source)
+            .flatten();
+        if let Some(source) = lift_source {
+            self.magnetron_release(source, true, rules, registry, frame_effects);
+        }
+        let Some(entity) = self.substrate.entities.get(id) else {
+            return;
+        };
         let attack = MissionId::from_known(MissionType::Attack);
         let attacking_aircraft = entity.category == crate::map::entities::EntityCategory::Aircraft
             && (entity.mission.current() == attack || entity.mission.queued() == attack)

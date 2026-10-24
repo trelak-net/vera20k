@@ -1,0 +1,1380 @@
+{
+  "end": [
+    {
+      "moving": false,
+      "stash": false,
+      "swapped": false,
+      "end": false,
+      "admitted": false
+    },
+    {
+      "moving": false,
+      "stash": false,
+      "swapped": false,
+      "end": true,
+      "admitted": false
+    },
+    {
+      "moving": false,
+      "stash": false,
+      "swapped": true,
+      "end": false,
+      "admitted": false
+    },
+    {
+      "moving": false,
+      "stash": false,
+      "swapped": true,
+      "end": true,
+      "admitted": false
+    },
+    {
+      "moving": false,
+      "stash": true,
+      "swapped": false,
+      "end": false,
+      "admitted": true
+    },
+    {
+      "moving": false,
+      "stash": true,
+      "swapped": false,
+      "end": true,
+      "admitted": true
+    },
+    {
+      "moving": false,
+      "stash": true,
+      "swapped": true,
+      "end": false,
+      "admitted": false
+    },
+    {
+      "moving": false,
+      "stash": true,
+      "swapped": true,
+      "end": true,
+      "admitted": true
+    },
+    {
+      "moving": true,
+      "stash": false,
+      "swapped": false,
+      "end": false,
+      "admitted": false
+    },
+    {
+      "moving": true,
+      "stash": false,
+      "swapped": false,
+      "end": true,
+      "admitted": false
+    },
+    {
+      "moving": true,
+      "stash": false,
+      "swapped": true,
+      "end": false,
+      "admitted": false
+    },
+    {
+      "moving": true,
+      "stash": false,
+      "swapped": true,
+      "end": true,
+      "admitted": false
+    },
+    {
+      "moving": true,
+      "stash": true,
+      "swapped": false,
+      "end": false,
+      "admitted": false
+    },
+    {
+      "moving": true,
+      "stash": true,
+      "swapped": false,
+      "end": true,
+      "admitted": false
+    },
+    {
+      "moving": true,
+      "stash": true,
+      "swapped": true,
+      "end": false,
+      "admitted": false
+    },
+    {
+      "moving": true,
+      "stash": true,
+      "swapped": true,
+      "end": true,
+      "admitted": false
+    }
+  ],
+  "native_sha256": "3e81a61775d2745d1dabe397325ef663cd994ffc194da4e998e3bf5d2d308600",
+  "admission": [
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "lift"
+      ]
+    },
+    {
+      "input": {
+        "source": false,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": false,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": false,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": false,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": true,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": true,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release",
+        "lift"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": false,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": true,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": true,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": true,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": true,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": false,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": false,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": true,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": true,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 2,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "lift"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 2,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release",
+        "lift"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 6,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 6,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 15,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 15,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 0,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 0,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 1,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 1,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 3,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 3,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 4,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 4,
+        "protected": false,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": true,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": true,
+        "factory": false,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": true,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": true,
+        "damage": 5000,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": -1,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": -1,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 0,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 0,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 1,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 1,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 2,
+        "weight": 2.0
+      },
+      "events": []
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 2,
+        "weight": 2.0
+      },
+      "events": [
+        "release"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": false,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 3,
+        "weight": 2.0
+      },
+      "events": [
+        "lift"
+      ]
+    },
+    {
+      "input": {
+        "source": true,
+        "target": true,
+        "same": false,
+        "previous": true,
+        "source_held": false,
+        "source_swapped": false,
+        "foot": true,
+        "swapped": false,
+        "kind": 1,
+        "layer": 2,
+        "protected": false,
+        "factory": false,
+        "damage": 3,
+        "weight": 2.0
+      },
+      "events": [
+        "release",
+        "lift"
+      ]
+    }
+  ],
+  "release": [
+    {
+      "height": -1,
+      "clear": false,
+      "events": [
+        "null_destination",
+        "null_destination"
+      ],
+      "target": 0,
+      "source": 0,
+      "flags": [
+        0,
+        0,
+        0
+      ],
+      "end": true,
+      "credit": [
+        false,
+        0
+      ]
+    },
+    {
+      "height": -1,
+      "clear": true,
+      "events": [
+        "null_destination",
+        "null_destination",
+        "clear_target"
+      ],
+      "target": 0,
+      "source": 0,
+      "flags": [
+        0,
+        0,
+        0
+      ],
+      "end": true,
+      "credit": [
+        false,
+        0
+      ]
+    },
+    {
+      "height": 0,
+      "clear": false,
+      "events": [
+        "null_destination",
+        "null_destination"
+      ],
+      "target": 0,
+      "source": 0,
+      "flags": [
+        0,
+        0,
+        0
+      ],
+      "end": true,
+      "credit": [
+        false,
+        0
+      ]
+    },
+    {
+      "height": 0,
+      "clear": true,
+      "events": [
+        "null_destination",
+        "null_destination",
+        "clear_target"
+      ],
+      "target": 0,
+      "source": 0,
+      "flags": [
+        0,
+        0,
+        0
+      ],
+      "end": true,
+      "credit": [
+        false,
+        0
+      ]
+    },
+    {
+      "height": 1,
+      "clear": false,
+      "events": [
+        "stun",
+        "null_destination"
+      ],
+      "target": 0,
+      "source": 0,
+      "flags": [
+        1,
+        0,
+        1
+      ],
+      "end": false,
+      "credit": [
+        true,
+        123
+      ]
+    },
+    {
+      "height": 1,
+      "clear": true,
+      "events": [
+        "stun",
+        "null_destination",
+        "clear_target"
+      ],
+      "target": 0,
+      "source": 0,
+      "flags": [
+        1,
+        0,
+        1
+      ],
+      "end": false,
+      "credit": [
+        true,
+        123
+      ]
+    },
+    {
+      "height": 104,
+      "clear": false,
+      "events": [
+        "stun",
+        "null_destination"
+      ],
+      "target": 0,
+      "source": 0,
+      "flags": [
+        1,
+        0,
+        1
+      ],
+      "end": false,
+      "credit": [
+        true,
+        123
+      ]
+    },
+    {
+      "height": 104,
+      "clear": true,
+      "events": [
+        "stun",
+        "null_destination",
+        "clear_target"
+      ],
+      "target": 0,
+      "source": 0,
+      "flags": [
+        1,
+        0,
+        1
+      ],
+      "end": false,
+      "credit": [
+        true,
+        123
+      ]
+    },
+    {
+      "height": 500,
+      "clear": false,
+      "events": [
+        "stun",
+        "null_destination"
+      ],
+      "target": 0,
+      "source": 0,
+      "flags": [
+        1,
+        0,
+        1
+      ],
+      "end": false,
+      "credit": [
+        true,
+        123
+      ]
+    },
+    {
+      "height": 500,
+      "clear": true,
+      "events": [
+        "stun",
+        "null_destination",
+        "clear_target"
+      ],
+      "target": 0,
+      "source": 0,
+      "flags": [
+        1,
+        0,
+        1
+      ],
+      "end": false,
+      "credit": [
+        true,
+        123
+      ]
+    }
+  ],
+  "fall": [
+    {
+      "z": -1,
+      "speed": 1.0,
+      "new_z": -2,
+      "next_crash": 1073741824
+    },
+    {
+      "z": -1,
+      "speed": 2.5,
+      "new_z": -3,
+      "next_crash": 1080033280
+    },
+    {
+      "z": -1,
+      "speed": 15.0,
+      "new_z": -16,
+      "next_crash": 1098907648
+    },
+    {
+      "z": -1,
+      "speed": 25.0,
+      "new_z": -26,
+      "next_crash": 1104150528
+    },
+    {
+      "z": -1,
+      "speed": 40.0,
+      "new_z": -41,
+      "next_crash": 1109655552
+    },
+    {
+      "z": 0,
+      "speed": 1.0,
+      "new_z": -1,
+      "next_crash": 1073741824
+    },
+    {
+      "z": 0,
+      "speed": 2.5,
+      "new_z": -2,
+      "next_crash": 1080033280
+    },
+    {
+      "z": 0,
+      "speed": 15.0,
+      "new_z": -15,
+      "next_crash": 1098907648
+    },
+    {
+      "z": 0,
+      "speed": 25.0,
+      "new_z": -25,
+      "next_crash": 1104150528
+    },
+    {
+      "z": 0,
+      "speed": 40.0,
+      "new_z": -40,
+      "next_crash": 1109655552
+    },
+    {
+      "z": 104,
+      "speed": 1.0,
+      "new_z": 103,
+      "next_crash": 1073741824
+    },
+    {
+      "z": 104,
+      "speed": 2.5,
+      "new_z": 101,
+      "next_crash": 1080033280
+    },
+    {
+      "z": 104,
+      "speed": 15.0,
+      "new_z": 89,
+      "next_crash": 1098907648
+    },
+    {
+      "z": 104,
+      "speed": 25.0,
+      "new_z": 79,
+      "next_crash": 1104150528
+    },
+    {
+      "z": 104,
+      "speed": 40.0,
+      "new_z": 64,
+      "next_crash": 1109655552
+    },
+    {
+      "z": 500,
+      "speed": 1.0,
+      "new_z": 499,
+      "next_crash": 1073741824
+    },
+    {
+      "z": 500,
+      "speed": 2.5,
+      "new_z": 497,
+      "next_crash": 1080033280
+    },
+    {
+      "z": 500,
+      "speed": 15.0,
+      "new_z": 485,
+      "next_crash": 1098907648
+    },
+    {
+      "z": 500,
+      "speed": 25.0,
+      "new_z": 475,
+      "next_crash": 1104150528
+    },
+    {
+      "z": 500,
+      "speed": 40.0,
+      "new_z": 460,
+      "next_crash": 1109655552
+    },
+    {
+      "z": 999,
+      "speed": 1.0,
+      "new_z": 998,
+      "next_crash": 1073741824
+    },
+    {
+      "z": 999,
+      "speed": 2.5,
+      "new_z": 996,
+      "next_crash": 1080033280
+    },
+    {
+      "z": 999,
+      "speed": 15.0,
+      "new_z": 984,
+      "next_crash": 1098907648
+    },
+    {
+      "z": 999,
+      "speed": 25.0,
+      "new_z": 974,
+      "next_crash": 1104150528
+    },
+    {
+      "z": 999,
+      "speed": 40.0,
+      "new_z": 959,
+      "next_crash": 1109655552
+    }
+  ]
+}

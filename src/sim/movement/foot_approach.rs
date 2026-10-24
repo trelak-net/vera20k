@@ -392,6 +392,9 @@ impl Simulation {
         let Some(target) = actor.attack_target.as_ref().map(|a| a.target) else {
             return Ok(None);
         };
+        if matches!(target, TargetKind::Entity(target) if actor.magnetron.target == Some(target)) {
+            return Ok(None);
+        }
         if actor
             .navigation
             .nav_com

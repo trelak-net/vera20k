@@ -1877,8 +1877,7 @@ enum SpecialArmTarget {
 /// at `0x00469A3F`. So the caller runs neither, and runs the shared tail below
 /// `LAB_00469AA4` after this returns. `owner` is the bullet's `+0xB0`.
 ///
-/// RESIDUAL: IsLocomotor (`0x004694CB`),
-/// Airstrike (`0x00469705`) and DirectRocker (`0x0046978E`) bodies are not
+/// RESIDUAL: Airstrike (`0x00469705`) and DirectRocker (`0x0046978E`) bodies are not
 /// ported; those arms claim the impact and do nothing else (see
 /// `SpecialDetonationAction`).
 fn run_special_detonation_arm(
@@ -1953,9 +1952,15 @@ fn run_special_detonation_arm(
             }
         }
         SpecialDetonationAction::ElectricAssault => world.tesla_charge_detonation(owner, object),
-        SpecialDetonationAction::Locomotor
-        | SpecialDetonationAction::Airstrike
-        | SpecialDetonationAction::DirectRocker => {
+        SpecialDetonationAction::Locomotor => world.magnetron_detonation(
+            owner,
+            object,
+            detonation.payload,
+            rules,
+            overlay_registry,
+            effects,
+        ),
+        SpecialDetonationAction::Airstrike | SpecialDetonationAction::DirectRocker => {
             log::debug!(
                 "special detonation {action:?} from {owner} claimed with its body unported; \
                  shrapnel and area damage suppressed, the shared tail still runs"

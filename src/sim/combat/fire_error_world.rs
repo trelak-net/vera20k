@@ -203,6 +203,8 @@ impl<'a> FireSubject<'a> {
             .slot(0)
             .and_then(|id| self.world.substrate.entities.get(id));
         let firer_facts = FirerFacts {
+            locomotor_target: link(firer.magnetron.target),
+            magnetron_lifted: firer.foot_locomotor_swap_active,
             enslaved: firer.slave.owner().is_some(),
             warped_out: firer.is_warped_out(),
             warping_in: firer.is_warping_in(),

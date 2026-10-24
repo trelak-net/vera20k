@@ -343,6 +343,7 @@ impl Simulation {
             }
             return Ok(process);
         }
+        let magnetron_drop = entity.foot_locomotor_swap_active;
         // The impact UnInits the object; `FootClass::AI` returns on the
         // cleared Object+90 (`0x004DA87E`) and the class AI after it
         // (`AircraftClass::AI 0x00414DAA`).
@@ -357,7 +358,12 @@ impl Simulation {
             }
             None => self.uninit(stable_id),
         }
-        process.ended = true;
+        process.ended = !magnetron_drop
+            || self
+                .substrate
+                .entities
+                .get(stable_id)
+                .is_none_or(|e| !e.is_object_alive());
         Ok(process)
     }
 

@@ -3206,8 +3206,8 @@ impl Simulation {
     /// 0 re-enters Stop_Driver once more when it accepts. Native execution:
     /// `tools/spatial_oracle/jumpjet_infantry_crash`.
     ///
-    /// Foot+6AD (Magnetron-held) would skip the spawn calls and Detach_All;
-    /// VERA never sets it (the IsLocomotor arm is unported). On this path the
+    /// Foot+6AD (Magnetron-held) skips the spawn calls and Detach_All.
+    /// On the ordinary death path the
     /// spawn calls repeat the Destroy's owner arm and find nothing left to
     /// kill. Detach_All(1) repeats the broadcast the killing hit's Destroy
     /// already made (on a re-entered death arm, `0x0070202E..0x00702035`, that
@@ -3221,6 +3221,13 @@ impl Simulation {
     /// Native execution of an Aircraft's: `tools/spatial_oracle/fly_stop`'s
     /// Stun rows, replayed by `fly_process_tests::fly_death_stun_matches_native_rows`.
     pub(crate) fn techno_death_stun(&mut self, stable_id: u64, context: UninitContext<'_>) {
+        self.magnetron_release(
+            stable_id,
+            false,
+            context.rules(),
+            context.registry(),
+            context.effects(),
+        );
         let Some(entity) = self.substrate.entities.get(stable_id) else {
             return;
         };
@@ -3283,6 +3290,17 @@ impl Simulation {
             return;
         }
         crate::sim::radio::broadcast_break(self, stable_id, None, context.effects());
+        if self
+            .substrate
+            .entities
+            .get(stable_id)
+            .is_some_and(|entity| entity.foot_locomotor_swap_active)
+        {
+            if let Some(entity) = self.substrate.entities.get_mut(stable_id) {
+                entity.selected = false;
+            }
+            return;
+        }
         crate::sim::spawn_manager::kill_all_spawns_with_context(self, stable_id, context);
         crate::sim::spawn_manager::clear_all_spawn_targets(
             self,
@@ -3457,6 +3475,7 @@ impl Simulation {
             || listener.spawn_manager.is_some()
             || listener.capture_manager.is_some()
             || listener.temporal.has_link()
+            || listener.magnetron.references().any(|id| id == expired_id)
             || listener.tesla_charging.names(expired_id)
             || listener.distributed_fire.names(expired_id)
             || listener.parasite_eating_me.is_some()
@@ -4350,6 +4369,13 @@ impl Simulation {
                 // Building44EA77 removes a charger for either expiry control;
                 // the overpower latch changes at the next Building AI update.
                 self.tesla_pointer_expired(listener_id, expired_id);
+                self.magnetron_pointer_expired(
+                    listener_id,
+                    expired_id,
+                    context.rules(),
+                    context.registry(),
+                    context.effects(),
+                );
                 #[cfg(test)]
                 if let Some(before) = passed_over {
                     assert_eq!(

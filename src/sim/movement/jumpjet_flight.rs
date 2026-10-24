@@ -779,7 +779,27 @@ pub(crate) fn process(runtime: &mut JumpjetRuntime, host: &mut impl JumpjetFligh
     if !host.is_object_alive() {
         return runtime.phase;
     }
-    runtime.phase = crash_latch(state, &mut runtime.flight, host);
+    //54AFE0: a held vehicle first translates to the centre of its own cell.
+    let [x, y, _] = host.location();
+    let cell = host.cell_of([x, y]);
+    let center = [i32::from(cell.0) * 256 + 128, i32::from(cell.1) * 256 + 128];
+    let center_before_drop = host.crashing()
+        && host.piggyback_active()
+        && !matches!(state, STATE_CRASH | STATE_CRASHED)
+        && host.height_above_ground() > 0
+        && [x, y] != center;
+    if center_before_drop {
+        runtime.destination = crate::sim::components::DriveCoord {
+            x: center[0],
+            y: center[1],
+            z: host.floor_height(center),
+        };
+    }
+    runtime.phase = if center_before_drop {
+        state
+    } else {
+        crash_latch(state, &mut runtime.flight, host)
+    };
     runtime.phase = match runtime.phase {
         STATE_GROUND => state0_ground(runtime.moving, &params, &mut runtime.flight, host),
         STATE_ASCEND => state1_ascend(runtime, host),
@@ -792,7 +812,16 @@ pub(crate) fn process(runtime: &mut JumpjetRuntime, host: &mut impl JumpjetFligh
         ),
         STATE_TRANSLATE => state3_translate(runtime, host),
         STATE_DESCEND => state4_descend(runtime, host),
-        STATE_CRASH => state5_crash(&params, &mut runtime.flight, host),
+        STATE_CRASH => {
+            let held = host.piggyback_active();
+            let next = state5_crash(&params, &mut runtime.flight, host);
+            if held {
+                //54CAEC: FADD float7E2AC8 (1.0), FSTP float at+28.
+                runtime.params.crash_bits =
+                    crate::sim::magnetron::falling_step(0, params.crash_bits).1;
+            }
+            next
+        }
         other => other,
     };
     runtime.phase
@@ -805,10 +834,8 @@ pub(crate) fn process(runtime: &mut JumpjetRuntime, host: &mut impl JumpjetFligh
 /// An Infantry owner's latch plays AirDeathStart (vtable `+0x558`,
 /// `0x0054B02C`; [`JumpjetFlightHost::crash_latched`]).
 ///
-/// Not ported: a Magnetron-held owner (`+0x6AD`) first has its destination
-/// moved to its cell's centre and latches only once it stands there
-/// (`0x0054AFE0..0x0054B004`). VERA never raises `+0x6AD` (the
-/// `IsLocomotor=` warhead is unported).
+/// A Magnetron-held owner first centres itself (Process above) before this
+/// latch, matching54AFE0..54B004.
 fn crash_latch(state: i32, flight: &mut JumpjetFlight, host: &mut impl JumpjetFlightHost) -> i32 {
     if !host.crashing()
         || matches!(state, STATE_CRASH | STATE_CRASHED)
@@ -1135,10 +1162,8 @@ pub(crate) fn state4_descend(
 /// speed (`0x0054D07D`) and hands the owner its notice
 /// ([`JumpjetFlightHost::crash_impact`]), leaving State 6.
 ///
-/// Not ported: the Magnetron arms. An owner held by one (`+0x6AD`) instead
-/// stops dead and falls ever faster (`0x0054CAD2..0x0054CAFC`), and one being
-/// dropped by it (`+0x427`) lands on and crushes what is below
-/// (`0x0054CC47..0x0054D012`); VERA raises neither byte.
+/// Held owners stop and accelerate without spinning54CAD2..54CAFC; the
+/// world impact owner handles their collision and State4 landing continuation.
 pub(crate) fn state5_crash(
     params: &JumpjetFlightParams,
     flight: &mut JumpjetFlight,
@@ -1146,10 +1171,18 @@ pub(crate) fn state5_crash(
 ) -> i32 {
     let frame = host.binary_frame();
     let [x, y, old_z] = host.location();
-    let new_z =
-        X87Chop53::ftol_i32_low_masked(X87Chop53::sub(int(old_z), single(params.crash_bits)));
-    let spin = flight.facing.current(frame).wrapping_add(CRASH_SPIN);
-    flight.facing.set(spin, frame);
+    let new_z = if host.piggyback_active() {
+        crate::sim::magnetron::falling_step(old_z, params.crash_bits).0
+    } else {
+        X87Chop53::ftol_i32_low_masked(X87Chop53::sub(int(old_z), single(params.crash_bits)))
+    };
+    if host.piggyback_active() {
+        flight.current_speed_bits = 0;
+        flight.target_speed_bits = 0;
+    } else {
+        let spin = flight.facing.current(frame).wrapping_add(CRASH_SPIN);
+        flight.facing.set(spin, frame);
+    }
 
     // `CMP EBP,ESI` / `CMP EAX,ESI`, both signed: from on or above the deck to
     // below it.
