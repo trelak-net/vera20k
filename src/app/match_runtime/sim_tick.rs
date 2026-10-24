@@ -833,7 +833,7 @@ fn advance_one_simulation_frame(
     if let Some(rt) = state.match_state.sim_runtime.as_ref() {
         // F10: the segment opens lazily on the first frame of a timeline and
         // lives on the app-owned diagnostics owner, never on the simulation.
-        if state.match_state.match_diagnostics.replay_log.is_none() {
+        if state.diag.record_replays && state.match_state.match_diagnostics.replay_log.is_none() {
             let sim = &rt.simulation;
             state.match_state.match_diagnostics.replay_log = Some(ReplayLog::new(ReplayHeader {
                 pixel_conversion_bounds: sim.session.pixel_conversion_bounds,
@@ -848,6 +848,9 @@ fn advance_one_simulation_frame(
         }
     }
 
+    let require_state_hash = state.diag.record_replays
+        || state.diag.parity_digest_sink.is_some()
+        || state.match_state.match_diagnostics.replay_log.is_some();
     for _ in 0..1 {
         let unit_voice_owners = state
             .audio
@@ -918,7 +921,7 @@ fn advance_one_simulation_frame(
                     &due_commands,
                     SIM_TICK_MS,
                     tick_lane,
-                    FrameEffects::for_sound(&boundary),
+                    FrameEffects::for_sound(&boundary).with_state_hash(require_state_hash),
                 )
                 .expect("simulation frame failed; prior world mutations remain")
             };
@@ -1054,7 +1057,7 @@ fn advance_one_simulation_frame(
             if should_record_replay_tick(&tick_result, &admitted_commands)
                 && let Some(log) = &mut state.match_state.match_diagnostics.replay_log
             {
-                log.record_tick(tick_result.tick, admitted_commands, tick_result.state_hash);
+                log.record_tick(tick_result.tick, admitted_commands, tick_result.state_hash.expect("replay recording requests a state hash"));
             }
         }
         if frame_committed {
@@ -1963,7 +1966,7 @@ mod modal_pump_tests {
             tick: 10,
             frame_committed: false,
             executed_commands: 0,
-            state_hash: 123,
+            state_hash: Some(123),
             terminal_score_finalized: true,
             spawned_entities: false,
             destroyed_structure: false,

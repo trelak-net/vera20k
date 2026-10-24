@@ -790,7 +790,7 @@ impl ReplayRunner {
                 tick_ms,
                 crate::sim::world::TickLane::Ordinary,
              crate::sim::world::FrameEffects::default(),)?;
-            hashes.push(output.tick.state_hash);
+            hashes.push(output.tick.state_hash.expect("replay frames request hashing"));
         }
         Ok(hashes)
     }
@@ -890,7 +890,7 @@ impl ReplayRunner {
                 .into_tick();
             // Replay has no app layer to consume presentation-only trigger effects.
             let _ = sim.drain_trigger_effects();
-            hashes.push(result.state_hash);
+            hashes.push(result.state_hash.expect("replay frames request hashing"));
         }
         hashes
     }
@@ -1458,13 +1458,13 @@ mod tests {
             map_name: "speed.map".to_string(),
             rules_hash: 0,
         });
-        log.record_tick(tick.tick, vec![command], tick.state_hash);
+        log.record_tick(tick.tick, vec![command], tick.state_hash.unwrap());
         let json = serde_json::to_string(&log).expect("serialize GameSpeed replay");
         let decoded: ReplayLog = serde_json::from_str(&json).expect("decode GameSpeed replay");
 
         let (mut replayed, _) = make_sim();
         let hashes = ReplayRunner::run_fixture(&mut replayed, &decoded, None, None, 67);
-        assert_eq!(hashes, vec![tick.state_hash]);
+        assert_eq!(hashes, vec![tick.state_hash.unwrap()]);
         assert_eq!(replayed.session.game_options.game_speed, 4);
         assert_eq!(replayed.state_hash(), recorded.state_hash());
         assert_eq!(NATIVE_REPLAY_VERSION, 10);

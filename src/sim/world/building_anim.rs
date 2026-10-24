@@ -391,8 +391,8 @@ mod tests {
         let headless_tick = headless_sim.advance_tick(&[], Some(&rules), None, None, 67);
 
         assert_eq!(app_output.tick.state_hash, headless_tick.state_hash);
-        assert_eq!(app_output.tick.state_hash, app_sim.state_hash());
-        assert_eq!(headless_tick.state_hash, headless_sim.state_hash());
+        assert_eq!(app_output.tick.state_hash, Some(app_sim.state_hash()));
+        assert_eq!(headless_tick.state_hash, Some(headless_sim.state_hash()));
         assert_eq!(headless_sim.particle_systems().len(), 1);
         assert!(headless_sim.bale_events.is_empty());
         assert!(app_sim.bale_events.is_empty());
@@ -432,7 +432,7 @@ mod tests {
                 .is_some()
         );
         assert_eq!(sim.particle_systems().len(), 1);
-        assert_eq!(output.tick.state_hash, sim.state_hash());
+        assert_eq!(output.tick.state_hash, Some(sim.state_hash()));
     }
     #[test]
     fn original_health_ratio_corpus_selects_real_refinery_slot_variant() {

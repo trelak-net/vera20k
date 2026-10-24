@@ -2059,15 +2059,19 @@ pub(crate) fn tick_combat(
     let sound_enabled = sound_enabled(world);
 
     let binary_frame = world.session.binary_frame;
-    let fog_snapshot = world.fog.clone();
-    let fog = Some(&fog_snapshot);
+    #[cfg(not(test))]
+    let fog_enabled = true;
     #[cfg(test)]
-    let fog = fog.filter(|_| {
-        world
-            .receiver_fixture
-            .as_ref()
-            .is_none_or(|fixture| fixture.fog_enabled)
-    });
+    let fog_enabled = world
+        .receiver_fixture
+        .as_ref()
+        .is_none_or(|fixture| fixture.fog_enabled);
+    // Only the deferred aircraft release reads the frame-entry fog snapshot.
+    // Keep its original snapshot timing, but do not copy every house's full
+    // map on frames with no aircraft release. Other firers read live world fog.
+    let fog_snapshot =
+        (fog_enabled && !fire_requests.aircraft.is_empty()).then(|| world.fog.clone());
+    let fog = fog_snapshot.as_ref();
     let active_wave_owners: BTreeSet<_> = world.active_wave_links.keys().copied().collect();
 
     if tick_ms == 0 {
@@ -2251,7 +2255,7 @@ pub(crate) fn tick_combat(
                 rules,
                 overlay_registry,
                 &live_snap,
-                fog.is_some(),
+                fog_enabled,
                 binary_frame,
                 active_wave_owners.contains(&live_snap.stable_id),
                 &mut emit,

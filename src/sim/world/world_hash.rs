@@ -1086,7 +1086,10 @@ impl Simulation {
         for (owner, fog) in &self.fog.by_owner {
             owner.hash(hasher);
             fog.cells_raw().hash(hasher);
-            fog.shroud_knowledge_raw().hash(hasher);
+            crate::sim::vision::ShroudKnowledge::hash_slice_streaming(
+                fog.shroud_knowledge_raw(),
+                hasher,
+            );
             // The CellClass ground bits the aircraft queries read.
             fog.ground_flags_raw().hash(hasher);
             fog.hash_map_cell_edge_cache(hasher);

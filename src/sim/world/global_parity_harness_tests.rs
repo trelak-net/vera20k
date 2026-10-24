@@ -978,7 +978,7 @@ fn global_skirmish_replay_is_deterministic_and_baseline_stable() {
                 .as_ref()
                 .is_some_and(|miner| !miner.cargo.is_empty());
         }
-        log.record_tick(tick, due, result.state_hash);
+        log.record_tick(tick, due, result.state_hash.unwrap());
         if STREAM_CHECKPOINT_TICKS.contains(&tick) {
             recorded_streams.push((
                 tick,

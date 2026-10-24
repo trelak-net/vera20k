@@ -372,7 +372,7 @@ mod tests {
 
         assert!(!first.frame_committed);
         assert!(first.terminal_score_finalized);
-        assert_eq!(first.state_hash, sim.state_hash());
+        assert_eq!(first.state_hash, Some(sim.state_hash()));
         let first_snapshot = sim
             .terminal_score_snapshot()
             .expect("natural terminal frame latches score")
@@ -461,12 +461,12 @@ mod tests {
             map_name: "terminal-score.map".to_string(),
             rules_hash: 0,
         });
-        replay.record_tick(tick.tick, Vec::new(), tick.state_hash);
+        replay.record_tick(tick.tick, Vec::new(), tick.state_hash.unwrap());
 
         let mut playback = natural_terminal_sim(seed);
         let hashes = ReplayRunner::run_fixture(&mut playback, &replay, None, None, 67);
 
-        assert_eq!(hashes, vec![tick.state_hash]);
+        assert_eq!(hashes, vec![tick.state_hash.unwrap()]);
         assert_eq!(
             playback.terminal_score_snapshot(),
             recorded.terminal_score_snapshot()

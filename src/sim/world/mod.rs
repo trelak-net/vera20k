@@ -231,7 +231,8 @@ pub struct TickResult {
     /// Victory, defeat, quit, and connection-loss exits leave this false.
     pub frame_committed: bool,
     pub executed_commands: usize,
-    pub state_hash: u64,
+    /// None only when the caller explicitly omits diagnostic hashing.
+    pub state_hash: Option<u64>,
     /// This call latched the natural win/loss score snapshot before hashing.
     pub terminal_score_finalized: bool,
     pub spawned_entities: bool,
@@ -6489,6 +6490,7 @@ impl Simulation {
         trigger_inputs: Option<TriggerInputs<'_>>,
         effects: FrameEffects<'_>,
     ) -> Result<MasterFrameOutput, FrameAdvanceError> {
+        let profile_start = std::time::Instant::now();
         let effects = effects.with_rules(rules);
         self.combat_light_requests.clear();
         self.pending_projectile_detonations.clear();
@@ -6634,8 +6636,10 @@ impl Simulation {
         // --- Phase 3: Vision refresh ---
         // DEPENDS ON: movement (positions updated), spawn (new entities need LOS).
         // PRODUCES: fog state used by combat targeting (phase 5).
+        let profile_objects = std::time::Instant::now();
         let vision_config = self.sight_reveal_config(rules);
         self.refresh_fog(&vision_config, rules);
+        let profile_vision = std::time::Instant::now();
 
         if let Some(rules) = rules {
             // --- Phase 4.5: Superweapons ---
@@ -6863,7 +6867,9 @@ impl Simulation {
         self.debug_assert_lifecycle_consistent();
         let terminal_score_finalized =
             self.natural_outcome_exit_ready() && self.finalize_terminal_score_snapshot();
-        let state_hash = self.state_hash();
+        let profile_tail = std::time::Instant::now();
+        let state_hash = effects.state_hash_requested().then(|| self.state_hash());
+        profile_sim([profile_start, profile_objects, profile_vision, profile_tail, std::time::Instant::now()]);
         Ok(MasterFrameOutput {
             admitted_commands: commands,
             tick: TickResult {
@@ -7045,3 +7051,17 @@ mod tibtre_oracle_tests;
 #[cfg(test)]
 #[path = "ore_spread_oracle_tests.rs"]
 mod ore_spread_oracle_tests;
+
+fn profile_sim(points: [std::time::Instant; 5]) {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if !*ENABLED.get_or_init(|| std::env::var_os("VERA_PROFILE_FRAMES").is_some()) { return; }
+    thread_local! { static SAMPLES: std::cell::RefCell<(usize, [f64; 4])> = const { std::cell::RefCell::new((0, [0.0; 4])) }; }
+    SAMPLES.with(|samples| {
+        let mut samples = samples.borrow_mut(); samples.0 += 1;
+        for i in 0..4 { samples.1[i] += (points[i+1] - points[i]).as_secs_f64() * 1000.0; }
+        if samples.0 == 120 {
+            log::info!("SIM_PROFILE frames=120 objects_ms={:.3} vision_ms={:.3} tail_ms={:.3} hash_ms={:.3}", samples.1[0]/120.0, samples.1[1]/120.0, samples.1[2]/120.0, samples.1[3]/120.0);
+            *samples = (0, [0.0; 4]);
+        }
+    });
+}

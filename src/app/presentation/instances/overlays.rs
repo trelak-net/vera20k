@@ -616,27 +616,6 @@ fn build_cell_overlay_instances(
             .terrain
             .and_then(|terrain| terrain.cell(entry.rx, entry.ry))
             .map(|cell| cell.slope_type);
-        let (display_overlay_id, live_overlay_data) = overlay_display_identity(
-            live_overlay_id,
-            live_overlay_data,
-            entry.rx,
-            entry.ry,
-            slope_type,
-            overlay_registry,
-            input.tiberium_types,
-        );
-        let name = if display_overlay_id == live_overlay_id {
-            input.names.get(&live_overlay_id).cloned()
-        } else {
-            overlay_registry
-                .and_then(|registry| registry.name(display_overlay_id).map(str::to_owned))
-        };
-        let Some(name) = name else {
-            continue;
-        };
-        if !ordinary_overlay_accepts_identity(live_overlay_id, &name) {
-            continue;
-        }
 
         // The live identity owns resource type, wall/crate flags, and bridge
         // state even when a flat resource cell selects another display image.
@@ -689,6 +668,31 @@ fn build_cell_overlay_instances(
             input.viewport[1],
             cull_margin,
         ) {
+            continue;
+        }
+
+        // Resolve display variants only after the unchanged geometry cull.
+        // Large ore maps otherwise rebuild twelve variant names for every
+        // off-screen resource cell on every frame.
+        let (display_overlay_id, _) = overlay_display_identity(
+            live_overlay_id,
+            live_overlay_data,
+            entry.rx,
+            entry.ry,
+            slope_type,
+            overlay_registry,
+            input.tiberium_types,
+        );
+        let name = if display_overlay_id == live_overlay_id {
+            input.names.get(&live_overlay_id).cloned()
+        } else {
+            overlay_registry
+                .and_then(|registry| registry.name(display_overlay_id).map(str::to_owned))
+        };
+        let Some(name) = name else {
+            continue;
+        };
+        if !ordinary_overlay_accepts_identity(live_overlay_id, &name) {
             continue;
         }
 

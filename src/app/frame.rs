@@ -144,6 +144,7 @@ impl App {
             shell_capture.is_none() || tactical_capture.is_none(),
             "shell and tactical capture cannot share a render"
         );
+        let profile_start = Instant::now();
         if let Some(session) = tactical_capture.as_deref_mut() {
             session.drive_before_render(state)?;
         }
@@ -242,12 +243,14 @@ impl App {
             crate::app::frontend::shell_transition::MainMenuFirstPaintPoll::Acquire => {}
         }
 
+        let profile_runtime = Instant::now();
         let output: wgpu::SurfaceTexture = state
             .renderer
             .gpu
             .surface
             .get_current_texture()
             .map_err(|e| anyhow::anyhow!("Surface texture: {}", e))?;
+        let profile_acquire = Instant::now();
         let view: wgpu::TextureView = output.texture.create_view(&Default::default());
         let mut encoder: wgpu::CommandEncoder =
             state
@@ -632,12 +635,16 @@ impl App {
         } else {
             None
         };
+        let profile_render = Instant::now();
         let submission = state
             .renderer
             .gpu
             .queue
             .submit(std::iter::once(encoder.finish()));
         output.present();
+        if state.frontend.screen == GameScreen::InGame {
+            profile_frame([profile_start, profile_runtime, profile_acquire, profile_render, Instant::now()]);
+        }
         // wgpu 27 requires released surface references before reconfiguration;
         // the diagnostic action below may resize the window.
         // https://docs.rs/wgpu/27.0.1/wgpu/struct.Surface.html#method.configure
@@ -753,4 +760,22 @@ mod tests {
             ]
         );
     }
+}
+
+// Opt-in CPU phase timings; submission timings are not GPU execution timings.
+fn profile_frame(points: [Instant; 5]) {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if !*ENABLED.get_or_init(|| std::env::var_os("VERA_PROFILE_FRAMES").is_some()) { return; }
+    thread_local! {
+        static SAMPLES: std::cell::RefCell<(usize, [f64; 4])> = const { std::cell::RefCell::new((0, [0.0; 4])) };
+    }
+    SAMPLES.with(|samples| {
+        let mut samples = samples.borrow_mut();
+        samples.0 += 1;
+        for i in 0..4 { samples.1[i] += (points[i+1] - points[i]).as_secs_f64() * 1000.0; }
+        if samples.0 == 120 {
+            log::info!("FRAME_PROFILE frames=120 runtime_ms={:.3} acquire_ms={:.3} render_cpu_ms={:.3} submit_present_ms={:.3}", samples.1[0]/120.0, samples.1[1]/120.0, samples.1[2]/120.0, samples.1[3]/120.0);
+            *samples = (0, [0.0; 4]);
+        }
+    });
 }

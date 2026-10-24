@@ -28,6 +28,29 @@ impl Default for ShroudKnowledge {
     }
 }
 impl ShroudKnowledge {
+    /// Feed the same native-endian bytes as the derived field hashes to the
+    /// state's streaming DefaultHasher, batching tiny writes across cells.
+    /// No struct padding or simulation fields are changed. The slice length
+    /// prefix matches `[ShroudKnowledge]::hash` too.
+    pub(crate) fn hash_slice_streaming(values: &[Self], hasher: &mut impl std::hash::Hasher) {
+        use std::hash::Hash;
+        values.len().hash(hasher);
+        const CELL_BYTES: usize = 19;
+        let mut buffer = [0u8; CELL_BYTES * 256];
+        for chunk in values.chunks(256) {
+            for (value, bytes) in chunk.iter().zip(buffer.chunks_exact_mut(CELL_BYTES)) {
+                bytes[0..4].copy_from_slice(&value.counter.to_ne_bytes());
+                bytes[4..8].copy_from_slice(&value.gap_counter.to_ne_bytes());
+                bytes[8] = u8::from(value.open);
+                bytes[9] = u8::from(value.pending);
+                bytes[10..14].copy_from_slice(&value.local_sources.to_ne_bytes());
+                bytes[14..18].copy_from_slice(&value.allied_sources.to_ne_bytes());
+                bytes[18] = u8::from(value.transient_visible);
+            }
+            hasher.write(&buffer[..chunk.len() * CELL_BYTES]);
+        }
+    }
+
     pub fn reveal(&mut self) {
         if self.counter == 1 {
             self.counter = 0;
@@ -121,5 +144,38 @@ impl SightRefreshTimers {
             viewer,
             crate::sim::timer::CdTimer::started(frame as i32, 15),
         );
+    }
+}
+
+#[cfg(test)]
+mod streaming_hash_tests {
+    use super::*;
+    use std::hash::{Hash, Hasher};
+
+    #[test]
+    fn batched_shroud_hash_matches_derived_hash_across_chunk_boundaries() {
+        let values: Vec<_> = (0..1025u32)
+            .map(|i| ShroudKnowledge {
+                counter: i.wrapping_mul(0x87654321) as i32,
+                gap_counter: i.wrapping_mul(0xfedcba98) as i32,
+                open: i % 2 == 0,
+                pending: i % 3 == 0,
+                local_sources: i.wrapping_mul(0x12345678),
+                allied_sources: u32::MAX - i,
+                transient_visible: i % 5 == 0,
+            })
+            .collect();
+        for len in [0, 1, 255, 256, 257, 511, 512, 1025] {
+            let mut old = std::collections::hash_map::DefaultHasher::new();
+            let mut new = std::collections::hash_map::DefaultHasher::new();
+            // Exercise both incoming and outgoing partial SipHash blocks.
+            42u8.hash(&mut old);
+            42u8.hash(&mut new);
+            values[..len].hash(&mut old);
+            ShroudKnowledge::hash_slice_streaming(&values[..len], &mut new);
+            0x12345678u32.hash(&mut old);
+            0x12345678u32.hash(&mut new);
+            assert_eq!(old.finish(), new.finish(), "slice length {len}");
+        }
     }
 }

@@ -2003,3 +2003,67 @@ fn shroud_current_sight_timer_gate_matches_original_signed_frame_cases() {
         );
     }
 }
+
+#[test]
+fn refresh_viewer_cache_matches_uncached_reveals_when_owner_grids_grow() {
+    let mut store = EntityStore::default();
+    for (id, owner) in [
+        "Americans",
+        "Soviet",
+        "Americans",
+        "Neutral",
+        "Soviet",
+        "Americans",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        spawn_with_vision(&mut store, id as u64 + 1, owner, 5 + id as u16, 5, 3);
+    }
+    let interner = ti();
+    for ally_reveal in [false, true] {
+        let config = VisionConfig {
+            ally_reveal,
+            ..default_config()
+        };
+        let mut cached = FogState {
+            width: 24,
+            height: 24,
+            ..FogState::default()
+        };
+        cached
+            .alliances
+            .insert("AMERICANS".into(), ["SOVIET".into()].into());
+        let mut uncached = cached.clone();
+        let mut cache = RevealViewerCache::new();
+        for entity in store.values() {
+            update_entity_sight_admission(
+                &mut cached,
+                entity,
+                &config,
+                None,
+                false,
+                &interner,
+                false,
+                None,
+                None,
+                Some(&mut cache),
+            );
+            reveal_entity_vision(&mut uncached, entity, &config, None, false, &interner);
+            assert_eq!(cached.sight_admissions, uncached.sight_admissions);
+            assert_eq!(
+                cached.by_owner.keys().collect::<Vec<_>>(),
+                uncached.by_owner.keys().collect::<Vec<_>>()
+            );
+            for (owner, actual) in &cached.by_owner {
+                let expected = &uncached.by_owner[owner];
+                assert_eq!(actual.cells_raw(), expected.cells_raw());
+                assert_eq!(actual.ground_flags_raw(), expected.ground_flags_raw());
+                assert_eq!(
+                    actual.shroud_knowledge_raw(),
+                    expected.shroud_knowledge_raw()
+                );
+            }
+        }
+    }
+}

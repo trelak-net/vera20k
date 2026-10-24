@@ -718,7 +718,7 @@ fn bridge_crossing_replay_is_deterministic_and_baseline_stable() {
             terrain_level: facts.signed_level(),
             structural: facts.has_structural_bridge(),
         });
-        log.record_tick(tick, due, result.state_hash);
+        log.record_tick(tick, due, result.state_hash.unwrap());
     }
 
     // ---- Coverage tripwires. These are the point of the fixture: without them

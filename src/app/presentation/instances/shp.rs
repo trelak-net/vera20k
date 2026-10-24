@@ -134,6 +134,30 @@ pub(crate) fn build_shp_instances(
         let Some(entity) = sim.entities().get(stable_id) else {
             continue;
         };
+        // Reject the same offscreen bounds before observer/type/art work.
+        // The anchor and bounds depend only on the entity and camera.
+        let pos = &entity.position;
+        // Buildings are the one class gamemd draws off its own render-coordinate
+        // virtual rather than the plain object coordinate; everything below this
+        // point — body, bib, anims, turret, and the row they sort on — wants that
+        // lifted anchor. See `locomotor_visual::BUILDING_ART_LIFT_PX`.
+        let (sx, sy) = {
+            let anchor = crate::render::locomotor_visual::screen_position(entity);
+            if entity.category == EntityCategory::Structure {
+                crate::render::locomotor_visual::building_art_anchor(anchor.0, anchor.1)
+            } else {
+                anchor
+            }
+        };
+        let interp_z = pos.z;
+        // The lift `screen_position` drew this body with. A building's draw
+        // cancels exactly that for its sort row and per-pixel Z seed
+        // (`NormalZAdjust - AdjustForZ(Z)`), so its body, bib, anims and
+        // turret sort and clip against the height they are drawn at.
+        let lift_px = crate::render::locomotor_visual::screen_lift_px(entity);
+        if !in_view(sx, sy, 200.0, 200.0, cam_x, cam_y, sw, sh, 200.0) {
+            continue;
+        }
         let Some(_band) = entity_draw_band(sim.display_layers(), stable_id) else {
             continue;
         };
@@ -192,7 +216,6 @@ pub(crate) fn build_shp_instances(
                 continue;
             }
         }
-        let pos = &entity.position;
         let hc: HouseColorIndex = state
             .match_state
             .match_presentation
@@ -214,27 +237,6 @@ pub(crate) fn build_shp_instances(
         ) else {
             continue;
         };
-        // Buildings are the one class gamemd draws off its own render-coordinate
-        // virtual rather than the plain object coordinate; everything below this
-        // point — body, bib, anims, turret, and the row they sort on — wants that
-        // lifted anchor. See `locomotor_visual::BUILDING_ART_LIFT_PX`.
-        let (sx, sy) = {
-            let anchor = crate::render::locomotor_visual::screen_position(entity);
-            if entity.category == EntityCategory::Structure {
-                crate::render::locomotor_visual::building_art_anchor(anchor.0, anchor.1)
-            } else {
-                anchor
-            }
-        };
-        let interp_z = pos.z;
-        // The lift `screen_position` drew this body with. A building's draw
-        // cancels exactly that for its sort row and per-pixel Z seed
-        // (`NormalZAdjust - AdjustForZ(Z)`), so its body, bib, anims and
-        // turret sort and clip against the height they are drawn at.
-        let lift_px = crate::render::locomotor_visual::screen_lift_px(entity);
-        if !in_view(sx, sy, 200.0, 200.0, cam_x, cam_y, sw, sh, 200.0) {
-            continue;
-        }
         let draw_state = draw_decision.state;
         if entity.category == EntityCategory::Unit
             && state.rules().is_some_and(|rules| {

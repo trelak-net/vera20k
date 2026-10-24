@@ -85,8 +85,8 @@ fn run_with_frame_profile(total_ms: u32, frame_ms: u32) -> (u64, Vec<u64>, Repla
             });
 
             let result = sim.advance_tick(&due, None, Some(&grid), None, TICK_MS);
-            hashes.push(result.state_hash);
-            replay.record_tick(result.tick, due, result.state_hash);
+            hashes.push(result.state_hash.unwrap());
+            replay.record_tick(result.tick, due, result.state_hash.unwrap());
         }
     }
 
@@ -187,8 +187,8 @@ fn replay_reapplies_header_seed() {
             }
         });
         let r = sim.advance_tick(&due, None, Some(&grid), None, TICK_MS);
-        replay.record_tick(r.tick, due, r.state_hash);
-        live.push(r.state_hash);
+        replay.record_tick(r.tick, due, r.state_hash.unwrap());
+        live.push(r.state_hash.unwrap());
     }
 
     // Playback constructed FROM the header — the descriptor contract.

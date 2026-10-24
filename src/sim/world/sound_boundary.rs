@@ -20,6 +20,7 @@ pub(crate) trait SoundBoundary {
 pub(crate) struct FrameEffects<'a> {
     sound: Option<&'a dyn SoundBoundary>,
     rules: Option<&'a RuleSet>,
+    skip_state_hash: bool,
 }
 
 impl<'a> FrameEffects<'a> {
@@ -27,6 +28,7 @@ impl<'a> FrameEffects<'a> {
         Self {
             sound: None,
             rules: None,
+            skip_state_hash: false,
         }
     }
 
@@ -34,7 +36,18 @@ impl<'a> FrameEffects<'a> {
         Self {
             sound: Some(sound),
             rules: None,
+            skip_state_hash: false,
         }
+    }
+
+    /// Optional diagnostic work, never an input to simulation decisions.
+    pub(crate) fn with_state_hash(mut self, requested: bool) -> Self {
+        self.skip_state_hash = !requested;
+        self
+    }
+
+    pub(crate) fn state_hash_requested(self) -> bool {
+        !self.skip_state_hash
     }
 
     /// Bind the frame's authoritative resources even when a nested native

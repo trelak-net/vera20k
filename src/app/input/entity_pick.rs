@@ -119,6 +119,14 @@ pub(crate) fn hover_target_at_point(
     bridge_cells: Option<&dyn TacticalBridgeLookup>,
 ) -> Option<HoverTargetKindWithId> {
     let local_owner_id: InternedId = sim.interner.get(local_owner).unwrap_or_default();
+    // The terrain inverse depends only on the cursor and map, not the building.
+    // City maps can have thousands of foundations; scan terrain once per pick.
+    let click_cell = crate::app::match_runtime::sim_tick::world_point_to_cell(
+        world_x,
+        world_y,
+        height_map,
+        bridge_cells,
+    );
     let mut best: Option<(u64, f32)> = None;
     for entity in sim.entities().values() {
         let is_structure = entity.category == EntityCategory::Structure;
@@ -136,13 +144,10 @@ pub(crate) fn hover_target_at_point(
                 .map(|o| o.foundation.as_str())
                 .unwrap_or("1x1");
             if !click_hits_foundation(
-                world_x,
-                world_y,
+                click_cell,
                 entity.position.rx,
                 entity.position.ry,
                 foundation,
-                height_map,
-                bridge_cells,
             ) {
                 continue;
             }
@@ -1149,21 +1154,12 @@ fn building_covers_cell(
 /// to cell coords and check containment. This matches the original engine which
 /// uses the foundation footprint, not the visual sprite bounds.
 fn click_hits_foundation(
-    world_x: f32,
-    world_y: f32,
+    (click_rx, click_ry): (u16, u16),
     entity_rx: u16,
     entity_ry: u16,
     foundation: &str,
-    height_map: &std::collections::BTreeMap<(u16, u16), u8>,
-    bridge_cells: Option<&dyn TacticalBridgeLookup>,
 ) -> bool {
     let (fw, fh) = crate::rules::foundation::foundation_dimensions(foundation);
-    let (click_rx, click_ry) = crate::app::match_runtime::sim_tick::world_point_to_cell(
-        world_x,
-        world_y,
-        height_map,
-        bridge_cells,
-    );
     let crx = click_rx as i32;
     let cry = click_ry as i32;
     let brx = entity_rx as i32;
@@ -1190,13 +1186,14 @@ pub(crate) fn pick_entity_at_point(
     // The click_radius parameter is kept for API compatibility but not used.
     let _ = click_radius;
     let local_owner_id = local_owner.and_then(|o| interner.and_then(|i| i.get(o)));
+    let click_cell = crate::app::match_runtime::sim_tick::world_point_to_cell(
+        world_x,
+        world_y,
+        height_map,
+        bridge_cells,
+    );
     if let (Some(fog), Some(owner_id)) = (fog, local_owner_id) {
-        let (rx, ry) = crate::app::match_runtime::sim_tick::world_point_to_cell(
-            world_x,
-            world_y,
-            height_map,
-            bridge_cells,
-        );
+        let (rx, ry) = click_cell;
         if !fog.is_cell_revealed(owner_id, rx, ry) || fog.is_cell_gap_covered(owner_id, rx, ry) {
             return None;
         }
@@ -1266,13 +1263,10 @@ pub(crate) fn pick_entity_at_point(
             .map(|o| o.foundation.as_str())
             .unwrap_or("1x1");
         click_hits_foundation(
-            world_x,
-            world_y,
+            click_cell,
             entity.position.rx,
             entity.position.ry,
             foundation,
-            height_map,
-            bridge_cells,
         )
         .then_some(entity.stable_id())
     })

@@ -5598,7 +5598,7 @@ mod tests {
         assert_eq!(result.executed_commands, 1);
         assert_eq!(restored.session.game_options.game_speed, 4);
         assert!(restored.pending_command_snapshot().is_empty());
-        assert_eq!(result.state_hash, restored.state_hash());
+        assert_eq!(result.state_hash, Some(restored.state_hash()));
 
         let second = restored.advance_tick(&[], None, None, None, 67);
         assert_eq!(second.executed_commands, 0);

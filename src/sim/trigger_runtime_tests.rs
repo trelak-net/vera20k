@@ -512,7 +512,7 @@ fn trigger_action_40_normalizes_and_refreshes_authority_same_frame() {
     assert!(sim.radar_terrain_dirty_cells.is_empty());
     assert_eq!(sim.radar_terrain_dirty_generation, 0);
     assert_eq!(sim.playfield_revision, 1);
-    assert_eq!(tick.state_hash, sim.state_hash());
+    assert_eq!(tick.state_hash, Some(sim.state_hash()));
 
     // FUN_006E21E0 rebuilds radar surfaces for every firing. A second writer
     // must not disappear behind the persistent per-cell dirty-list dedup gate.
@@ -970,7 +970,7 @@ fn master_frame_save_load_continues_trigger_projectile_and_delete_state() {
         map_name: original.session.map_name.clone(),
         rules_hash: 0,
     });
-    replay_log.record_tick(original_tick.tick, Vec::new(), original_tick.state_hash);
+    replay_log.record_tick(original_tick.tick, Vec::new(), original_tick.state_hash.unwrap());
     let restored_tick = restored
         .advance_master_frame(
             &[],
@@ -1004,7 +1004,7 @@ fn master_frame_save_load_continues_trigger_projectile_and_delete_state() {
             67,
             Some(trigger_inputs),
         ),
-        vec![original_tick.state_hash],
+        vec![original_tick.state_hash.unwrap()],
     );
 }
 

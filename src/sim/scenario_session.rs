@@ -1039,7 +1039,7 @@ mod tests {
                     } else {
                         Vec::new()
                     };
-                    sim.advance_tick(&cmds, None, None, None, 67).state_hash
+                    sim.advance_tick(&cmds, None, None, None, 67).state_hash.unwrap()
                 })
                 .collect()
         }

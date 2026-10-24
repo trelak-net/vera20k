@@ -61,6 +61,8 @@ impl Default for FrameTimer {
 }
 
 pub(crate) struct DiagnosticsState {
+    /// Full per-frame diagnostic replay capture; optional in offline play.
+    pub(crate) record_replays: bool,
     presentation_clock: PresentationClock,
     #[cfg(feature = "dev-ui")]
     pending_ui_action: Option<crate::app::diagnostics::dev_overlay::DevOverlayAction>,
@@ -104,6 +106,7 @@ impl DiagnosticsState {
     ) -> Self {
         Self {
             presentation_clock: PresentationClock::Wall,
+            record_replays: true,
             #[cfg(feature = "dev-ui")]
             pending_ui_action: None,
             debug_frame_step_requested: false,
@@ -117,6 +120,11 @@ impl DiagnosticsState {
             dev_overlay_save_name: String::new(),
             frame_timer: FrameTimer::new(),
         }
+    }
+
+    pub(crate) fn with_replay_recording(mut self, enabled: bool) -> Self {
+        self.record_replays = enabled;
+        self
     }
 
     #[cfg(feature = "dev-ui")]

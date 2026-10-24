@@ -240,8 +240,8 @@ fn record(
     for _ in 0..ticks {
         let due = sim.take_due_commands();
         let r = sim.advance_tick(&due, Some(rules), None, None, TICK_MS);
-        hashes.push(r.state_hash);
-        log.record_tick(r.tick, due, r.state_hash);
+        hashes.push(r.state_hash.unwrap());
+        log.record_tick(r.tick, due, r.state_hash.unwrap());
     }
     (hashes, log)
 }

@@ -19,8 +19,9 @@ pub(crate) use cell_reveal::tests::{
 };
 use cell_reveal::{DummyVisibility, MapCellEdgeCache};
 pub(crate) use gap_source::GapGeneratorRuntime;
+pub(crate) use shroud_knowledge::ShroudKnowledge;
+use shroud_knowledge::SightAdmission;
 pub(crate) use shroud_knowledge::SightRefreshTimers;
-use shroud_knowledge::{ShroudKnowledge, SightAdmission};
 
 use std::collections::BTreeMap;
 
@@ -237,59 +238,20 @@ impl OwnerVisibility {
     /// Called each tick by `recompute_owner_visibility_in_place` so existing
     /// grids can be reused without reallocation.
     pub fn clear_all_visible(&mut self) {
-        for knowledge in &mut self.shroud_knowledge {
+        // One streaming pass replaces three full-grid visits. Ground bits
+        // still observe the old visible flag before the projection is replaced.
+        for ((cell, ground), knowledge) in self.cells.iter_mut()
+            .zip(&mut self.ground_flags).zip(&mut self.shroud_knowledge)
+        {
+            *ground |= u8::from(*cell & FLAG_VISIBLE != 0) * (GROUND_VISIBLE | GROUND_OPEN);
             knowledge.transient_visible = false;
-        }
-        for (cell, ground) in self.cells.iter_mut().zip(&mut self.ground_flags) {
-            if *cell & FLAG_VISIBLE != 0 {
-                *ground |= GROUND_VISIBLE | GROUND_OPEN;
-            }
-            *cell &= !(FLAG_VISIBLE
-                | FLAG_GAP_COVERED
-                | FLAG_GAP_FOG
-                | FLAG_SUSTAINED_SIGHT
-                | FLAG_EFFECTIVE_GAP_SIGHT);
-        }
-        for index in 0..self.cells.len() {
-            self.publish_knowledge(index);
+            *cell = knowledge_flags(knowledge);
         }
     }
 
     fn publish_knowledge(&mut self, index: usize) {
-        let knowledge = self.shroud_knowledge[index];
-        let cell = &mut self.cells[index];
-        *cell &= !(FLAG_REVEALED
-            | FLAG_VISIBLE
-            | FLAG_GAP_COVERED
-            | FLAG_SUSTAINED_SIGHT
-            | FLAG_EFFECTIVE_GAP_SIGHT
-            | FLAG_PENDING_GAP_CONCEAL
-            | FLAG_HOSTILE_GAP_PRESENT);
-        if knowledge.open {
-            *cell |= FLAG_REVEALED;
-        }
-        if knowledge.local_sources > 0 {
-            *cell |= FLAG_SUSTAINED_SIGHT;
-        }
-        if knowledge.allied_sources > 0 {
-            *cell |= FLAG_EFFECTIVE_GAP_SIGHT;
-        }
-        if knowledge.open
-            && (knowledge.local_sources > 0
-                || knowledge.allied_sources > 0
-                || knowledge.transient_visible)
-        {
-            *cell |= FLAG_VISIBLE;
-        }
-        if knowledge.pending {
-            *cell |= FLAG_PENDING_GAP_CONCEAL;
-        }
-        if knowledge.gap_counter > 0 {
-            *cell |= FLAG_HOSTILE_GAP_PRESENT;
-            if !knowledge.open {
-                *cell |= FLAG_GAP_COVERED;
-            }
-        }
+        self.cells[index] = (self.cells[index] & FLAG_GAP_FOG)
+            | knowledge_flags(&self.shroud_knowledge[index]);
     }
 
     /// Clear only transient Gap Generator flags while preserving line of sight
@@ -1369,9 +1331,24 @@ pub fn recompute_owner_visibility_in_place(
     for key in removed {
         fog.release_sight_for_viewer(key);
     }
+    // Alliances/config/interner are fixed throughout this refresh. Reuse the
+    // house-level audience across its objects; invalidate if a reveal creates
+    // another owner grid, so even unusual fixture/owner names retain semantics.
+    let mut viewer_cache = RevealViewerCache::new();
     for entity in admitted {
         let sight_ability = entity_has_sight_ability(entity, interner, rules);
-        reveal_entity_vision(fog, entity, config, height_grid, sight_ability, interner);
+        update_entity_sight_admission(
+            fog,
+            entity,
+            config,
+            height_grid,
+            sight_ability,
+            interner,
+            false,
+            None,
+            None,
+            Some(&mut viewer_cache),
+        );
     }
 }
 
@@ -1400,6 +1377,7 @@ pub(crate) fn reveal_entity_vision(
         false,
         None,
         None,
+        None,
     );
 }
 
@@ -1421,6 +1399,7 @@ pub(crate) fn force_refresh_entity_vision(
         sight_ability,
         interner,
         true,
+        None,
         None,
         None,
     );
@@ -1455,6 +1434,7 @@ pub(crate) fn force_refresh_entity_vision_at_radius(
         true,
         None,
         radius_override,
+        None,
     );
 }
 
@@ -1477,8 +1457,11 @@ pub(crate) fn refresh_entity_vision_for_viewer(
         true,
         Some(viewer),
         None,
+        None,
     );
 }
+
+type RevealViewerCache = BTreeMap<InternedId, (usize, Vec<InternedId>)>;
 
 fn update_entity_sight_admission(
     fog: &mut FogState,
@@ -1490,6 +1473,7 @@ fn update_entity_sight_admission(
     force_refresh: bool,
     only_viewer: Option<InternedId>,
     radius_override: Option<u16>,
+    viewer_cache: Option<&mut RevealViewerCache>,
 ) {
     let width = fog.width;
     let height = fog.height;
@@ -1536,7 +1520,25 @@ fn update_entity_sight_admission(
             .then_some(viewer)
             .into_iter()
             .collect(),
-        None => direct_reveal_viewers(fog, entity.owner(), config, interner),
+        None => match viewer_cache {
+            Some(cache) => {
+                let owner_count = fog.by_owner.len();
+                let entry = cache.entry(entity.owner()).or_insert_with(|| {
+                    (
+                        owner_count,
+                        direct_reveal_viewers(fog, entity.owner(), config, interner),
+                    )
+                });
+                if entry.0 != owner_count {
+                    *entry = (
+                        owner_count,
+                        direct_reveal_viewers(fog, entity.owner(), config, interner),
+                    );
+                }
+                entry.1.clone()
+            }
+            None => direct_reveal_viewers(fog, entity.owner(), config, interner),
+        },
     };
     if only_viewer.is_none() {
         let removed: Vec<_> = fog
@@ -2298,8 +2300,8 @@ pub(crate) fn materialize_gap_generator_sources(
         // Preserve the existing per-viewer receipt container, including empty
         // sets. Materialization does not admit or remove any generator.
         fog.gap_sources.entry(viewer).or_default();
-        for cell in &mut vis.cells {
-            *cell &= !FLAG_GAP_FOG;
+        for (cell, knowledge) in vis.cells.iter_mut().zip(&vis.shroud_knowledge) {
+            *cell = knowledge_flags(knowledge);
         }
         for &source in sources.get(&viewer).into_iter().flatten() {
             if are_houses_friendly(
@@ -2311,9 +2313,6 @@ pub(crate) fn materialize_gap_generator_sources(
                     vis.cells[index] |= FLAG_GAP_FOG;
                 }
             }
-        }
-        for index in 0..vis.cells.len() {
-            vis.publish_knowledge(index);
         }
     }
 }
@@ -2338,5 +2337,72 @@ mod adjust_for_z_tests {
         assert_eq!(height_lift_px(-400), -56);
         assert_eq!(iso_height_shift_cells(1_500), 7);
         assert_eq!(iso_height_shift_cells(-400), -1);
+    }
+}
+
+/// All projected bits except friendly-gap coverage, which has a separate owner.
+#[inline]
+fn knowledge_flags(knowledge: &ShroudKnowledge) -> u8 {
+    let local = knowledge.local_sources > 0;
+    let allied = knowledge.allied_sources > 0;
+    let hostile = knowledge.gap_counter > 0;
+    u8::from(knowledge.open) * FLAG_REVEALED
+        | u8::from(knowledge.open & (local | allied | knowledge.transient_visible)) * FLAG_VISIBLE
+        | u8::from(hostile & !knowledge.open) * FLAG_GAP_COVERED
+        | u8::from(local) * FLAG_SUSTAINED_SIGHT
+        | u8::from(allied) * FLAG_EFFECTIVE_GAP_SIGHT
+        | u8::from(knowledge.pending) * FLAG_PENDING_GAP_CONCEAL
+        | u8::from(hostile) * FLAG_HOSTILE_GAP_PRESENT
+}
+
+#[cfg(test)]
+mod projection_equivalence_tests {
+    use super::*;
+
+    // Reference is the original branch-based projection, independent of the
+    // optimized formula. Include stale/cache-disagreeing incoming cell bits.
+    fn original_publish(mut cell: u8, k: &ShroudKnowledge) -> u8 {
+        cell &= !(FLAG_REVEALED | FLAG_VISIBLE | FLAG_GAP_COVERED
+            | FLAG_SUSTAINED_SIGHT | FLAG_EFFECTIVE_GAP_SIGHT
+            | FLAG_PENDING_GAP_CONCEAL | FLAG_HOSTILE_GAP_PRESENT);
+        if k.open { cell |= FLAG_REVEALED; }
+        if k.local_sources > 0 { cell |= FLAG_SUSTAINED_SIGHT; }
+        if k.allied_sources > 0 { cell |= FLAG_EFFECTIVE_GAP_SIGHT; }
+        if k.open && (k.local_sources > 0 || k.allied_sources > 0 || k.transient_visible) { cell |= FLAG_VISIBLE; }
+        if k.pending { cell |= FLAG_PENDING_GAP_CONCEAL; }
+        if k.gap_counter > 0 {
+            cell |= FLAG_HOSTILE_GAP_PRESENT;
+            if !k.open { cell |= FLAG_GAP_COVERED; }
+        }
+        cell
+    }
+
+    #[test]
+    fn fused_visibility_projection_preserves_all_flag_combinations() {
+        for bits in 0..64 {
+            for gap_counter in [i32::MIN, -1, 0, 1, i32::MAX] {
+                let k = ShroudKnowledge {
+                    counter: -17, gap_counter,
+                    open: bits & 1 != 0, pending: bits & 2 != 0,
+                    local_sources: if bits & 4 != 0 { u32::MAX } else { 0 },
+                    allied_sources: if bits & 8 != 0 { 1 } else { 0 },
+                    transient_visible: bits & 16 != 0,
+                };
+                for cell in 0..=u8::MAX {
+                    let mut vis = OwnerVisibility::new(1, 1);
+                    vis.cells[0] = cell; vis.shroud_knowledge[0] = k;
+                    vis.ground_flags[0] = if bits & 32 != 0 { 0xa5 } else { 0 };
+                    vis.publish_knowledge(0);
+                    assert_eq!(vis.cells[0], original_publish(cell, &k));
+                    vis.cells[0] = cell;
+                    let old_ground = vis.ground_flags[0];
+                    vis.clear_all_visible();
+                    let mut cleared = k; cleared.transient_visible = false;
+                    assert_eq!(vis.shroud_knowledge[0], cleared);
+                    assert_eq!(vis.cells[0], original_publish(cell & !FLAG_GAP_FOG, &cleared));
+                    assert_eq!(vis.ground_flags[0], old_ground | if cell & FLAG_VISIBLE != 0 { GROUND_VISIBLE | GROUND_OPEN } else { 0 });
+                }
+            }
+        }
     }
 }

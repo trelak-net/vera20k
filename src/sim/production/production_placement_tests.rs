@@ -2128,7 +2128,7 @@ fn gsi_04_07_command_places_authoritative_owned_wall_without_entity() {
     assert!(!sim.substrate.entities.values().any(|entity| {
         entity.type_ref == type_id && (entity.position.rx, entity.position.ry) == (12, 10)
     }));
-    assert_eq!(tick.state_hash, sim.state_hash());
+    assert_eq!(tick.state_hash, Some(sim.state_hash()));
     assert!(!sim.substrate.entities.contains(held));
     let successor = super::lifecycle_tests::held_id(&sim, owner, category);
     assert!(successor > held);
@@ -2624,7 +2624,7 @@ fn gsi_04_07_placement_command_places_only_its_own_houses_production() {
         1,
         "another house's event must not consume production"
     );
-    assert_eq!(tick.state_hash, sim.state_hash());
+    assert_eq!(tick.state_hash, Some(sim.state_hash()));
 }
 
 #[test]

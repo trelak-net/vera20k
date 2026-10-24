@@ -4571,7 +4571,12 @@ impl RuleSet {
 
     /// Resolve a type name to its handle, case-insensitively (engine parity).
     pub fn type_handle(&self, id: &str) -> Option<TypeHandle> {
-        self.object_index.get(&id.to_ascii_uppercase()).copied()
+        // Runtime type IDs are normally already uppercase. Avoid allocating
+        // a normalized copy on every object AI lookup in that common case.
+        self.object_index
+            .get(id)
+            .copied()
+            .or_else(|| self.object_index.get(&id.to_ascii_uppercase()).copied())
     }
 
     /// Dereference a handle to its object. Handles only originate from this

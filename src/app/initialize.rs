@@ -679,7 +679,7 @@ impl App {
                         None
                     }
                 },
-            ),
+            ).with_replay_recording(capture || std::env::var_os("VERA_RECORD_REPLAYS").is_some()),
         };
 
         // Project all three retained profile gains before any player can start

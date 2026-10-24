@@ -181,7 +181,7 @@ fn game_speed_transition_applies_at_ingress_before_triggers_and_hash() {
     assert_eq!(sim.session.game_options.game_speed, 4);
     assert_eq!(control.session.game_options.game_speed, 1);
     assert_ne!(result.state_hash, control_result.state_hash);
-    assert_eq!(result.state_hash, sim.state_hash());
+    assert_eq!(result.state_hash, Some(sim.state_hash()));
     assert!(sim.take_master_frame_test_trace().starts_with(&[
         MasterFrameTestRung::SessionCommands,
         MasterFrameTestRung::Triggers,
@@ -253,7 +253,7 @@ fn game_speed_ingress_uses_house_order_and_survives_same_frame_exit() {
     assert_eq!(result.executed_commands, 3);
     assert_eq!(sim.session.game_options.game_speed, 2);
     assert!(sim.quit_requested);
-    assert_eq!(result.state_hash, sim.state_hash());
+    assert_eq!(result.state_hash, Some(sim.state_hash()));
 }
 
 #[test]
@@ -371,7 +371,7 @@ fn master_frame_hash_observes_living_animation_completion_facing() {
     assert_eq!(entity.body_facing.destination(), 0x8000);
     assert_eq!(entity.infantry_sprite_pose(), Some((0, 0)));
     assert_eq!(entity.mission_leaf.as_infantry().unwrap().doing(), 0);
-    assert_eq!(result.state_hash, sim.state_hash());
+    assert_eq!(result.state_hash, Some(sim.state_hash()));
 }
 
 #[test]
@@ -791,7 +791,7 @@ fn advance_tick_finishes_dying_infantry_from_rules_catalog() {
         sim.substrate.entities.get(id).is_none(),
         "the headless adapter must use RuleSet timing and drain the finished death",
     );
-    assert_eq!(second.state_hash, sim.state_hash());
+    assert_eq!(second.state_hash, Some(sim.state_hash()));
 }
 
 #[test]
@@ -828,7 +828,7 @@ fn terminal_master_frame_visits_class_sequence_before_exit_without_frame_commit(
     assert_eq!(entity.native_stage().rate(), 0);
     assert_eq!(entity.native_stage().timer().start_frame(), 0);
     assert_eq!(entity.body_facing.destination(), 0x8000);
-    assert_eq!(result.state_hash, sim.state_hash());
+    assert_eq!(result.state_hash, Some(sim.state_hash()));
 }
 
 #[test]
@@ -859,7 +859,7 @@ fn app_frame_output_transfers_pre_tick_sound_exactly_once_without_hash_change() 
         first.sound_events.as_slice(),
         [SimSoundEvent::AnimationStarted { anim_id: 9, .. }]
     ));
-    assert_eq!(first.tick.state_hash, sim.state_hash());
+    assert_eq!(first.tick.state_hash, Some(sim.state_hash()));
 
     let second = sim
         .advance_app_frame(
@@ -873,7 +873,7 @@ fn app_frame_output_transfers_pre_tick_sound_exactly_once_without_hash_change() 
         )
         .expect("fixture frame must complete");
     assert!(second.sound_events.is_empty());
-    assert_eq!(second.tick.state_hash, sim.state_hash());
+    assert_eq!(second.tick.state_hash, Some(sim.state_hash()));
 }
 
 #[test]
@@ -928,7 +928,7 @@ fn app_frame_output_finalizes_overlay_navigation_and_delivers_updates_once() {
             .expect("finalized navigation")
             .is_walkable(2, 2)
     );
-    assert_eq!(first.tick.state_hash, sim.state_hash());
+    assert_eq!(first.tick.state_hash, Some(sim.state_hash()));
 
     let second = sim
         .advance_app_frame(
@@ -942,7 +942,7 @@ fn app_frame_output_finalizes_overlay_navigation_and_delivers_updates_once() {
         )
         .expect("fixture frame must complete");
     assert!(second.overlay_updates.is_empty());
-    assert_eq!(second.tick.state_hash, sim.state_hash());
+    assert_eq!(second.tick.state_hash, Some(sim.state_hash()));
 }
 
 #[test]
@@ -1004,7 +1004,7 @@ fn terminal_app_frame_finalizes_overlay_updates_before_hash() {
             .expect("terminal navigation")
             .is_walkable(1, 0)
     );
-    assert_eq!(output.tick.state_hash, sim.state_hash());
+    assert_eq!(output.tick.state_hash, Some(sim.state_hash()));
 
     let next = sim
         .advance_app_frame(
@@ -11420,4 +11420,27 @@ fn a_group_spread_asks_infantry_with_a_flagged_targets_deck_height() {
         assert_eq!((cell.1, *direction, *height), (20, -1, 5), "{record:?}");
     }
     assert_eq!(targets, [(20, 20), (20, 20)]);
+}
+
+#[test]
+fn optional_frame_hashing_preserves_simulation_across_unobserved_frames() {
+    let (mut checked, rules) = animation_boundary_fixture();
+    let (mut unchecked, _) = animation_boundary_fixture();
+    for _ in 0..300 {
+        let a = checked.advance_app_frame(&[], Some(&rules), None, 67,
+            TickLane::Ordinary, None, FrameEffects::default()).unwrap();
+        let b = unchecked.advance_app_frame(&[], Some(&rules), None, 67,
+            TickLane::Ordinary, None, FrameEffects::default().with_state_hash(false)).unwrap();
+        assert!(a.tick.state_hash.is_some());
+        assert_eq!(b.tick.state_hash, None);
+        assert_eq!(a.tick.tick, b.tick.tick);
+        assert_eq!(a.tick.frame_committed, b.tick.frame_committed);
+        assert_eq!(a.tick.executed_commands, b.tick.executed_commands);
+    }
+    // Do not hash the unchecked branch during the run: a hash with an
+    // accidental side effect must not be able to hide behind the assertion.
+    assert_eq!(checked.state_hash(), unchecked.state_hash());
+    let result = unchecked.advance_app_frame(&[], Some(&rules), None, 67,
+        TickLane::Ordinary, None, FrameEffects::default()).unwrap();
+    assert_eq!(result.tick.state_hash, Some(unchecked.state_hash()));
 }

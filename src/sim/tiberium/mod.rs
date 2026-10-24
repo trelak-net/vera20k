@@ -1472,7 +1472,7 @@ SpreadPercentage=.06
             first.overlay_updates.is_empty(),
             "erased tiberium has no overlay upsert"
         );
-        assert_eq!(first.tick.state_hash, sim.state_hash());
+        assert_eq!(first.tick.state_hash, Some(sim.state_hash()));
         assert!(Arc::ptr_eq(&published, &sim.path_grid_snapshot().unwrap()));
         let mut pending = sim.overlay_grid.as_ref().unwrap().clone();
         assert!(pending.take_dirty_cells().is_empty());
@@ -1492,7 +1492,7 @@ SpreadPercentage=.06
             Arc::ptr_eq(&published, &sim.path_grid_snapshot().unwrap()),
             "no duplicate navigation publication"
         );
-        assert_eq!(second.tick.state_hash, sim.state_hash());
+        assert_eq!(second.tick.state_hash, Some(sim.state_hash()));
     }
 
     /// `Reduce_Tiberium @ 0x00480A80` full removal calls the REMOVED class's

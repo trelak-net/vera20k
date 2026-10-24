@@ -441,7 +441,7 @@ fn replay_hash_stable_through_slice6() {
             due.len(),
             "scripted envelope at {tick} must be consumed"
         );
-        log.record_tick(tick, due, result.state_hash);
+        log.record_tick(tick, due, result.state_hash.unwrap());
         if tick >= 11 {
             let infantry = sim.substrate.entities.get(3).unwrap();
             let coord = crate::sim::movement::ground_pose::position_world_coord(&infantry.position);
