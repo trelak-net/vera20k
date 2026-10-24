@@ -627,13 +627,16 @@ struct ScanContext<'a> {
     /// The flat walks and the ring walk's air pre-pass skip an allied
     /// candidate (`Is_Ally_ByObject @ 0x004F9A90`) unless the scanner is
     /// `AttackFriendlies=` (TechnoType
-    /// `+0x6C0`; no retail type sets it and VERA does not read it), berserk
+    /// `+0x6C0`), berserk
     /// (`+0x298`) or riding a mind-controlled `OpenTopped=` transport
     /// (`[ESP+0x13]`, `0x006F8FA8..0x006F8FD7`)...
     attacks_allies: bool,
     /// ...and, in the Techno walk, unless it is a healer or a computer
     /// house's `Engineer=` infantryman (`0x006F9C9B..0x006F9CE7`).
     scans_allies: bool,
+    healer: bool,
+    /// Controller's house of an OpenTopped carrier, not the passenger owner.
+    controller_house: Option<InternedId>,
     /// The world GetFireError reads for Evaluate_Candidate's probe
     /// (`0x006F7CE8`). Every production caller supplies it; `None` only in
     /// unit tests of the walk and the score, which then skip the probe.
@@ -647,15 +650,12 @@ impl ScanContext<'_> {
 
     /// `HouseClass::Is_Ally_ByObject` — allied houses and the owner itself.
     fn is_ally(&self, candidate: &GameEntity) -> bool {
-        if candidate.owner() == self.attacker.owner {
-            return true;
-        }
-        self.fog.is_some_and(|fog| {
-            fog.is_friendly(
-                self.interner.resolve(self.attacker.owner),
-                self.interner.resolve(candidate.owner()),
-            )
-        })
+        is_ally_by_object(
+            self.alliances(),
+            self.interner,
+            self.attacker.owner,
+            candidate.owner(),
+        )
     }
 
     /// The walks' house gates: `OnlyTargetHouseEnemy` (arg3) admits only the
@@ -926,6 +926,7 @@ pub(crate) fn greatest_threat(
         attacker.category,
         EntityCategory::Infantry | EntityCategory::Unit
     ) && super::combat_weapon::weapon_damage_value(scanner, attacker_obj, rules) < 0;
+    let controlled_transport = rides_controlled_transport(entities, rules, interner, scanner);
     // House+54E0 within `0xF00` leptons, centre to centre (vt+0x48 of both):
     // `(dx² + dz²) + dy²` through `Sqrt_Approx` and ftol
     // (`0x0051E16E..0x0051E1F6`).
@@ -1043,11 +1044,25 @@ pub(crate) fn greatest_threat(
         mask,
         scan_coord,
         standing,
-        attacks_allies: attacks_allies(entities, rules, interner, scanner),
+        attacks_allies: attacker_obj.attack_friendlies
+            || scanner.berserk.active
+            || controlled_transport,
         scans_allies: healer
             || (attacker.category == EntityCategory::Infantry
                 && !standing.human
                 && attacker_obj.engineer),
+        healer,
+        controller_house: controlled_transport
+            .then(|| {
+                scanner
+                    .passenger_role
+                    .inside_transport_id()
+                    .and_then(|id| entities.get(id))
+                    .and_then(|transport| transport.mind_control.controller())
+                    .and_then(|id| entities.get(id))
+                    .map(|controller| controller.owner())
+            })
+            .flatten(),
         fire_world,
     };
 
@@ -1195,25 +1210,25 @@ pub(crate) fn greatest_threat(
     result(best)
 }
 
-/// Berserk (`+0x298`), or riding an `OpenTopped=` transport (`+0x11C`,
-/// TechnoType `+0x5E4`) that is mind-controlled (`+0x2C0`).
-fn attacks_allies(
+/// Riding an `OpenTopped=` transport (`+0x11C`, TechnoType `+0x5E4`) that
+/// is mind-controlled (`+0x2C0`): `[ESP+0x13]` in the walks, `BL` in
+/// Evaluate_Candidate (`0x006F7EA2..0x006F7ED8`).
+fn rides_controlled_transport(
     entities: &EntityStore,
     rules: &RuleSet,
     interner: &StringInterner,
     scanner: &GameEntity,
 ) -> bool {
-    scanner.berserk.active
-        || scanner
-            .passenger_role
-            .inside_transport_id()
-            .and_then(|transport| entities.get(transport))
-            .is_some_and(|transport| {
-                transport.mind_control.controller().is_some()
-                    && rules
-                        .object(interner.resolve(transport.type_ref()))
-                        .is_some_and(|obj| obj.open_topped)
-            })
+    scanner
+        .passenger_role
+        .inside_transport_id()
+        .and_then(|transport| entities.get(transport))
+        .is_some_and(|transport| {
+            transport.mind_control.controller().is_some()
+                && rules
+                    .object(interner.resolve(transport.type_ref()))
+                    .is_some_and(|obj| obj.open_topped)
+        })
 }
 
 /// `Greatest_Threat`'s mask: the caller's literal through the scanner's
@@ -1428,18 +1443,20 @@ fn global_list_scan(ctx: &ScanContext<'_>, flags: u32, zone: Option<u32>) -> Opt
 ///
 /// The walk stops at the first hostile Techno in the selected list; allied
 /// entries are stepped over but do not end the walk, and if the list runs out
-/// with only allies the cell contributes nothing (the post-check at
-/// `0x006F8909` rejects the ally the walk was left holding). The result is that
+/// with only allies the cell contributes nothing (the post-walk test at
+/// `0x006F8B56..0x006F8BE0` rejects the ally the walk was left holding). The
+/// result is that
 /// a cell holding three enemy infantry offers only the list head — if the gate
 /// then rejects that one, the other two are never seen.
 ///
 /// A cell outside the scanner's zone offers nothing; see [`greatest_threat`].
 ///
-/// Not modelled: the ally arms (`0x006F8A30..0x006F8B49`). A healer takes the
-/// first damaged ally instead of the first hostile, and a berserk or
-/// `AttackFriendlies=` scanner, a passenger of a mind-controlled `OpenTopped=`
-/// transport, an `InfantryClass+0x6D8` infantryman or an Area Guard computer
-/// engineer may take an ally; see the G10 residual in [`evaluate_candidate`].
+/// A berserk scanner that is not a healer takes the first Techno, ally or not
+/// (`0x006F8AAA`), and the post-walk test passes an ally on (`0x006F8BD0`).
+///
+/// Allied selection follows 6F8A30..6F8BE2: healers inspect damaged
+/// allies first; ordinary attackers, berserk and controlled passengers use
+/// their own branches before the common candidate evaluator.
 fn scan_cell_for_target(
     ctx: &ScanContext<'_>,
     index: &ScanIndex<'_>,
@@ -1482,6 +1499,7 @@ fn scan_cell_for_target(
         (u16::try_from(coord.0).ok()?, u16::try_from(coord.1).ok()?)
     };
     let (occupancy, layer) = index.cell_list(rx, ry)?;
+    let mut retained = None;
     for occupant in occupancy.iter_layer(layer) {
         if occupant.entity_id == ctx.attacker.stable_id {
             continue;
@@ -1489,11 +1507,64 @@ fn scan_cell_for_target(
         let Some(candidate) = ctx.entities.get(occupant.entity_id) else {
             continue;
         };
-        if !ctx.is_ally(candidate) {
-            return Some(occupant.entity_id);
+        retained = Some(candidate);
+        let ally = ctx.is_ally(candidate);
+        let damaged = || {
+            ctx.rules
+                .object(ctx.interner.resolve(candidate.type_ref()))
+                .is_some_and(|kind| {
+                    matches!(
+                        candidate.health.compare_ratio(kind.strength, 1.0),
+                        crate::util::native_x87::MaskedX87Ordering::Less
+                    )
+                })
+        };
+        let stop = if ctx.healer {
+            damaged() && ally
+        } else if (!ally && ctx.controller_house.is_none())
+            || ctx.attacker_obj.attack_friendlies
+            || ctx.scanner.berserk.active
+        {
+            true
+        } else if ctx.controller_house.is_some_and(|house| {
+            is_ally_by_object(ctx.alliances(), ctx.interner, house, candidate.owner())
+        }) {
+            // 6F8ACC deliberately stops on a controller ally. The common
+            // candidate gate subsequently rejects it; do not reverse this.
+            true
+        } else {
+            ctx.attacker.category == EntityCategory::Infantry
+                && ctx.attacker_obj.engineer
+                && ctx.attacker.scan_mission == super::ScanMission::AreaGuard
+                && candidate.category == EntityCategory::Structure
+                && candidate.owner() == ctx.attacker.owner
+                && ctx
+                    .rules
+                    .object(ctx.interner.resolve(candidate.type_ref()))
+                    .is_some_and(|kind| {
+                        matches!(
+                            candidate
+                                .health
+                                .compare_ratio(kind.strength, ctx.rules.general.condition_yellow),
+                            crate::util::native_x87::MaskedX87Ordering::Less
+                                | crate::util::native_x87::MaskedX87Ordering::Equal
+                        )
+                    })
+        };
+        if stop {
+            break;
         }
     }
-    None
+    // 6F8B49 keeps the last Techno when the linked list ran out; the
+    // post-walk friendship gate decides whether it reaches EvaluateCandidate.
+    let candidate = retained?;
+    (!ctx.is_ally(candidate)
+        || ctx.healer
+        || ctx.attacks_allies
+        || (ctx.attacker.category == EntityCategory::Infantry
+            && ctx.attacker_obj.engineer
+            && !ctx.standing.human))
+        .then_some(candidate.stable_id())
 }
 
 /// `Evaluate_Candidate`'s distance cutoff, `0x006F8049..0x006F8170`: a
@@ -1626,22 +1697,30 @@ fn evaluate_candidate(
         return None;
     }
 
-    // G10/G11 — the ally arm and the self test.
-    //
-    // RESIDUAL — G10's exceptions (`0x006F7EA2..0x006F8001`) and the cell
-    // walk's ally arms ([`scan_cell_for_target`]) are not ported, so every ally
-    // is rejected here. Natively a healer takes a damaged ally, a computer
-    // engineer a damaged own building, and a berserk or `AttackFriendlies=`
-    // scanner, or a passenger of a mind-controlled `OpenTopped=` transport,
-    // takes allies as it takes enemies. Trigger: an idle medic or mechanic
-    // beside a wounded ally; a unit a Chaos Drone gassed. Effect: no automatic
-    // healing, and a berserk unit attacks only enemies. Frequency: common
-    // wherever medics, mechanics or Chaos Drones play. Downstream: target
-    // choice only; until this lands the walks' ally exceptions
-    // ([`ScanContext::attacks_allies`], [`ScanContext::scans_allies`]) change
-    // nothing.
-    if candidate.stable_id() == ctx.attacker.stable_id || ctx.is_ally(candidate) {
+    // G10/G11 (6F7EA2..6F8003). A controlled OpenTopped passenger
+    // uses the controller's alliances even when berserk/AttackFriendlies.
+    if candidate.stable_id() == ctx.attacker.stable_id {
         return None;
+    }
+    if let Some(house) = ctx.controller_house {
+        if is_ally_by_object(ctx.alliances(), ctx.interner, house, candidate.owner()) {
+            return None;
+        }
+    } else if !ctx.scanner.berserk.active
+        && !ctx.attacker_obj.attack_friendlies
+        && ctx.is_ally(candidate)
+    {
+        let engineer =
+            ctx.attacker.category == EntityCategory::Infantry && ctx.attacker_obj.engineer;
+        if (!ctx.healer && !engineer)
+            || matches!(
+                candidate.health.compare_ratio(candidate_obj.strength, 1.0),
+                crate::util::native_x87::MaskedX87Ordering::Equal
+                    | crate::util::native_x87::MaskedX87Ordering::Unordered
+            )
+        {
+            return None;
+        }
     }
     if candidate.passenger_role.is_inside_transport() {
         return None;

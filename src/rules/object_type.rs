@@ -1552,6 +1552,9 @@ pub struct ObjectType {
     /// Parsed from `AttackCursorOnFriendlies=yes` in rules.ini.
     /// Used by Desolator and Boris whose weapons affect friendlies.
     pub attack_cursor_on_friendlies: bool,
+    /// TechnoType+6C0: allow automatic acquisition of own/allied objects.
+    /// This is distinct from the cursor-only flag above.
+    pub attack_friendlies: bool,
 
     /// Whether this infantry uses the `Enter`/sabotage cursor instead of
     /// the normal `Attack` cursor on enemy structures.
@@ -2737,8 +2740,12 @@ impl ObjectType {
                 .unwrap_or_default(),
             passenger_pip: section.read_name("Pip", 0x20).map_or(1, |name| {
                 match name.to_ascii_lowercase().as_str() {
-                    "empty" => 0, "white" => 1, "green" => 2,
-                    "yellow" => 3, "red" => 4, "blue" => 5,
+                    "empty" => 0,
+                    "white" => 1,
+                    "green" => 2,
+                    "yellow" => 3,
+                    "red" => 4,
+                    "blue" => 5,
                     _ => 1,
                 }
             }),
@@ -2797,6 +2804,7 @@ impl ObjectType {
             produce_cash_delay: section.read_int("ProduceCashDelay", 0),
             overpowerable: section.read_bool("Overpowerable", false),
             attack_cursor_on_friendlies: section.read_bool("AttackCursorOnFriendlies", false),
+            attack_friendlies: section.read_bool("AttackFriendlies", false),
             sabotage_cursor: section.read_bool("SabotageCursor", false),
             c4: section.read_bool("C4", false),
             can_c4: section.read_bool("CanC4", category == ObjectCategory::Building),

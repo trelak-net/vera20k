@@ -224,6 +224,16 @@ pub(crate) fn current_cursor_feedback_kind(state: &AppState) -> Option<CursorFee
         });
     let best_id = select_best_for_action(sim, &selected, action_target, state.rules());
 
+    // Unit73FD7C post-processes the base Ctrl/Alt action too; only Shift and
+    // the single-object self action precede that arm. Ctrl+Alt also repairs.
+    if modifier != crate::app::input::context_order::OrderModifier::Queue
+        && let Some(kind) = hover.as_ref().and_then(|hover| {
+            unit_repair_feedback(sim, &selected, best_id, hover, state.rules(), owner_id)
+        })
+    {
+        return Some(kind);
+    }
+
     // Force-fire override: with Ctrl held the cell path takes the attack branch
     // over allies, own units and empty ground. Ctrl+Shift is attack-move and
     // Ctrl+Alt is guard area — neither force-fires — so this reads the resolved
@@ -261,6 +271,13 @@ pub(crate) fn current_cursor_feedback_kind(state: &AppState) -> Option<CursorFee
         }
     }
     if let Some(hover) = hover.as_ref() {
+        // Shift's native action8 returns before Unit's healing override.
+        if modifier == crate::app::input::context_order::OrderModifier::Queue
+            && unit_repair_feedback(sim, &selected, best_id, hover, state.rules(), owner_id)
+                .is_some()
+        {
+            return Some(CursorFeedbackKind::FriendlyUnit);
+        }
         let kind = capability_cursor_for_hover(
             sim,
             &selected,
@@ -496,6 +513,17 @@ pub(super) fn capability_cursor_for_hover(
     overlay_registry: Option<&crate::rules::overlay_types::OverlayTypeRegistry>,
 ) -> CursorFeedbackKind {
     use crate::map::entities::EntityCategory;
+
+    if let Some(kind) = unit_repair_feedback(
+        sim,
+        selected,
+        best_id,
+        hover,
+        rules,
+        sim.session.current_house,
+    ) {
+        return kind;
+    }
 
     let hovered_entity = sim.entities().get(hover.stable_id);
     let hovered_obj = rules
@@ -806,6 +834,31 @@ pub(super) fn capability_cursor_for_hover(
         }
         HoverTargetKind::HiddenEnemy => CursorFeedbackKind::Invalid,
     }
+}
+
+/// The display mapping for Unit's shared repair-object action. Original
+/// Display4AAE90 rows33/17/19 are saved in bunker_attack_action repair_rows.
+fn unit_repair_feedback(
+    sim: &crate::sim::world::Simulation,
+    selected: &[u64],
+    best_id: Option<u64>,
+    hover: &crate::app::input::entity_pick::HoverTargetKindWithId,
+    rules: Option<&crate::rules::ruleset::RuleSet>,
+    issuing_house: Option<crate::sim::intern::InternedId>,
+) -> Option<CursorFeedbackKind> {
+    if selected == [hover.stable_id] || hover.kind == HoverTargetKind::HiddenEnemy {
+        return None;
+    }
+    let id = best_id?;
+    let rules = rules?;
+    let house = issuing_house?;
+    Some(
+        match sim.unit_repair_action(id, hover.stable_id, house, rules)? {
+            crate::sim::world::UnitRepairAction::Repair => CursorFeedbackKind::RepairAction(true),
+            crate::sim::world::UnitRepairAction::Select => CursorFeedbackKind::FriendlyUnit,
+            crate::sim::world::UnitRepairAction::Move => CursorFeedbackKind::Invalid,
+        },
+    )
 }
 
 /// `InfantryClass::What_Action_OnObject` (`0x0051EB24..0x0051EB7E`) for a

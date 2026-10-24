@@ -35,9 +35,10 @@
 //! - B3: EMPulseCannon, whose cannon fires only through its superweapon.
 //! - B7: the upgrade turret (`0x004527D0`'s upgrade walk; `turret_upgrade`).
 //! - A1: a paradrop plane's payload (`+0x6C9`, `paradrop_payload`).
-//! - U6: a Building target counts as a vehicle when it undeploys into a unit
-//!   and stands on one cell (`0x00457620` -> `0x00465D40`); held false, and no
-//!   retail building qualifies (the Construction Yards are 4x4).
+//!
+//! U6's Building vehicle predicate is supplied by the production query:
+//! undeploys into a unit and stands on one cell (`0x00457620` -> `0x00465D40`).
+//! No retail building qualifies (the Construction Yards are 4x4).
 //!
 //! T19 (ObjectClass `+0x8D`, `GameEntity::is_falling_down`) fires during a
 //! paradrop's descent, its one VERA producer; no other fall is represented.

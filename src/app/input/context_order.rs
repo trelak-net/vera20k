@@ -340,6 +340,140 @@ struct AttackDispatch {
     select_fallback: bool,
 }
 
+/// Unit73FD7C's post-processing precedes the generic friendly selection and
+/// Ctrl attack paths. Selection/keyboard and mission promotion stay with their
+/// existing owners. Shift and one selected object's self action precede
+/// the native repair arm. Saved caller/output controls: bunker_attack_action
+/// repair_rows; Unit738890 converts Repair29 to the ordinary Attack mission.
+fn unit_repair_branch_orders(
+    sim: &crate::sim::world::Simulation,
+    rules: &crate::rules::ruleset::RuleSet,
+    selected: &[u64],
+    target: &HoverTargetKindWithId,
+    issuing_house: InternedId,
+    modifier: OrderModifier,
+    order_mode: OrderMode,
+) -> AttackDispatch {
+    use crate::sim::world::UnitRepairAction;
+    let mut output = AttackDispatch {
+        receivers: Default::default(),
+        commands: Vec::new(),
+        consumed: false,
+        select_fallback: false,
+    };
+    if modifier == OrderModifier::Queue
+        || selected == [target.stable_id]
+        || target.kind == HoverTargetKind::HiddenEnemy
+    {
+        return output;
+    }
+    let friendly = matches!(
+        target.kind,
+        HoverTargetKind::FriendlyUnit | HoverTargetKind::FriendlyStructure
+    );
+    // DetermineAction's one chosen object owns a normal friendly click. A
+    // repair-capable member must not turn the whole group's Select into Repair.
+    if friendly
+        && matches!(modifier, OrderModifier::Normal | OrderModifier::AttackMove)
+        && !cursor_owner(sim, rules, selected, target.stable_id).is_some_and(|id| {
+            sim.unit_repair_action(id, target.stable_id, issuing_house, rules)
+                == Some(UnitRepairAction::Repair)
+        })
+    {
+        return output;
+    }
+    for &id in selected {
+        let Some(action) = sim.unit_repair_action(id, target.stable_id, issuing_house, rules)
+        else {
+            continue;
+        };
+        output.receivers.insert(id);
+        // UnitClass::ClickedAction 0x00738890 refuses actor+0x298 berserk
+        // before PlayerSendCommand. DetermineAction still returns Repair29;
+        // bunker_attack_action repair_rows/berserk_friend executes both.
+        if sim
+            .entities()
+            .get(id)
+            .is_some_and(|actor| actor.berserk.active)
+        {
+            output.consumed = true;
+            continue;
+        }
+        let payload = match action {
+            UnitRepairAction::Select => {
+                output.select_fallback = true;
+                continue;
+            }
+            UnitRepairAction::Repair => {
+                output.consumed = true;
+                let target_entity = sim.entities().get(target.stable_id).unwrap();
+                let goal = nearest_reachable_goal(
+                    sim.path_grid(),
+                    (target_entity.position.rx, target_entity.position.ry),
+                );
+                // Repair29 replaced Ctrl+Alt's base action before the mission
+                // producer; it sends Attack1, not the legacy Guard adapter.
+                let attack_modifier = if modifier == OrderModifier::GuardArea {
+                    OrderModifier::Normal
+                } else {
+                    modifier
+                };
+                let payload = object_click_payload(
+                    order_mode,
+                    attack_modifier,
+                    entity_can_attack_move(sim, Some(rules), id),
+                    id,
+                    target.stable_id,
+                    goal.0,
+                    goal.1,
+                    false,
+                );
+                match payload {
+                    Command::Attack {
+                        attacker_id,
+                        target_id,
+                    } => object_attack_order(attacker_id, target_id, true),
+                    payload => payload,
+                }
+            }
+            UnitRepairAction::Move => {
+                output.consumed = true;
+                let target_entity = sim.entities().get(target.stable_id).unwrap();
+                let Some(goal) = crate::app::input::commands::ordinary_cell_move_goal(
+                    sim,
+                    rules,
+                    issuing_house,
+                    id,
+                    (target_entity.position.rx, target_entity.position.ry),
+                    false,
+                    false,
+                ) else {
+                    continue;
+                };
+                if order_mode == OrderMode::AttackMove
+                    && entity_can_attack_move(sim, Some(rules), id)
+                {
+                    Command::AttackMove {
+                        entity_id: id,
+                        target_rx: goal.cell.0,
+                        target_ry: goal.cell.1,
+                        queue: goal.queue,
+                    }
+                } else {
+                    Command::Move {
+                        entity_id: id,
+                        target_rx: goal.cell.0,
+                        target_ry: goal.cell.1,
+                        queue: goal.queue,
+                    }
+                }
+            }
+        };
+        output.commands.push(payload);
+    }
+    output
+}
+
 fn attack_branch_orders(
     sim: &crate::sim::world::Simulation,
     rules: &crate::rules::ruleset::RuleSet,
@@ -1001,6 +1135,35 @@ pub(crate) fn try_queue_context_order_at_screen_point(
             crate::app::match_runtime::sim_tick::tactical_bridge_cells(sim),
         );
 
+        let mut selected_ids = selected_ids;
+        let repair_dispatch = hover.as_ref().map(|target| {
+            unit_repair_branch_orders(
+                sim,
+                &resources.rules,
+                &selected_ids,
+                target,
+                owner_id,
+                modifier,
+                order_mode,
+            )
+        });
+        if let Some(repair_dispatch) = repair_dispatch {
+            consumed_attack_action |= repair_dispatch.consumed;
+            queued.extend(
+                repair_dispatch
+                    .commands
+                    .into_iter()
+                    .map(|payload| CommandEnvelope::new(owner_id, execute_tick, payload)),
+            );
+            selected_units.retain(|id| !repair_dispatch.receivers.contains(id));
+            selected_miner_ids.retain(|id| !repair_dispatch.receivers.contains(id));
+            selected_ids.retain(|id| !repair_dispatch.receivers.contains(id));
+            if selected_ids.is_empty() {
+                let sent = finish_order(state, queued, speaker_id);
+                return sent || (consumed_attack_action && !repair_dispatch.select_fallback);
+            }
+        }
+
         // Attack-capable Ctrl receivers, including fixed/occupied buildings,
         // resolve the same action as the cursor before the legacy rally/mobile
         // split. Non-attack capabilities keep their existing handlers below.
@@ -1181,7 +1344,11 @@ pub(crate) fn try_queue_context_order_at_screen_point(
                 return finish_order(state, queued, speaker_id);
             }
             if select_friendly_clicks && clicked_friendly && context_actions_enabled {
-                return false;
+                return if consumed_attack_action {
+                    finish_order(state, queued, speaker_id)
+                } else {
+                    false
+                };
             }
             {
                 // Set rally point for the structures.
@@ -1303,7 +1470,7 @@ pub(crate) fn try_queue_context_order_at_screen_point(
                         queued.push(CommandEnvelope::new(
                             owner_id,
                             execute_tick,
-                            bomb_order(attacker_id, target.stable_id, friendly),
+                            object_attack_order(attacker_id, target.stable_id, friendly),
                         ));
                     }
                     selected_units.retain(|id| !engineers.contains(id));
@@ -1571,14 +1738,14 @@ pub(crate) fn try_queue_context_order_at_screen_point(
                         queued.push(CommandEnvelope::new(
                             owner_id,
                             execute_tick,
-                            bomb_order(attacker_id, target.stable_id, true),
+                            object_attack_order(attacker_id, target.stable_id, true),
                         ));
                     }
                     return finish_order(state, queued, speaker_id);
                 }
             }
             if select_friendly_clicks && clicked_friendly && context_actions_enabled {
-                return if consumed_building_action {
+                return if consumed_building_action || consumed_attack_action {
                     finish_order(state, queued, speaker_id)
                 } else {
                     false
@@ -2068,11 +2235,10 @@ fn tesla_charge_orders(
         .collect()
 }
 
-/// The Attack order an Engineer's DisarmBomb or a Crazy Ivan's IvanBomb click
-/// sends. Native's Attack event has no alliance test; VERA's plain `Attack`
-/// command refuses friends, so an own or allied target goes as `ForceAttack`,
-/// the same Attack mission without that gate.
-fn bomb_order(attacker_id: u64, target_id: u64, friendly: bool) -> Command {
+/// Native Attack events have no alliance test. Friendly context actions
+/// (repair, defuse and Ivan) use the existing ForceAttack internal alias:
+/// the same mission/target receiver, with no persistent Ctrl/fire modifier.
+fn object_attack_order(attacker_id: u64, target_id: u64, friendly: bool) -> Command {
     if friendly {
         Command::ForceAttack {
             attacker_id,
@@ -3015,11 +3181,11 @@ mod tests {
         assert!(disarm_bomb_engineers(&sim, &rules, &[engineer], engineer, americans).is_empty());
 
         assert!(matches!(
-            bomb_order(engineer, own_tank, true),
+            object_attack_order(engineer, own_tank, true),
             Command::ForceAttack { .. }
         ));
         assert!(matches!(
-            bomb_order(engineer, far_tank, false),
+            object_attack_order(engineer, far_tank, false),
             Command::Attack { .. }
         ));
     }
@@ -3561,6 +3727,10 @@ mod retail_engineer_tests;
 #[cfg(test)]
 #[path = "context_order_retail_garrison_tests.rs"]
 mod retail_garrison_tests;
+
+#[cfg(test)]
+#[path = "context_order_retail_ifv_repair_tests.rs"]
+mod retail_ifv_repair_tests;
 
 #[cfg(test)]
 mod stationary_attack_dispatch_tests {

@@ -3635,6 +3635,3232 @@
       ]
     }
   ],
+  "repair_rows": [
+    {
+      "action": 29,
+      "cursor": {
+        "output": {
+          "cursor_row": 33,
+          "descriptor_dwords": [
+            150,
+            20,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "960000001400000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "ctrl": false,
+        "in_range": true,
+        "installed": false,
+        "name": "damaged_friend",
+        "relation": "own",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "RepairToAttack",
+          "pc": "0x7388d0"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "original",
+          "name": "AttackMissionProducer",
+          "pc": "0x4d769f"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "destination": 0,
+          "kind": "command_sink",
+          "mission": 1,
+          "pc": "0x6ffbe0",
+          "queue": 0,
+          "target": 536895488
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 7,
+      "cursor": {
+        "output": {
+          "cursor_row": 17,
+          "descriptor_dwords": [
+            18,
+            13,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "120000000d00000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "ctrl": false,
+        "health": 100,
+        "in_range": true,
+        "installed": false,
+        "name": "full_friend",
+        "relation": "own",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 7,
+      "cursor": {
+        "output": {
+          "cursor_row": 17,
+          "descriptor_dwords": [
+            18,
+            13,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "120000000d00000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "ctrl": false,
+        "health": 101,
+        "in_range": true,
+        "installed": false,
+        "name": "overfull_friend",
+        "relation": "own",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 7,
+      "cursor": {
+        "output": {
+          "cursor_row": 17,
+          "descriptor_dwords": [
+            18,
+            13,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "120000000d00000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "ctrl": false,
+        "in_range": true,
+        "installed": false,
+        "name": "empty_ifv",
+        "relation": "own",
+        "repair": true,
+        "route": "object",
+        "weapon_mode": 0
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 2,
+      "cursor": {
+        "output": {
+          "cursor_row": 19,
+          "descriptor_dwords": [
+            41,
+            1,
+            0,
+            52,
+            1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "29000000010000000000000034000000010000003930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "ctrl": false,
+        "in_range": true,
+        "installed": false,
+        "name": "enemy",
+        "relation": "enemy",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "IsControllable",
+          "pc": "0x700c40"
+        },
+        {
+          "kind": "original",
+          "name": "BunkerGate",
+          "pc": "0x700c66"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectAttackReturn",
+          "pc": "0x70055d"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "IsControllable",
+          "pc": "0x700c40"
+        },
+        {
+          "kind": "original",
+          "name": "BunkerGate",
+          "pc": "0x700c66"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "IsControllable",
+          "pc": "0x700c40"
+        },
+        {
+          "kind": "original",
+          "name": "BunkerGate",
+          "pc": "0x700c66"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectAttackReturn",
+          "pc": "0x70055d"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "IsControllable",
+          "pc": "0x700c40"
+        },
+        {
+          "kind": "original",
+          "name": "BunkerGate",
+          "pc": "0x700c66"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "original",
+          "name": "IsControllable",
+          "pc": "0x700c40"
+        },
+        {
+          "kind": "original",
+          "name": "BunkerGate",
+          "pc": "0x700c66"
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x4d78ba"
+        }
+      ]
+    },
+    {
+      "action": 7,
+      "cursor": {
+        "output": {
+          "cursor_row": 17,
+          "descriptor_dwords": [
+            18,
+            13,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "120000000d00000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "ctrl": false,
+        "in_range": true,
+        "installed": false,
+        "name": "non_vehicle",
+        "non_vehicle": true,
+        "relation": "own",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 29,
+      "cursor": {
+        "output": {
+          "cursor_row": 33,
+          "descriptor_dwords": [
+            150,
+            20,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "960000001400000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "ctrl": true,
+        "in_range": true,
+        "installed": false,
+        "name": "ctrl_friend",
+        "relation": "own",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "IsControllable",
+          "pc": "0x700c40"
+        },
+        {
+          "kind": "original",
+          "name": "BunkerGate",
+          "pc": "0x700c66"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectAttackReturn",
+          "pc": "0x70055d"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "IsControllable",
+          "pc": "0x700c40"
+        },
+        {
+          "kind": "original",
+          "name": "BunkerGate",
+          "pc": "0x700c66"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectAttackReturn",
+          "pc": "0x70055d"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "RepairToAttack",
+          "pc": "0x7388d0"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "original",
+          "name": "AttackMissionProducer",
+          "pc": "0x4d769f"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "destination": 0,
+          "kind": "command_sink",
+          "mission": 1,
+          "pc": "0x6ffbe0",
+          "queue": 0,
+          "target": 536895488
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 29,
+      "cursor": {
+        "output": {
+          "cursor_row": 33,
+          "descriptor_dwords": [
+            150,
+            20,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "960000001400000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "alt": true,
+        "ctrl": false,
+        "in_range": true,
+        "installed": false,
+        "name": "alt_friend",
+        "relation": "own",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "IsControllable",
+          "pc": "0x700c40"
+        },
+        {
+          "kind": "original",
+          "name": "BunkerGate",
+          "pc": "0x700c66"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "IsControllable",
+          "pc": "0x700c40"
+        },
+        {
+          "kind": "original",
+          "name": "BunkerGate",
+          "pc": "0x700c66"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "RepairToAttack",
+          "pc": "0x7388d0"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "original",
+          "name": "AttackMissionProducer",
+          "pc": "0x4d769f"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "destination": 0,
+          "kind": "command_sink",
+          "mission": 1,
+          "pc": "0x6ffbe0",
+          "queue": 0,
+          "target": 536895488
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 29,
+      "cursor": {
+        "output": {
+          "cursor_row": 33,
+          "descriptor_dwords": [
+            150,
+            20,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "960000001400000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "alt": true,
+        "ctrl": true,
+        "in_range": true,
+        "installed": false,
+        "name": "ctrl_alt_friend",
+        "relation": "own",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "IsControllable",
+          "pc": "0x700c40"
+        },
+        {
+          "kind": "original",
+          "name": "BunkerGate",
+          "pc": "0x700c66"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "IsControllable",
+          "pc": "0x700c40"
+        },
+        {
+          "kind": "original",
+          "name": "BunkerGate",
+          "pc": "0x700c66"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "RepairToAttack",
+          "pc": "0x7388d0"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "original",
+          "name": "AttackMissionProducer",
+          "pc": "0x4d769f"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "destination": 0,
+          "kind": "command_sink",
+          "mission": 1,
+          "pc": "0x6ffbe0",
+          "queue": 0,
+          "target": 536895488
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 8,
+      "cursor": {
+        "output": {
+          "cursor_row": 17,
+          "descriptor_dwords": [
+            18,
+            13,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "120000000d00000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "ctrl": false,
+        "in_range": true,
+        "installed": false,
+        "name": "shift_friend",
+        "relation": "own",
+        "repair": true,
+        "route": "object",
+        "shift": true
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 29,
+      "cursor": {
+        "output": {
+          "cursor_row": 33,
+          "descriptor_dwords": [
+            150,
+            20,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "960000001400000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "ctrl": false,
+        "in_range": false,
+        "installed": false,
+        "name": "far_friend",
+        "relation": "own",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "RepairToAttack",
+          "pc": "0x7388d0"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "original",
+          "name": "AttackMissionProducer",
+          "pc": "0x4d769f"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "destination": 0,
+          "kind": "command_sink",
+          "mission": 1,
+          "pc": "0x6ffbe0",
+          "queue": 0,
+          "target": 536895488
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 29,
+      "cursor": {
+        "output": {
+          "cursor_row": 33,
+          "descriptor_dwords": [
+            150,
+            20,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "960000001400000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "allied": true,
+        "ctrl": false,
+        "in_range": true,
+        "installed": false,
+        "name": "one_way_ally",
+        "relation": "enemy",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "RepairToAttack",
+          "pc": "0x7388d0"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "original",
+          "name": "AttackMissionProducer",
+          "pc": "0x4d769f"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "destination": 0,
+          "kind": "command_sink",
+          "mission": 1,
+          "pc": "0x6ffbe0",
+          "queue": 0,
+          "target": 536895488
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 7,
+      "cursor": {
+        "output": {
+          "cursor_row": 17,
+          "descriptor_dwords": [
+            18,
+            13,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "120000000d00000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "ambient_damage": 50,
+        "ctrl": false,
+        "in_range": true,
+        "installed": false,
+        "name": "zero_total_damage",
+        "relation": "own",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 7,
+      "cursor": {
+        "output": {
+          "cursor_row": 17,
+          "descriptor_dwords": [
+            18,
+            13,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "120000000d00000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "ambient_damage": 51,
+        "ctrl": false,
+        "in_range": true,
+        "installed": false,
+        "name": "positive_total_damage",
+        "relation": "own",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "UnitSelectWeapon",
+          "pc": "0x746cd0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoSelectWeapon",
+          "pc": "0x6f3330"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "SelectReturn",
+          "pc": "0x7005da"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "FootClickedObject",
+          "pc": "0x4d74e0"
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    },
+    {
+      "action": 29,
+      "cursor": {
+        "output": {
+          "cursor_row": 33,
+          "descriptor_dwords": [
+            150,
+            20,
+            4,
+            -1,
+            -1,
+            12345,
+            12345
+          ],
+          "descriptor_hex": "960000001400000004000000ffffffffffffffff3930000039300000",
+          "entry": "004AAE90",
+          "selected_count": 1
+        }
+      },
+      "input": {
+        "actor_berserk": true,
+        "ctrl": false,
+        "in_range": true,
+        "installed": false,
+        "name": "berserk_friend",
+        "relation": "own",
+        "repair": true,
+        "route": "object"
+      },
+      "text_sha256": "4cd5557a7490debc493ff965afc4483d8d2f1065f434f6b665cbb8fc4835b0cc",
+      "trace": [
+        {
+          "kind": "original",
+          "name": "DetermineAction",
+          "pc": "0x692610"
+        },
+        {
+          "kind": "seam",
+          "name": "SelectBest-singleton",
+          "result": 536870912
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayEntry",
+          "pc": "0x4aae90"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayModifierAction",
+          "pc": "0x70f0b0"
+        },
+        {
+          "kind": "original",
+          "name": "DisplayNormalSwitch",
+          "pc": "0x4ab449"
+        },
+        {
+          "kind": "original",
+          "name": "UnitClickedObject",
+          "pc": "0x738890"
+        },
+        {
+          "kind": "original",
+          "name": "UnitObject",
+          "pc": "0x73fd50"
+        },
+        {
+          "kind": "original",
+          "name": "FootObject",
+          "pc": "0x4dded0"
+        },
+        {
+          "kind": "original",
+          "name": "TechnoObject",
+          "pc": "0x6ffec0"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeaponDamageValue",
+          "pc": "0x6f3970"
+        },
+        {
+          "kind": "original",
+          "name": "GetWeapon",
+          "pc": "0x70e140"
+        },
+        {
+          "kind": "original",
+          "name": "HealthRatio",
+          "pc": "0x5f5c60"
+        },
+        {
+          "kind": "original",
+          "name": "UnitRepair",
+          "pc": "0x73fe22"
+        },
+        {
+          "kind": "original",
+          "name": "ObjectSimpleDeployerTail",
+          "pc": "0x74037a"
+        },
+        {
+          "kind": "original",
+          "name": "RepairToAttack",
+          "pc": "0x7388d0"
+        },
+        {
+          "kind": "clicked_action_stop",
+          "pc": "0x30000000"
+        }
+      ]
+    }
+  ],
   "rows": [
     {
       "action": 5,

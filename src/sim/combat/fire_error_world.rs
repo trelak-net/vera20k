@@ -372,7 +372,9 @@ impl<'a> FireSubject<'a> {
                         organic: target_obj.organic,
                         is_simple_deployer: target_obj.is_simple_deployer,
                         non_vehicle: target_obj.non_vehicle,
-                        building_vehicle: false,
+                        // Building vt+80:457620 ->465D40, shared ART/undeploy
+                        // predicate also used by the Unit repair action.
+                        building_vehicle: target_obj.is_1x1_with_undeploy(),
                     },
                 ),
                 // A target without a type is no techno the tests can read.

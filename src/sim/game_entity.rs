@@ -239,6 +239,31 @@ pub struct BerserkState {
     pub timer: i32,
 }
 
+impl BerserkState {
+    /// The Psychedelic arm's writes (`0x00701D6B..0x00701D7D`): the time,
+    /// then the flag. Answers whether this hit turned the object berserk; a
+    /// berserk object only has its time refreshed.
+    pub fn start(&mut self, time: i32) -> bool {
+        self.timer = time;
+        !std::mem::replace(&mut self.active, true)
+    }
+
+    /// `TechnoClass::AI_Update`'s countdown (`0x006F9F0D..0x006F9F31`): a
+    /// berserk object's time drops by one each frame. At zero or below the
+    /// flag and the time clear, and the answer is true.
+    pub fn count_down(&mut self) -> bool {
+        if !self.active {
+            return false;
+        }
+        self.timer = self.timer.wrapping_sub(1);
+        if self.timer > 0 {
+            return false;
+        }
+        *self = Self::default();
+        true
+    }
+}
+
 /// A building's delayed fire (`BuildingClass+0x704` mode, `+0x714`
 /// countdown, `+0x708..+0x710` payload), armed by Mission_Attack and served by
 /// ProcessDelayedFire (`0x004503F0`) when the countdown ends.

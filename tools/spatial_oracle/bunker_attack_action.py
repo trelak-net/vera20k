@@ -51,6 +51,23 @@ def run(case):
     u.mem_write(TYPE+0xE0E,bytes([case.get('harvester',False)]))
     u.mem_write(TYPE+0xE13,bytes([case.get('simple_deployer',False)]))
     u.mem_write(TYPE+0x6AC,bytes([case.get('deploy_fire',False)]))
+    if case.get('repair'):
+        # Supplied FV-shaped slot/health/control inputs. The original selector,
+        # GetWeapon, signed Damage+AmbientDamage and health ratio execute below.
+        u.mem_write(TYPE+0x808,dwords(18))
+        u.mem_write(ACTOR+0x138,dwords(case.get('weapon_mode',1)))
+        u.mem_write(TYPE+0x8B4,dwords(WEAPON+0x500))
+        u.mem_write(WEAPON+0x98,dwords(60))
+        u.mem_write(WEAPON+0x500+0x98,dwords(case.get('damage',-50)))
+        u.mem_write(WEAPON+0x500+0xA4,dwords(case.get('ambient_damage',0)))
+        u.mem_write(WEAPON+0x500+0xA0,dwords(PROJECTILE))
+        u.mem_write(WEAPON+0x500+0xAC,dwords(WARHEAD))
+        u.mem_write(TARGET_TYPE+0xA0,dwords(100))
+        u.mem_write(TARGET+0x6C,dwords(case.get('health',50)))
+        u.mem_write(TARGET_TYPE+0xE1B,bytes([case.get('non_vehicle',False)]))
+        u.mem_write(SCRATCH+0x22000+0x16F8,struct.pack('<d',1.0))
+        u.mem_write(HOUSE+0x5788,dwords(2 if case.get('allied',False) else 0))
+        u.mem_write(ACTOR+0x298,bytes([case.get('actor_berserk',False)]))
     u.mem_write(ACTOR+0x6E0,bytes([case.get('deployed',False)]))
     u.mem_write(CELL+0xEC,dwords(case.get('land_type',0)))
     trail=[];trace=[]
@@ -58,27 +75,39 @@ def run(case):
     if case.get('name'):
         watch.update({0x740623:'HarvesterMoveOnly',0x74037A:'ObjectSimpleDeployerTail',0x74072B:'CellSimpleDeployerTail',0x7403C7:'ObjectDeploySelectWeaponNULL',0x740793:'CellDeploySelectWeaponNULL'})
     watch.update({0x4AAE90:'DisplayEntry',0x4AAFC9:'DisplayNoObject',0x4AAFEC:'DisplayResolveCell',0x4AAFF1:'DisplayStoreCell',0x70F0B0:'DisplayModifierAction',0x4AB449:'DisplayNormalSwitch',0x4AB4EE:'DisplayAttackArm'})
+    if case.get('repair'):
+        watch.update({0x6F3970:'GetWeaponDamageValue',0x746CD0:'UnitSelectWeapon',
+            0x6F3330:'TechnoSelectWeapon',0x70E140:'GetWeapon',0x5F5C60:'HealthRatio',
+            0x73FE22:'UnitRepair',0x738890:'UnitClickedObject',0x7388D0:'RepairToAttack',
+            0x4D74E0:'FootClickedObject',0x4D769F:'AttackMissionProducer'})
     def hook(_u,pc,size,data):
         trail.append(hex(pc));trail[:]=trail[-30:]
         if pc in watch:trace.append({'kind':'original','pc':hex(pc),'name':watch[pc]})
         sp=u.reg_read(UC_X86_REG_ESP)
+        if pc==0x6FFBE0 and case.get('repair'):
+            trace.append({'kind':'command_sink','pc':hex(pc),
+                'mission':read(sp+4),'target':read(sp+8),
+                'destination':read(sp+12),'queue':read(sp+16)})
+            ret(1,4)
         if pc==0x4AAFF1:
             trace.append({'kind':'display_target_producer','pc':hex(pc),'target':u.reg_read(UC_X86_REG_EAX),'is_cell':u.reg_read(UC_X86_REG_EAX)==CELL})
         if pc==0x4AB4EE:
             trace.append({'kind':'display_target_consumer','pc':hex(pc),'target':read(sp+0x18),'is_cell':read(sp+0x18)==CELL})
         if pc==0x5353D0: # Single-selection object has no competitor.
             trace.append({'kind':'seam','name':'SelectBest-singleton','result':ACTOR});ret(ACTOR,0)
-        elif pc==0x54F5C0:ret(int(read(sp+4)==17 and case.get('ctrl',True)),1)
+        elif pc==0x54F5C0:ret(int((read(sp+4)==17 and case.get('ctrl',True))
+            or (read(sp+4)==18 and case.get('alt',False))
+            or (read(sp+4)==16 and case.get('shift',False))),1)
         elif pc in (0x5657A0,0x565730):ret(CELL,1)
         elif pc==0x578080:ret(0,1)
         elif pc in (0x586360,0x5865E0):ret(0,1)
         elif pc==0x578460:ret(1,2)
         elif pc==0x74CD60:ret(0,0) # no terrain object
-        elif pc==0x746CD0:
+        elif pc==0x746CD0 and not case.get('repair'):
             entry={'kind':'seam','name':'SelectWeapon','result':0}
             if case.get('name'): entry['target']=read(sp+4)
             trace.append(entry);ret(0,1)
-        elif pc==0x6F3970:ret(60,1) # positive stock weapon damage, not repair unit
+        elif pc==0x6F3970 and not case.get('repair'):ret(60,1) # positive supplied damage
         elif pc==0x6F7970 or pc==0x6F77B0:
             trace.append({'kind':'seam','name':'CanFireAtCell' if pc==0x6F7970 else 'CanFireAtObject','pc':hex(pc),'verdict':case['in_range'],'target':read(sp+4),'weapon_index':read(sp+8)})
             ret(int(case['in_range']),2)
@@ -117,6 +146,16 @@ def run(case):
     assert before==hashlib.sha256(bytes(u.mem_read(0x401000,0x3E0000))).hexdigest()
     descriptor=bytes(u.mem_read(0x82D028+row*28,28))
     cursor={'output':{'entry':'004AAE90','selected_count':case.get('display_selected_count',1),'cursor_row':row,'descriptor_hex':descriptor.hex(),'descriptor_dwords':struct.unpack('<7i',descriptor)}}
+    if case.get('repair'):
+        # ClickedAction re-queries WhatAction, then converts Repair29 to Attack5.
+        # Stop enemy Move2 at the existing coordinate receiver: its locomotor
+        # and event-byte production are outside this bounded action fixture.
+        u.mem_write(SP,dwords(RET_MAGIC,action,TARGET,0))
+        u.reg_write(UC_X86_REG_ESP,SP);u.reg_write(UC_X86_REG_ECX,ACTOR)
+        stop=run_checked(u,0x738890,(RET_MAGIC,0x4D78BA),count=100000,
+            required_addresses=[0x738890,0x73FD50])
+        trace.append({'kind':'clicked_action_stop','pc':hex(stop)})
+        assert before==hashlib.sha256(bytes(u.mem_read(0x401000,0x3E0000))).hexdigest()
     return {'input':case,'action':action,'trace':trace,'cursor':cursor,'text_sha256':before}
 
 def generate():
@@ -133,24 +172,42 @@ def generate():
     display_cases=[dict(route=route,installed=True,in_range=True,
         relation='enemy' if route=='object' else 'none',ctrl=True,display_selected_count=count)
         for route,count in product(('cell','object'),(2,3))]
+    repair_base=dict(route='object',installed=False,in_range=True,relation='own',ctrl=False,repair=True)
+    repair_cases=[repair_base | dict(name=name,**changes) for name,changes in (
+        ('damaged_friend',{}),('full_friend',dict(health=100)),
+        ('overfull_friend',dict(health=101)),('empty_ifv',dict(weapon_mode=0)),
+        ('enemy',dict(relation='enemy')),('non_vehicle',dict(non_vehicle=True)),
+        ('ctrl_friend',dict(ctrl=True)),('alt_friend',dict(alt=True)),
+        ('ctrl_alt_friend',dict(ctrl=True,alt=True)),
+        ('shift_friend',dict(shift=True)),('far_friend',dict(in_range=False)),
+        ('one_way_ally',dict(relation='enemy',allied=True)),
+        ('zero_total_damage',dict(ambient_damage=50)),
+        ('positive_total_damage',dict(ambient_damage=51)),
+        ('berserk_friend',dict(actor_berserk=True)),
+    )]
     return {'schema':1,'rows':[run(c) for c in cases],
             'postprocess_rows':[run(c) for c in postprocess_cases],
-            'display_controls':[run(c) for c in display_cases]}
+            'display_controls':[run(c) for c in display_cases],
+            'repair_rows':[run(c) for c in repair_cases]}
 
 def metadata():
     return provenance(scope=__doc__,
         entry_points={'determine_action':0x692610,'unit_cell':0x7404B0,'foot_cell':0x4DDDE0,
             'techno_cell':0x700600,'unit_object':0x73FD50,'foot_object':0x4DDED0,
             'techno_object':0x6FFEC0,'is_controllable':0x700C40,
-            'display_entry':0x4AAE90,'display_cell_target':0x4AAFF1,'display_normal_dispatch':0x4AB449,'cursor_table':0x82D028},
+            'display_entry':0x4AAE90,'display_cell_target':0x4AAFF1,'display_normal_dispatch':0x4AB449,'cursor_table':0x82D028,
+            'unit_clicked_object':0x738890,'foot_clicked_object':0x4D74E0,
+            'weapon_damage_value':0x6F3970,'get_weapon':0x70E140,'health_ratio':0x5F5C60},
         assumptions=['One selected live normal Unit with an original vtable; supplied complete type/house pointers, positive weapon, Selectable/LegalTarget=true, idle death frame=-1, no transport capability. Normal rows have no deploy capability; postprocess rows supply the retained UnitType Harvester/IsSimpleDeployer/DeployFire and Unit+6E0 deployed fields. This is a bounded actor action fixture, not original construction/load or retail data validation.',
             'Installed controls supply nonnull Techno+2E4. Native IsControllable reads it; install lifecycle and weapon range arithmetic belong to locomotor_force_track.bunker_install and walk_cell_range_bunker corpora.',
             'Map lookup supplies one clear revealed playable flat Cell. Ctrl state supplied via original keyboard-call seam; four normal enemy Object controls have Ctrl=false.',
             'Eight Harvester controls vary Harvester flag, clear/ore LandType0/5 and range verdict under Ctrl. Sixteen SimpleDeployer controls vary Cell/Object route, deployed byte, DeployFire and range. Both wrappers select weapon with NULL in the deployed tail; trace records this input. No native deployment lifecycle, INI or weapon-selection arithmetic is claimed.',
+            'Repair rows supply an authorized local Unit, TurretCount18, current slot1, Damage=-50 and AmbientDamage=0 (except sign controls), a positive slot0, target Strength100 with health50/100/101, and Rules+16F8=1.0. These are supplied control inputs, not native retail reader or construction claims. GetWeaponDamageValue6F3970, Unit/Techno SelectWeapon and GetWeapon70E140 execute unchanged. No Engineer flag, cargo type, warhead name or repair-result decision is supplied. Own/allied/enemy/NonVehicle, near/far and Ctrl/Alt/Shift controls execute the complete original action/display paths. The caller sets one-way alliance bit1 in House+5788.',
+            'Repair ClickedAction738890 re-queries the object action and executes the original Repair29-to-Attack5 conversion and Foot4D769F mission/target/destination argument producer. The berserk_friend control differs from damaged_friend only by the supplied actor+298 Berserk byte1: action/display still resolve Repair29/cursor33, while unchanged UnitClickedAction suppresses the command. This is a bounded NoCommand producer observation, not berserk initialization, expiry or Hunt lifecycle validation. PlayerSendCommand6FFBE0 is an observed argument sink, not a supplied outcome. Enemy Move2 stops at4D78BA before its coordinate/locomotor dependency. Complete event encoding/delivery, movement, firing/repair cadence, RNG, audio and Windows pixels are excluded.',
             'Display4AAE90 executes from its real entry. The original prefix resolves valid no-Object coordinates through Map5657A0 to CellClass* at4AAFF1;4AB4EE consumes that target. Twelve empty House waypoint containers and palette storage support unchanged prefix instructions; the persistent attack-move toggle is0 and ordinary Ctrl does not select Ctrl+Shift. No Windows renderer, setter/frame/SHP output or full waypoint lifecycle is claimed.'],
         substitutions=['SelectBest5353D0 returns the supplied actor. Ordinary action rows have one selected actor; four display_controls change only the later Display selected-count input to2/3 after action calculation, establishing4AB4F6 count admission without claiming multi-object SelectBest or selection lifecycle.',
             'Keyboard54F5C0 answers the supplied Ctrl state; map lookups5657A0/565730 return supplied Cell; height578080=0, shroud586360/5865E0=false, playable578460=true and terrain-object74CD60=null.',
-            'SelectWeapon746CD0 supplies index0; damage6F3970 supplies60; CanFireAt6F77B0 and coordinate wrapper6F7970 supply the case range verdict. This establishes caller control flow, not selection or range arithmetic.',
+            'Ordinary/postprocess rows: SelectWeapon746CD0 supplies index0 and damage6F3970 supplies60. Repair rows execute both bodies unchanged. CanFireAt6F77B0 and coordinate wrapper6F7970 supply the case range verdict for every row. This establishes caller control flow, not range arithmetic.',
             'GetFireError virtual3C0 supplies OK; Display CanFireAtTarget6F7780 supplies the same range verdict. No reload/ROF/legality timing claim.',
             'Display receiver virtual48 terminates at an observed sink; complete immutable text SHA checked before/after both runs.'])
 

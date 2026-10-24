@@ -1245,7 +1245,8 @@ pub(crate) fn mission_handlers_run(sim: &Simulation, id: u64) -> bool {
 }
 
 /// `TechnoClass::AI_Update`'s leading common steps, in native order: the
-/// Iron Curtain tint stage (`0x006F9EAF`, [`iron_tint_step`]), the
+/// Iron Curtain tint stage (`0x006F9EAF`, [`iron_tint_step`]), the berserk
+/// countdown (`0x006F9F0D`, [`berserk_step`]), the
 /// promotion sample (`0x006FA054`), the drain blocks (`0x006FA14B..
 /// 0x006FA224`, directly after the rank-cache write at `0x006FA145`), the
 /// CaptureManager update (`0x006FA730`), then the IsAlive gate (`0x006FA735`)
@@ -1276,6 +1277,7 @@ fn techno_common_steps(
     // A queued voice probes its handle only when this actor really reaches
     // this slot; recording final Logic membership would lose early exits.
     sim.record_unit_voice_visit(id);
+    berserk_step(sim, id, rules, overlay_registry, effects);
     // Techno6F9FA9 follows the voice head and precedes promotion6FA054.
     // Building Update froze this sample before Temporal and its common AI.
     if let Some(sample) = turret_rotate_sample {
@@ -1305,6 +1307,42 @@ fn techno_common_steps(
         entity.advance_door(sim.session.binary_frame);
     }
     true
+}
+
+/// `TechnoClass::AI_Update`'s berserk block (`0x006F9F0D..0x006F9F6E`),
+/// after the voice probe: a berserk object counts its time down
+/// ([`BerserkState::count_down`](crate::sim::game_entity::BerserkState::count_down)).
+/// Once it calms down its target goes (`vt+0x3C8(0)`), and it queues Guard if
+/// its house is a human player's (`IsHuman`, House `+0x1EC`), else Hunt
+/// (`vt+0x1E8`). No draws. The Psychedelic arm (`combat::receiver_health`)
+/// sets the state.
+fn berserk_step(
+    sim: &mut Simulation,
+    id: u64,
+    rules: &RuleSet,
+    overlay_registry: Option<&OverlayTypeRegistry>,
+    effects: FrameEffects<'_>,
+) {
+    let Some(entity) = sim.substrate.entities.get_mut(id) else {
+        return;
+    };
+    if !entity.berserk.count_down() {
+        return;
+    }
+    let owner = entity.owner();
+    let _ = sim.assign_target_represented(id, None, Some(rules), overlay_registry, effects);
+    let mission = if sim.houses.get(&owner).is_some_and(|house| house.is_human) {
+        MissionType::Guard
+    } else {
+        MissionType::Hunt
+    };
+    let _ = sim.mission_queue_exact(
+        id,
+        crate::sim::mission::MissionId::from_known(mission),
+        0,
+        sim.session.binary_frame,
+        &crate::sim::mission::authority::EntityReadyInputProvider,
+    );
 }
 
 /// `TechnoClass::UpdateIronTint` (`0x006F9EAF`), the first step of
@@ -1569,7 +1607,8 @@ fn allied_target_drop_step(sim: &mut Simulation, id: u64, rules: &RuleSet) {
 
 /// The Techno AI a Die1/Die2 corpse still runs. `InfantryClass::AI` keeps
 /// calling `FootClass::AI` (`0x0051BC9F`) until the sequence completes, and
-/// `TechnoClass::AI_Update` has no health gate on these steps: the estimate
+/// `TechnoClass::AI_Update` has no health gate on these steps: the berserk
+/// countdown (`0x006F9F0D`), the estimate
 /// recovery (`0x006F9F6E`), the allied and illegal target drops
 /// (`0x006FA30C`, `0x006FA472`) and the passive block (`0x006FA65A`), whose
 /// scan draws and can acquire. Mission dispatch alone skips a Health-0
@@ -1588,6 +1627,7 @@ pub(super) fn dying_infantry_techno_ai(
     // Die1/Die2, before Foot's later alive test. This existing death-body
     // owner must not add a health-zero voice filter.
     sim.record_unit_voice_visit(id);
+    berserk_step(sim, id, rules, ctx.overlay_registry, ctx.effects);
     if let Some(entity) = sim.substrate.entities.get_mut(id) {
         entity
             .estimated_health
@@ -3635,6 +3675,55 @@ mod tests {
         sim.houses.get_mut(&soviet).unwrap().is_human = true;
         allied_target_drop_step(&mut sim, 1, &rules);
         assert!(held(&sim), "a human house keeps it");
+    }
+
+    /// `TechnoClass::AI_Update @ 0x006F9F0D..0x006F9F6E`: a berserk object
+    /// counts its time down each frame and, once it reaches zero, calms down:
+    /// flag and time clear, its target goes, and it queues Guard for a human
+    /// house, else Hunt.
+    #[test]
+    fn a_berserk_object_calms_down_when_its_time_runs_out() {
+        let rules = passive_rules();
+        for human in [false, true] {
+            let mut sim = Simulation::new();
+            insert_scannable(&mut sim, 1, "Soviet", "MTNK", EntityCategory::Unit);
+            insert_scannable(&mut sim, 2, "Soviet", "MTNK", EntityCategory::Unit);
+            let soviet = sim.interner.intern("Soviet");
+            sim.houses.insert(
+                soviet,
+                crate::sim::house_state::HouseState::new(soviet, 0, None, human, 0, 10),
+            );
+            let actor = sim.substrate.entities.get_mut(1).unwrap();
+            actor
+                .mission
+                .apply_test_fixture(fixture_with_current(&actor.mission, MissionType::Move));
+            actor.attack_target = Some(AttackTarget::new(2));
+            actor.berserk.active = true;
+            actor.berserk.timer = 2;
+            let step = |sim: &mut Simulation| {
+                berserk_step(
+                    sim,
+                    1,
+                    &rules,
+                    None,
+                    crate::sim::world::FrameEffects::default(),
+                );
+                let actor = sim.substrate.entities.get(1).unwrap();
+                (
+                    actor.berserk.active,
+                    actor.berserk.timer,
+                    actor.attack_target.is_some(),
+                    actor.mission.queued().known(),
+                )
+            };
+            assert_eq!(step(&mut sim), (true, 1, true, None));
+            let calm = if human {
+                MissionType::Guard
+            } else {
+                MissionType::Hunt
+            };
+            assert_eq!(step(&mut sim), (false, 0, false, Some(calm)), "{human}");
+        }
     }
 
     #[test]

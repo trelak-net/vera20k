@@ -678,11 +678,12 @@ pub(crate) fn commit_entities(
         {
             death.combat_light_requests.push(effect);
         }
-        // `0x00701D71..0x00701D9B`: a Psychedelic hit that turns its target
-        // berserk takes it out of its team, with its idle order, before the
-        // receiver clears its target and queues Hunt. Here the removal runs
-        // before the receiver's berserk timer and flag writes, which it does
-        // not read.
+        // `0x00701D71..0x00701DB4`: a Psychedelic hit that turns its target
+        // berserk takes it out of its team, with its idle order
+        // (`0x006EA870`), clears its target (`vt+0x3C8(0)`) and queues Hunt
+        // (`vt+0x1E8(0xF, 0)`). The removal runs here, before the receiver's
+        // timer and flag writes, which it does not read; the other two follow
+        // them, as natively.
         let starts_berserk = receiver_outcome
             .and_then(|resolved| resolved.outcome.psychedelic_value)
             .is_some()
@@ -708,6 +709,7 @@ pub(crate) fn commit_entities(
             latch_hostile_hit,
             uncloak_after_damage,
             threat_feedback,
+            psychedelic,
         }) = receiver_health::commit_receiver_health(
             event,
             &mut world.substrate.entities,
@@ -722,6 +724,24 @@ pub(crate) fn commit_entities(
         else {
             continue;
         };
+        if starts_berserk {
+            // The class setter: Infantry's (`0x0051B1F0`) also resets its
+            // action and path head.
+            let _ = world.assign_target_represented(
+                target_id,
+                None,
+                Some(rules),
+                overlay_registry,
+                run.effects(),
+            );
+            let _ = world.mission_queue_exact(
+                target_id,
+                MissionId::from_known(MissionType::Hunt),
+                0,
+                world.session.binary_frame,
+                &crate::sim::mission::authority::EntityReadyInputProvider,
+            );
+        }
 
         // Techno701900 result1 (switch table702D24 entry 1) selects
         // 702713..7027A9: two distinct Voc750E20 retained-coordinate requests
@@ -729,8 +749,10 @@ pub(crate) fn commit_entities(
         // 702775) holds the protected-Techno call7027E9 before common7027F7.
         // Each request reaches the existing synchronous sound boundary before
         // later receiver consequences can spend Main.
-        // The exact-zero override70202E takes the death arm instead.
-        let result_one_arm = receive_state == damage::DamageState::Damaged && !entered_techno_death;
+        // The exact-zero override70202E takes the death arm instead, and the
+        // Psychedelic arm returns its result 1 before this tail.
+        let result_one_arm =
+            receive_state == damage::DamageState::Damaged && !entered_techno_death && !psychedelic;
         if result_one_arm && sound_enabled {
             for _ in 0..2 {
                 if let Some(target) = world.substrate.entities.get(target_id)

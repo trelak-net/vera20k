@@ -1000,6 +1000,10 @@ impl Simulation {
             Command::Attack {
                 attacker_id,
                 target_id,
+            }
+            | Command::ForceAttack {
+                attacker_id,
+                target_id,
             } => {
                 if !self.entity_owned_by_id(command_owner, *attacker_id) {
                     return false;
@@ -1007,7 +1011,8 @@ impl Simulation {
                 if !self.substrate.entities.contains(*target_id) {
                     return false;
                 }
-                if !self.can_attack_target_by_id(*attacker_id, *target_id)
+                if matches!(cmd, Command::Attack { .. })
+                    && !self.can_attack_target_by_id(*attacker_id, *target_id)
                     && !rules
                         .is_some_and(|rules| self.can_charge_tesla(*attacker_id, *target_id, rules))
                 {
@@ -1039,57 +1044,6 @@ impl Simulation {
                 if issued {
                     // `0x004C747C`: the order's NULL destination through the
                     // class setter, after its target (`0x004C7467`).
-                    self.assign_null_destination(
-                        *attacker_id,
-                        rules,
-                        overlay_registry,
-                        frame_effects,
-                    );
-                    // `0x004C7482..0x004C749D`: an open-topped transport's
-                    // riders take the ordered target.
-                    if let Some(rules) = rules {
-                        self.open_topped_passengers_take_target(
-                            *attacker_id,
-                            Some(combat::TargetKind::Entity(*target_id)),
-                            rules,
-                            overlay_registry,
-                            frame_effects,
-                        );
-                    }
-                }
-                issued
-            }
-            Command::ForceAttack {
-                attacker_id,
-                target_id,
-            } => {
-                if !self.entity_owned_by_id(command_owner, *attacker_id) {
-                    return false;
-                }
-                if !self.substrate.entities.contains(*target_id) {
-                    return false;
-                }
-                // Native order admission (actor + Target token). Force-fire
-                // bypasses the alliance test, not the liveness gate.
-                if !self.order_actor_admits(*attacker_id)
-                    || !self.order_object_token_admits(*target_id)
-                {
-                    return false;
-                }
-                // Force-attack bypasses friendship check (Ctrl+click). Retask
-                // onto Attack keeping fields.
-                self.queue_megamission(*attacker_id, MissionType::Attack, rules, frame_effects);
-                if let Some(e) = self.substrate.entities.get_mut(*attacker_id) {
-                    e.order_intent = None;
-                }
-                let issued = self.order_attack_target(
-                    *attacker_id,
-                    combat::TargetKind::Entity(*target_id),
-                    rules,
-                    overlay_registry,
-                    frame_effects,
-                );
-                if issued {
                     self.assign_null_destination(
                         *attacker_id,
                         rules,

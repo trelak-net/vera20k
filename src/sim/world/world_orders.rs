@@ -61,6 +61,16 @@ pub(crate) enum EngineerBuildingAction {
     EnterGrinder,
 }
 
+/// Unit73FD7C..73FE43's healing-weapon post-processing of an object action.
+/// Move is native action2: the barred move cursor still reaches the ordinary
+/// object-coordinate Move receiver when the unit can move.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UnitRepairAction {
+    Repair,
+    Select,
+    Move,
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct BuildingEntryResult {
     pub(crate) bridge_state_changed: bool,
@@ -92,6 +102,91 @@ fn infiltrator_admits(
 }
 
 impl Simulation {
+    /// UnitClass::What_Action_OnObject73FD7C..73FE43, after the base self/
+    /// Shift action. Reproducible original control/weapon/health/display
+    /// and ClickedAction witnesses: spatial_oracle/bunker_attack_action.json
+    /// repair_rows (Steam gamemd 3e81a617). This is producer-side admission;
+    /// a delivered Attack event must not repeat it after cargo/health changes.
+    pub(crate) fn unit_repair_action(
+        &self,
+        actor_id: u64,
+        target_id: u64,
+        issuing_house: InternedId,
+        rules: &RuleSet,
+    ) -> Option<UnitRepairAction> {
+        let actor = self.substrate.entities.get(actor_id)?;
+        let actor_type = self.object_type(actor.type_ref(), rules)?;
+        if actor.category != EntityCategory::Unit
+            || actor.owner() != issuing_house
+            || !self.house_is_human_player(actor.owner())
+            || combat::combat_weapon::weapon_damage_value(actor, actor_type, rules) >= 0
+        {
+            return None;
+        }
+        let target = self.substrate.entities.get(target_id)?;
+        let target_type = self.object_type(target.type_ref(), rules)?;
+        if !crate::map::houses::is_allied_with(
+            &self.house_alliances,
+            self.interner.resolve(actor.owner()),
+            self.interner.resolve(target.owner()),
+        ) {
+            return Some(UnitRepairAction::Move);
+        }
+        // Target vt+80: Unit746400, Building457620 ->465D40, and
+        // Aircraft41B910 -> Object's grounded predicate. Every GameEntity is
+        // a Techno (vt+7C); Infantry's vt+80 answers false.
+        let vehicle = match target.category {
+            EntityCategory::Unit => !target_type.non_vehicle,
+            EntityCategory::Structure => target_type.is_1x1_with_undeploy(),
+            EntityCategory::Aircraft => {
+                if let Some(terrain) = self.resolved_terrain.as_ref() {
+                    let cells = crate::map::resolved_terrain::NativeCellQuery::isolated(terrain);
+                    crate::sim::movement::air_movement::is_low_flying_in_query(
+                        target,
+                        &cells,
+                        Some((rules, &self.interner)),
+                    )
+                } else {
+                    crate::sim::movement::air_movement::is_low_flying(
+                        target,
+                        None,
+                        Some((rules, &self.interner)),
+                    )
+                }
+            }
+            EntityCategory::Infantry => false,
+        };
+        if !vehicle || target_id == actor_id {
+            //73FE2F..73FE43 preserves the base action for a Building.
+            return (target.category != EntityCategory::Structure)
+                .then_some(UnitRepairAction::Select);
+        }
+        if target.category == EntityCategory::Aircraft {
+            //73FDE1..73FE06: a grounded aircraft on a building is excluded.
+            let coord = crate::sim::movement::ground_pose::position_world_coord(&target.position);
+            let cell = self.resolved_terrain.as_ref().and_then(|terrain| {
+                let cells = crate::map::resolved_terrain::NativeCellQuery::isolated(terrain);
+                match cells.lookup_world(coord.x, coord.y) {
+                    crate::map::cell_index::NativeCellIdentity::Real(index) => {
+                        let cell = &terrain.cells()[index];
+                        Some((cell.rx, cell.ry))
+                    }
+                    crate::map::cell_index::NativeCellIdentity::Dummy => None,
+                }
+            });
+            if cell.is_some_and(|(rx, ry)| {
+                self.substrate
+                    .occupancy
+                    .first_building_on_layer(rx, ry, MovementLayer::Ground)
+                    .is_some()
+            }) {
+                return None;
+            }
+        }
+        // Rules+16F8 is the fixed 1.0 threshold, not an INI condition key.
+        (!target.health.is_full(target_type.strength)).then_some(UnitRepairAction::Repair)
+    }
+
     pub(crate) fn house_is_human_player(&self, owner: InternedId) -> bool {
         // House50B6F0: nonzero session mode compares exactly to LocalPlayer;
         // mode zero uses the two native human/control flags.
