@@ -76,6 +76,7 @@ pub(super) struct UiInstances {
     pub unit_status_fill: Vec<SpriteInstance>,
     pub self_heal_pip: Vec<SpriteInstance>,
     pub cargo_pip: Vec<SpriteInstance>,
+    pub group_labels: crate::app::presentation::control_group_labels::GroupLabelInstances,
     pub software_cursor: Vec<SpriteInstance>,
     pub drag: Vec<SpriteInstance>,
     pub placement_valid: Vec<SpriteInstance>,
@@ -578,6 +579,7 @@ pub(super) fn build_ui_instances(state: &AppState, sw: f32, sh: f32) -> UiInstan
     let unit_status_fill = build_unit_status_fill_instances(state, sw, sh);
     let self_heal_pip = build_self_heal_pip_instances(state, sw, sh);
     let cargo_pip = build_cargo_pip_instances(state, sw, sh);
+    let group_labels = crate::app::presentation::control_group_labels::build(state, sw, sh);
     let software_cursor = build_software_cursor_instances(state);
     let drag = match &state.match_state.match_presentation.selection_overlay {
         Some(o) => o.build_drag_rect(
@@ -675,6 +677,7 @@ pub(super) fn build_ui_instances(state: &AppState, sw: f32, sh: f32) -> UiInstan
         unit_status_fill,
         self_heal_pip,
         cargo_pip,
+        group_labels,
         software_cursor,
         drag,
         placement_valid,

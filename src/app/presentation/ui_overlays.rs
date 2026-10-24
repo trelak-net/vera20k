@@ -63,7 +63,7 @@ fn condition_thresholds(state: &AppState) -> (f32, f32) {
 /// the object is selected, or the object carries the cursor's hover flag and is
 /// *not* selected. The hover flag is set from the cursor's resolved action
 /// target, so a shrouded enemy — which is never an action target — is excluded.
-fn health_bar_hover_target(
+pub(super) fn health_bar_hover_target(
     state: &AppState,
     local_owner: Option<&str>,
 ) -> Option<(u64, HoverTargetKind)> {
@@ -226,15 +226,10 @@ pub(crate) fn self_heal_pip(
 //   transport. Player effect: no passenger or ammo readout at all. Frequency:
 //   common — transports are ordinary play. Downstream risk: none.
 //
-// * **Control-group number and spawn pips**, both in the tail of
-//   `DrawPipScalePips`: the group index from `param_1[0x85]` drawn as text at
-//   `param_2 + (-4, -0x27)` for units and `(-4, -0x24)` for infantry; spawn pips
-//   from `TypeClass+0xD5C` via `SpawnManagerClass__CountDockedSpawns`. Trigger:
-//   for the group number, every recall of a control group. Player effect: a
-//   selected group shows no number, so the player cannot tell which group is up.
-//   Frequency: common. Downstream risk: none. The spawn pips are rarer
-//   (Kirov/carrier spawns). The tail's third member, the self-heal status pip,
-//   is ported by `build_self_heal_pip_instances` below.
+// * **Spawn pips**, from `TypeClass+0xD5C` via
+//   `SpawnManagerClass__CountDockedSpawns`, remain deferred. Control-group
+//   numbers are rendered by `control_group_labels`; the self-heal status pip
+//   is rendered by `build_self_heal_pip_instances` below.
 //
 /// Building health: discrete pips from pips.shp along the isometric NW foundation edge.
 ///
@@ -1555,7 +1550,7 @@ pub(crate) fn current_software_cursor_texture(state: &AppState) -> Option<&Batch
     Some(&software_cursor_frame_for(id, sequence)?.texture)
 }
 
-fn status_entity_visible_plain(
+pub(super) fn status_entity_visible_plain(
     local_owner: Option<crate::sim::intern::InternedId>,
     fog: &crate::sim::vision::FogState,
     pos: &Position,

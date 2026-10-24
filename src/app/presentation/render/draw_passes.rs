@@ -548,6 +548,18 @@ pub(super) fn dispatch_draw_passes(
         "cargo_pips",
     );
 
+    // Group numbers share the tactical camera and zoom with the health bars.
+    let group_box_texture = state.match_state.match_presentation.selection_overlay
+        .as_ref().map(|overlay| overlay.white_texture());
+    draw_pooled_no_depth(
+        &mut pass, &state.renderer.batch_renderer, pool,
+        group_box_texture, "group_label_boxes",
+    );
+    draw_pooled_no_depth(
+        &mut pass, &state.renderer.batch_renderer, pool,
+        Some(state.renderer.bit_font.atlas()), "group_label_text",
+    );
+
     // Original6D4664 -> Spotlight5FFFA0 edits the destination after the first
     // rally pass. Preserve this overlap, including the rally's black shadow.
     drop(pass);
