@@ -360,6 +360,8 @@ struct GeneralTypeLists {
     /// Rules data+0xFFC/count+0x1008;671D3E uses TerrainType reader67BDD0.
     /// Native reader/identity controls: spatial_oracle/mirage_disguise.
     default_mirage_disguises: Vec<String>,
+    /// Rules+D00/+D1C/+D38, read by the native typed list readers.
+    secret_lab_pools: [Vec<String>; 3],
 }
 
 /// The `[General]` keys of [`GeneralTypeLists::paradrop_infantry`], in its
@@ -734,6 +736,10 @@ impl ProcessedRulesLayers {
 
     pub(crate) fn anim_to_infantry(&self) -> &[String] {
         &self.general_type_lists.anim_to_infantry
+    }
+
+    pub(crate) fn secret_lab_pools(&self) -> &[Vec<String>; 3] {
+        &self.general_type_lists.secret_lab_pools
     }
 
     pub(crate) fn default_mirage_disguises(&self) -> &[String] {
@@ -1672,6 +1678,13 @@ impl RulesPassProcessor {
             } else if let Some(side) = PARADROP_INFANTRY_KEYS.iter().position(|&k| k == key) {
                 if let Some(resolved) = self.resolve_list_from(section, key, family, 0x80) {
                     self.general_type_lists.paradrop_infantry[side] = resolved;
+                }
+            } else if let Some(index) = ["SecretInfantry", "SecretUnits", "SecretBuildings"]
+                .iter()
+                .position(|&name| name == key)
+            {
+                if let Some(resolved) = self.resolve_list_from(section, key, family, 0x80) {
+                    self.general_type_lists.secret_lab_pools[index] = resolved;
                 }
             } else if key == "AnimToInfantry" {
                 if let Some(resolved) = self.resolve_list_from(section, key, family, 0x80) {

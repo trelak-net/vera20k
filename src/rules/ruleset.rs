@@ -704,6 +704,9 @@ pub struct GeneralRules {
     pub prerequisite_proc_alternate: Option<String>,
     /// `PrismSupportModifier/Max/Delay/Duration=`.
     pub prism_support: PrismSupportRules,
+    /// Typed SecretInfantry/SecretUnits/SecretBuildings lists, retaining native
+    /// order, duplicates and nonempty later-pass replacement.
+    pub secret_lab_pools: [Vec<String>; 3],
     /// `GDIGateOne=`, `GDIGateTwo=`, `NodGateOne=`, `NodGateTwo=`,
     /// `WallTower=` (Rules `+0x86C..+0x87C`) and the four power plants
     /// (`+0x89C..+0x8A8`).
@@ -2089,6 +2092,7 @@ impl Default for GeneralRules {
             prism_type: None,
             prerequisite_proc_alternate: None,
             prism_support: PrismSupportRules::default(),
+            secret_lab_pools: Default::default(),
             building_types: GeneralBuildingTypes::default(),
             tiberium_grows: true,
             tiberium_spreads: true,
@@ -3026,6 +3030,7 @@ impl GeneralRules {
                 defaults.prerequisite_proc_alternate,
             ),
             prism_support: defaults.prism_support.read_pass(general),
+            secret_lab_pools: Default::default(),
             building_types: GeneralBuildingTypes {
                 gdi_gate_one: read_building_identity(general, "GDIGateOne", None),
                 gdi_gate_two: read_building_identity(general, "GDIGateTwo", None),
@@ -3756,6 +3761,33 @@ impl RuleSet {
         rules.general.difficulty_rows = *processed.difficulty_rows();
         rules.general.detail = processed.detail();
         rules.general.prism_support = processed.prism_support();
+        rules.general.secret_lab_pools = processed.secret_lab_pools().clone();
+        // This rules-only projection bounds the runtime CanBuild check to
+        // reward types. Factory ownership/side matching remains unchanged.
+        let categories = [
+            ObjectCategory::Infantry,
+            ObjectCategory::Vehicle,
+            ObjectCategory::Building,
+        ];
+        let mut grants = std::collections::HashSet::new();
+        for (category, pool) in categories.into_iter().zip(&rules.general.secret_lab_pools) {
+            for id in pool {
+                grants.insert((category, id.to_ascii_uppercase()));
+            }
+        }
+        for object in &rules.object_list {
+            if object.secret_lab {
+                for (category, id) in categories.into_iter().zip(&object.secret_lab_fixed) {
+                    if let Some(id) = id {
+                        grants.insert((category, id.to_ascii_uppercase()));
+                    }
+                }
+            }
+        }
+        for object in &mut rules.object_list {
+            object.secret_lab_grantable =
+                grants.contains(&(object.category, object.id.to_ascii_uppercase()));
+        }
         rules.general.prism_type = processed.prism_type().map(str::to_owned);
         rules.general.prerequisite_proc_alternate =
             processed.prerequisite_proc_alternate().map(str::to_owned);
@@ -4879,6 +4911,7 @@ impl RuleSet {
         self.general.gravity.hash(&mut hasher);
         self.general.detail.hash(&mut hasher);
         self.general.prism_support.hash(&mut hasher);
+        self.general.secret_lab_pools.hash(&mut hasher);
         self.general.default_mirage_disguises.hash(&mut hasher);
         self.general.infantry_blink_disguise_time.hash(&mut hasher);
         // The native type reader retains these flags through missing keys

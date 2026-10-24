@@ -875,6 +875,8 @@ pub struct GameEntity {
     pub(crate) tesla_charging: crate::sim::tesla_charging::TeslaCharging,
     #[serde(default)]
     pub(crate) distributed_fire: crate::sim::distributed_fire::DistributedFire,
+    /// Scenario-selected fallback, Building+6F4. Ownership changes retain it.
+    pub(crate) secret_lab_reward: Option<crate::sim::secret_labs::SecretLabReward>,
     /// Building+6E4: OnConstructionComplete's one-time allocation guard.
     #[serde(default)]
     pub building_actually_placed: bool,
@@ -1778,6 +1780,7 @@ impl GameEntity {
             building_has_engineer: false,
             tesla_charging: Default::default(),
             distributed_fire: Default::default(),
+            secret_lab_reward: None,
             building_actually_placed: false,
             spotlight_capable: false,
             building_light: None,

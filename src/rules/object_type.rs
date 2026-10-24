@@ -708,6 +708,13 @@ pub struct ObjectType {
     /// instead of committing to one, using live candidate/history vectors.
     /// Explicit mobile Attack missions retain their ordered target. Default no.
     pub distributed_fire: bool,
+    /// BuildingType+16B0; adds this building to its owner's Secret Lab list.
+    pub secret_lab: bool,
+    /// GetSecretProduction459840 checks Infantry/Unit/Building, then +6F4.
+    pub secret_lab_fixed: [Option<String>; 3],
+    /// Derived from the resolved reward pools and fixed lab pointers. Avoids
+    /// walking a house's buildings for types no lab can ever grant.
+    pub(crate) secret_lab_grantable: bool,
     /// `VHPScan=` estimated-health filtering/scoring; native default None.
     pub vhp_scan: VhpScan,
     /// Whether this unit fires a warhead at its own position on death (e.g.,
@@ -2432,6 +2439,14 @@ impl ObjectType {
             can_passive_acquire: section.read_bool("CanPassiveAquire", true),
             spray_attack: section.read_bool("SprayAttack", false),
             distributed_fire: section.read_bool("DistributedFire", false),
+            secret_lab: category == ObjectCategory::Building
+                && section.read_bool("SecretLab", false),
+            secret_lab_fixed: ["SecretInfantry", "SecretUnit", "SecretBuilding"].map(|key| {
+                section
+                    .read_type_name(key, 0x80)
+                    .map(crate::rules::native_processing::abstract_type_stored_id)
+            }),
+            secret_lab_grantable: false,
             vhp_scan: VhpScan::read_ini(section),
             explodes: section.read_bool("Explodes", false),
             veteran_abilities,

@@ -116,6 +116,10 @@ impl Simulation {
             None
         };
 
+        // Post_Map_Init686AFE: after house/launch alliance work and before
+        // the later load-tail particle and ore-twinkle draws. Never on restore.
+        self.initialize_secret_labs(input.rules);
+
         // Original684C30 performs586BF0 after the zone rebuilds and before its
         // particle/twinkle tail. This command is fresh-load-only: restore writes
         // saved real flags, and ordinary navigation rebuilds never rerun it.

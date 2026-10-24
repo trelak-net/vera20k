@@ -1432,6 +1432,10 @@ impl Simulation {
             if !entity.building_stuff_enabled {
                 b"building-stuff-disabled-v1".hash(hasher);
             }
+            if let Some(reward) = entity.secret_lab_reward {
+                b"secret-lab-reward-v1".hash(hasher);
+                reward.hash(hasher);
+            }
             if entity.distributed_fire != Default::default() {
                 b"distributed-fire-v1".hash(hasher);
                 entity.distributed_fire.hash(hasher);

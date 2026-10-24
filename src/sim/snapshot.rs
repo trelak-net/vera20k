@@ -949,7 +949,8 @@ use crate::sim::world::Simulation;
 // 331 -> 332: persist each house's stolen technology and factory veterancy.
 // 332 -> 333: Tesla charger vectors and overpower latches.
 // 333 -> 334: distributed-fire candidate scores and firing history.
-const SNAPSHOT_VERSION: u32 = 334;
+// 334 -> 335: per-building Secret Lab fallback reward.
+const SNAPSHOT_VERSION: u32 = 335;
 
 const SNAPSHOT_PRODUCT_MAGIC: [u8; 8] = *b"VERA20K\0";
 const SNAPSHOT_ENVELOPE_VERSION: u32 = 1;
@@ -4101,7 +4102,7 @@ mod tests {
         // LoadObject registry, and neutral Tactical view/focus metadata.
         // 327 -> 328: each house's last lost building (+0x54E0).
         // 328 -> 329: persisted TruckCrate/TrainCrate map flags.
-        assert_eq!(super::SNAPSHOT_VERSION, 334);
+        assert_eq!(super::SNAPSHOT_VERSION, 335);
     }
 
     #[test]
