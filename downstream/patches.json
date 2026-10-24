@@ -1,0 +1,200 @@
+{
+  "upstream_url": "https://github.com/YuriPlanet/vera20k.git",
+  "base_revision": "64bac4056a7ac81b04ec2ae9a3ca96271e0dc6c5",
+  "source_project": "cncyr",
+  "source_project_revision": "0b2c990c299a36fb7f1aa6cb336e8b979432bbc6",
+  "patches": [
+    {
+      "order": 1,
+      "patch": "vera20k-linux-ime.patch",
+      "sha256": "65974bc4e60ae7983100ec4482bddc6086423f5d309128d97b713db94b30e21d",
+      "source_project_commit": "95ba27561efc4dbc0dfc8ddb885ce3a2260e103f",
+      "commit": "72b40b1f378686a6224b0c859db4507d6efd5f46",
+      "title": "Fix Linux IME lifecycle notifications during hidden captures"
+    },
+    {
+      "order": 2,
+      "patch": "vera20k-display.patch",
+      "sha256": "62a82e23de8536c6ece460e7357d0a3a1f248dd861ac2e7439341416c97af38a",
+      "source_project_commit": "4a66b5641032ac472363cf33be0a8668b1c29189",
+      "commit": "12c51bb0274cc82ce7ef37c61103ca5e10ee0ae0",
+      "title": "Add native resolution, fullscreen and interface scaling controls"
+    },
+    {
+      "order": 3,
+      "patch": "vera20k-performance.patch",
+      "sha256": "f7d7c900b634a7449ba41f7c90be7c924053ed4f7412567488e72a5992148731",
+      "source_project_commit": "d5248a9ef8279f10f4ae1b6b3cfb2356cef8c77d",
+      "commit": "be14c67871adc285635a96f90cb6eb22590eb9c4",
+      "title": "Improve large-map simulation and rendering performance"
+    },
+    {
+      "order": 4,
+      "patch": "vera20k-keyboard.patch",
+      "sha256": "f3621ea220750eacefd5cd27738194a1c1ebe036c982074618b015520d8aa396",
+      "source_project_commit": "ed02d0de85b5452490dddc6f39b79135fc15547b",
+      "commit": "dff76a502e42119e24bfbecb54eee00bb1d09da1",
+      "title": "Restore original control-group keyboard shortcuts"
+    },
+    {
+      "order": 5,
+      "patch": "vera20k-group-labels.patch",
+      "sha256": "ed6512a0a8fe5943b643a317f516cd44c07efb825f529657899fac4624edcb55",
+      "source_project_commit": "0ba26fec96c3884256020bc10979f88802f1c5ef",
+      "commit": "90fb3e5d5ffbbe0208be348eb2a43b198476feda",
+      "title": "Display control-group numbers on assigned units"
+    },
+    {
+      "order": 6,
+      "patch": "vera20k-truck-crates.patch",
+      "sha256": "bfa69072d8737eb154d37bd9bc91f82a5ae3faaf02bce635d02c961aee36e71a",
+      "source_project_commit": "95c624f267e51c553ce5c7e89d7be9ab61346456",
+      "commit": "b6af1ec40e2bd239802bd335d43f803fdfad14fc",
+      "title": "Drop crates when loaded trucks are destroyed"
+    },
+    {
+      "order": 7,
+      "patch": "vera20k-waypoints.patch",
+      "sha256": "3588ab1b5185d30754648cfb4a455dd53cd6da9da8303fd4229f309443e42e32",
+      "source_project_commit": "b111cb59353f79808b5c5e4dec2fd4c604254deb",
+      "commit": "9cef0774312c008b956344d846a2fbb4d080bab4",
+      "title": "Implement Z-key waypoint planning and patrol routes"
+    },
+    {
+      "order": 8,
+      "patch": "vera20k-scatter.patch",
+      "sha256": "2c13446e22741a9092f65c847194bfa7d7170f13df54c10eda92d58698866d5a",
+      "source_project_commit": "07501af407bd80cbd8247bf932c3f6b613e4eb1f",
+      "commit": "18e121a2caa3e53f3d78cb19cdc9a52722c593f7",
+      "title": "fix: wire Scatter hotkey to native unit movement receivers"
+    },
+    {
+      "order": 9,
+      "patch": "vera20k-unit-readouts.patch",
+      "sha256": "de71e3f3a167f1d49f512335f2baa0e106f98ce807178efb8b653b22fce8328f",
+      "source_project_commit": "30a8ea890344800143c52c6764a7ecbe1a891dd8",
+      "commit": "76971b3dd74039ce082e17d4f4bc24a2c8d4d173",
+      "title": "feat: render passenger ammo spawn and mind-control pips"
+    },
+    {
+      "order": 10,
+      "patch": "vera20k-ai-economy.patch",
+      "sha256": "a4724d39959a6d9d8fef51f5492e1fd860ba4456074a184f8f526480ecd9cc0c",
+      "source_project_commit": "f12869f085b0fad8451171a519d07130f451fdb4",
+      "commit": "b4db470b6a5e56e3de11c60a7ce8367bc8057777",
+      "title": "fix: restore AI economic recovery after lost income"
+    },
+    {
+      "order": 11,
+      "patch": "vera20k-spies.patch",
+      "sha256": "f5448294a7dcb575c9773f25dd2cd483db5c1d4425d8d7604e4dbb9aacabb9a5",
+      "source_project_commit": "e4aeea2c03ac390c1a3e3a2dd580b4c1ce7731f6",
+      "commit": "ae134f2c19eac5f50c9db58ea24b709861b654dd",
+      "title": "feat: restore Spy disguise infiltration and stolen technology"
+    },
+    {
+      "order": 12,
+      "patch": "vera20k-flak-scatter.patch",
+      "sha256": "0f371402ba407a9c75284bfe6e48e21a2d0f86ddccc1daa9d4c6dc661be86504",
+      "source_project_commit": "d6cc30e9e13fc9e2147b121cd0317c87a0ee1c72",
+      "commit": "5ad7abffea85923c15d88cc81cdd8e144661f714",
+      "title": "fix: restore original anti-aircraft flak scatter"
+    },
+    {
+      "order": 13,
+      "patch": "vera20k-offline-factories.patch",
+      "sha256": "0dc63e80b71854ae84aa03f811d954761d20d27a4a0f89217a8d83877651c4df",
+      "source_project_commit": "fa155053df6e74119499f52afa869c0ed307cba6",
+      "commit": "3d5bdba2a45612f3d60e4023814bb804416a2d39",
+      "title": "fix: suspend production while all eligible factories are offline"
+    },
+    {
+      "order": 14,
+      "patch": "vera20k-tesla-charging.patch",
+      "sha256": "4455ce700eff481f0243e845d9fbd216f3580cabf0ea7024cc9e9d3ccd2b00c9",
+      "source_project_commit": "319bfc85fec308849164fbc7d65089575c602b22",
+      "commit": "597fffbc2fa54566658543f210fa1efa8261307d",
+      "title": "Implement Tesla Trooper charging and coil overpower state"
+    },
+    {
+      "order": 15,
+      "patch": "vera20k-friendly-targeting.patch",
+      "sha256": "a4725c5db00ca0d456ed35af70b6741bf5f40969eecb7bae638c12564981ca1e",
+      "source_project_commit": "a18dd8289b259e07a07b4c38283caeddf448f844",
+      "commit": "a039f8a22d0e4fb3498ff735c59beb6cf2f8878b",
+      "title": "Restore berserk and friendly target acquisition and automatic healing"
+    },
+    {
+      "order": 16,
+      "patch": "vera20k-distributed-fire.patch",
+      "sha256": "68131ba4dd285e25204266428999fbac67105c575b947db1cbf33f752cea2b62",
+      "source_project_commit": "1ba3d386e6f3da6243429d88c736e5dca2e341aa",
+      "commit": "b2052939300b2f4533fb3a1881471592e1a3178c",
+      "title": "Implement Aegis distributed fire with persistent target history"
+    },
+    {
+      "order": 17,
+      "patch": "vera20k-secret-labs.patch",
+      "sha256": "b76aad002c48c43ce75331aa4a8f306eec0e96ee89681aa9eb704fc47924a787",
+      "source_project_commit": "aaac12d66e2dcc7972eac7cbf2d36250f8204545",
+      "commit": "b8e9c33c33e4c16ba8bf0416b78dde06f53da8a2",
+      "title": "Implement Secret Lab rewards and captured production unlocks"
+    },
+    {
+      "order": 18,
+      "patch": "vera20k-map-triggers.patch",
+      "sha256": "183f447702e0a62e26e8ca527d781e0134718afa08b31ea35440d9ceb8b4dcc3",
+      "source_project_commit": "31306f31108df8cee2d921f2dbf6f40b3e48d3ea",
+      "commit": "2592ee5b7a29cbc368d3ce53c073e7add4028876",
+      "title": "Restore Wojtek map triggers and one-use superweapon rewards"
+    },
+    {
+      "order": 19,
+      "patch": "vera20k-squid-grapple.patch",
+      "sha256": "6df909e8c2b9d8bda8826f591951558d553119f4f99e136506229b5161f3b03f",
+      "source_project_commit": "d090175f174a6e9a24427c3162e91ca8b58d6244",
+      "commit": "bc9514c587c178b811af09f905274b020f311174",
+      "title": "Implement Giant Squid grappling and Dolphin rescue with original sonic wave sampling"
+    },
+    {
+      "order": 20,
+      "patch": "vera20k-magnetron.patch",
+      "sha256": "db1c6931c45b5cffee598b8b327fda47ccbe2f8ecdc124f07a3ceb82c6919fbc",
+      "source_project_commit": "80ae245958480183aac619ffbca2ac2d85e533d0",
+      "commit": "e0362930210b2ce236e8752ab074228b617a7ad5",
+      "title": "Implement Magnetron lifting, pulling, drops and native locomotor restoration"
+    },
+    {
+      "order": 21,
+      "patch": "vera20k-boris-airstrikes.patch",
+      "sha256": "cccfe31eccf135ebe9082692e1b85305cb845b7035184fff356a671ab60bffab",
+      "source_project_commit": "f5103e3a1ac4b58d7a108f2546c2d64c6230349d",
+      "commit": "59fd1e99674aa63af53b76b0f6d58f74808126fb",
+      "title": "Implement Boris bomber airstrikes, designation tint and native cancellation"
+    },
+    {
+      "order": 22,
+      "patch": "vera20k-diplomacy.patch",
+      "sha256": "fe9a97ddd086244e4872f07b26d5008cc60ed4637eb580a168b30621e689bcad",
+      "source_project_commit": "b7bc04ecbf873f73144c8f232ac80b52d0840d8c",
+      "commit": "6f915e1c7176caba279318477d5d3ccb1a8868e0",
+      "title": "Implement diplomacy controls and reject stale Free For All teams"
+    },
+    {
+      "order": 23,
+      "patch": "vera20k-cloning-vats.patch",
+      "sha256": "04d7798cabe57e99f668e164673c165f984e4caac332fc19ef152d01ed35cc12",
+      "source_project_commit": "6cad39ea69b998b161d317081b4c2cdeaf5cf568",
+      "commit": "bd138396ff961741914e2b70fdcb58b1741b5ac6",
+      "title": "Implement free infantry clones from every owned Cloning Vat"
+    },
+    {
+      "order": 24,
+      "patch": "vera20k-waypoint-fidelity.patch",
+      "sha256": "5e2c09cc8fd5a7c339e4ec06f5e5d33f3859321a65b951d2c878d4939fb0d001",
+      "source_project_commit": "0b2c990c299a36fb7f1aa6cb336e8b979432bbc6",
+      "commit": "a3186f0fce6121f47b555f5933ef2c4ab2e623d5",
+      "title": "Restore unnumbered whitish waypoint routes and preserve radar target cells"
+    }
+  ]
+}

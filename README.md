@@ -1,3 +1,7 @@
+> **Native Linux skirmish development:** this repository includes 24 downstream
+> patches on VERA20k. See [changes, build instructions and patch history](downstream/README.md).
+> Upstream project: [YuriPlanet/vera20k](https://github.com/YuriPlanet/vera20k).
+
 <img src="docs/images/new-conscirpt-hero-image.png" alt="VERA20k hero image" width="100%">
 
 <p align="center" dir="ltr">
