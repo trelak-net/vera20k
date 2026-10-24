@@ -814,7 +814,13 @@ fn apply_event(fixture: &mut Fixture, action: &str, building: u64) {
         "stop" => {
             fixture
                 .sim
-                .assign_target_represented(building, None, Some(&fixture.rules))
+                .assign_target_represented(
+                    building,
+                    None,
+                    Some(&fixture.rules),
+                    None,
+                    crate::sim::world::FrameEffects::default(),
+                )
                 .unwrap();
         }
         "out_of_range" => fixture.move_target(OUT_OF_RANGE),

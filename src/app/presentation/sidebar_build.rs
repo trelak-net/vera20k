@@ -467,7 +467,7 @@ pub(crate) fn build_sidebar_cameo_instances(
             .map(|a| a.gclock_frames.as_slice())
             .unwrap_or(&[]);
     for item in &view.items {
-        let Some(entry) = atlas.get(&item.type_id) else {
+        let Some(entry) = atlas.cameo(&item.type_id, item.alt_cameo) else {
             continue;
         };
         let slot = item.cameo_rect();
@@ -780,6 +780,7 @@ mod tests {
             display_name: "GAPOWR".to_string(),
             cost: Some(600),
             has_cameo_art: true,
+            alt_cameo: false,
             queue_category: crate::sim::production::ProductionCategory::Building,
             enabled: true,
             progress: 0.5,
@@ -821,6 +822,7 @@ mod tests {
             display_name: "MTNK".to_string(),
             cost: Some(700),
             has_cameo_art: true,
+            alt_cameo: false,
             queue_category: crate::sim::production::ProductionCategory::Vehicle,
             enabled: true,
             progress: 0.0,

@@ -84,7 +84,7 @@ impl Simulation {
     ) {
         let now = self.session.binary_frame;
         self.assign_null_destination(id, Some(rules), None, frame_effects);
-        let _ = self.assign_target_represented(id, None, Some(rules));
+        let _ = self.assign_target_represented(id, None, Some(rules), None, frame_effects);
         if let Some(entity) = self.substrate.entities.get_mut(id) {
             entity.movement_target = None;
             entity.set_archive_target(None);

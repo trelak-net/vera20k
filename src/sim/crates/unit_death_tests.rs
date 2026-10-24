@@ -336,7 +336,7 @@ fn truck_crate_old_snapshot_is_rejected_before_session_decode() {
     assert!(matches!(
         GameSnapshot::load(&bytes),
         Err(SnapshotError::VersionMismatch {
-            expected: 331,
+            expected: 332,
             found: 328
         })
     ));

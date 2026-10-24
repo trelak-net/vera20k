@@ -75,7 +75,7 @@ pub(crate) fn issue_order(
     // target (`0x004C7804`) before Queue_Mission(Unload) (`0x004C7812`).
     // Queue's same-mission guard keeps the handler and timer on a repeated D.
     sim.assign_null_destination(id, Some(rules), None, effects);
-    let _ = sim.assign_target_represented(id, None, Some(rules));
+    let _ = sim.assign_target_represented(id, None, Some(rules), None, effects);
     let entity = sim.substrate.entities.get_mut(id).unwrap();
     entity.order_intent = None;
     sim.mission_queue_exact(
@@ -267,6 +267,8 @@ impl Simulation {
                         id,
                         Some(TargetKind::Cell(at.0 as u16, at.1 as u16)),
                         Some(rules),
+                        None,
+                        effects,
                     )
                     .map_err(|cause| format!("AreaFire Unload target: {cause}"))?;
                 }

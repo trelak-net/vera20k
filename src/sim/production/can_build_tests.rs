@@ -110,7 +110,6 @@ fn rules_for(row: &Value) -> RuleSet {
             ini += &format!("{key}={}\n", countries.join(","));
         }
     }
-    // VERA refuses any of the three alike (module residual).
     let stolen = spec["stolen"].as_array();
     for (slot, key) in [
         "RequiresStolenThirdTech",
@@ -155,6 +154,16 @@ fn sim_for(row: &Value, rules: &RuleSet) -> (Simulation, InternedId) {
     let tech = house["tech"].as_i64().map_or(10, |tech| tech as i32);
     let mut state = HouseState::new(owner, 0, Some(country), human, 0, tech);
     state.player_control = flag("control", human);
+    // The stolen-tech bytes +0x2BC, +0x2BD and +0x2BE are what a spy's
+    // BuildTech infiltration of an AIBasePlanningSide 2, 1 or 0 type sets.
+    for (slot, side) in [2, 1, 0].into_iter().enumerate() {
+        if house["stolen"]
+            .as_array()
+            .is_some_and(|bytes| bytes[slot].as_bool().unwrap())
+        {
+            state.steal_tech(side);
+        }
+    }
     sim.houses.insert(owner, state);
     sim.houses
         .insert(other, HouseState::new(other, 0, Some(country), true, 0, 10));

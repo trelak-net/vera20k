@@ -527,7 +527,7 @@ pub(crate) fn sell_complete(
         sim.uninit_with_context(id, UninitContext::default().with_effects(frame_effects));
         return false;
     };
-    let _ = sim.assign_target_represented(id, None, Some(rules));
+    let _ = sim.assign_target_represented(id, None, Some(rules), registry, frame_effects);
     let Some((owner, undeploys)) = sim.substrate.entities.get(id).and_then(|entity| {
         let object = sim.object_type(entity.type_ref(), rules)?;
         Some((entity.owner(), undeploys(rules, object)))

@@ -3,6 +3,7 @@
 //! receiver, DeploySlaves and the garrison eject use. Class entry and
 //! navigation keep their owners.
 use super::bump_crush::scatter_movement_speed;
+use super::infantry_action::DO_UNDEPLOY;
 use super::infantry_entry::InfantryEntryArgs;
 use super::scatter::{ScatterFlags, mission_permits_scatter};
 use crate::map::resolved_terrain::NativeCellQuery;
@@ -36,8 +37,6 @@ fn represented_infantry_destination(
 /// The Doing values of the deploy family, as Scatter (`0x0051D0E3..0x0051D0F5`)
 /// and the Infantry setter (`0x0051AA60..0x0051AA7E`) test them.
 const DEPLOY_DOINGS: std::ops::RangeInclusive<i32> = 0x1B..=0x1E;
-/// Undeploy, the action the forced no-kidding deploy arm requests.
-const DO_UNDEPLOY: i32 = 0x1F;
 
 /// What `InfantryClass::Scatter` reads between its deploy arm and its
 /// coordinate test (`0x0051D162..0x0051D220`).

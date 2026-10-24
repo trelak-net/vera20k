@@ -505,7 +505,13 @@ impl IdleHost for WorldIdle<'_> {
 
     fn clear_target(&mut self) {
         self.sim
-            .assign_target_represented(self.id, None, Some(self.rules))
+            .assign_target_represented(
+                self.id,
+                None,
+                Some(self.rules),
+                None,
+                FrameEffects::default(),
+            )
             .expect("idle-mode aircraft");
     }
 

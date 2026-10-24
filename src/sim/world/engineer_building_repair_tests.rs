@@ -958,7 +958,7 @@ fn original_engineer_receiver_terminal_branches_return_before_foot_tail() {
                 .set_step_head(None);
             let result = fixture
                 .sim
-                .infantry_per_cell_engineer_entry(
+                .infantry_per_cell_building_entry(
                     id,
                     &fixture.rules,
                     Some(&fixture.registry),

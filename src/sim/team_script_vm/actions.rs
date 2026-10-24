@@ -29,22 +29,16 @@
 //!   building with [`target_building_pick`] too; no AIMD script names it,
 //!   but four scripts of the retail campaign map SOV02SMD.MAP do, whose
 //!   teams idle on it.
-//! - Actions 46 and 47 give their members a building to attack or near. A
-//!   spy (`Infiltrate=`) acts on such a target in arms VERA lacks:
-//!   `Assign_Target`'s `Infiltrate=` arm (`0x0051B2B1..0x0051B33F`), which
-//!   sends it to the building, Infantry Mission_Attack's computer
-//!   `Infiltrate=` arm (`0x0051F3E0..0x0051F4D2`, `mission_handlers`
-//!   residual GSI-07.06), then PerCellProcess's infiltration arm
-//!   (`mission::capture` residual, #813). Trigger: the retail Allied AI's spy
-//!   teams, whose scripts run actions 0, 47 and 46; the "Allied Spy vs ..."
-//!   AI triggers (normal or hard, weight 50 to 70) create them, and so do
-//!   the "Allied Tanya vs ..." ones (hard) as their second team. Effect: the
-//!   spy stands by the building where native infiltrates it. The same
-//!   Mission_Attack's demolition arm (`C4=`, the Sabotage order) is unported
-//!   too. Trigger: the retail Tanya teams ("Allied Tanya vs ...", "Allied
-//!   Anti-Nuke Team - 1", "Allied Anti-Weather Team - 1"), whose Tanya
-//!   reaches action 46 once action 8 has unloaded her. Effect: she runs the
-//!   plain attack where native sends her in to plant C4.
+//! - Action 46 gives its members a building to attack. Infantry
+//!   Mission_Attack's demolition arm (`C4=`, the Sabotage order,
+//!   `0x0051F3E3..0x0051F455`) is not ported (`mission_handlers` residual
+//!   GSI-07.06). Trigger: the retail Tanya teams ("Allied Tanya vs ...",
+//!   "Allied Anti-Nuke Team - 1", "Allied Anti-Weather Team - 1"), whose
+//!   Tanya reaches action 46 once action 8 has unloaded her. Effect: she runs
+//!   the plain attack where native sends her in to plant C4. A spy given such
+//!   a target goes in: `Assign_Target`'s infiltration arm heads it for the
+//!   building, and the arm of Mission_Attack after the demolition one puts
+//!   it on Capture.
 //! - Action 14's passengers board through VERA's Boarding adapter
 //!   ([`crate::sim::passenger::begin_boarding`]), without the native radio
 //!   route: the Infantry destination setter's Enter arm contacts the
@@ -2038,7 +2032,7 @@ impl Simulation {
             let mission = entity.mission.effective().raw();
             if action == 15 && entity.category == EntityCategory::Infantry && infiltrates() {
                 self.team_member_queue_mission(member, MissionType::Capture, rules);
-                self.team_member_assign_target(member, target, rules);
+                self.team_member_assign_target(member, target, rules, registry, frame_effects);
             } else if ![
                 MissionType::Attack,
                 MissionType::Enter,
@@ -2063,7 +2057,7 @@ impl Simulation {
                 continue;
             };
             if entity.attack_target.is_none() {
-                self.team_member_assign_target(member, target, rules);
+                self.team_member_assign_target(member, target, rules, registry, frame_effects);
             }
             let Some(entity) = self.substrate.entities.get(member) else {
                 continue;

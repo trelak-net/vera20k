@@ -107,6 +107,54 @@
       }
     },
     {
+      "answer": 1,
+      "args": [
+        false,
+        true
+      ],
+      "class": "unit",
+      "entry": "can_build",
+      "house": {
+        "stolen": [
+          true,
+          false,
+          false
+        ]
+      },
+      "name": "stolen tech byte 0, stolen",
+      "type": {
+        "stolen": [
+          true,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "answer": 0,
+      "args": [
+        false,
+        true
+      ],
+      "class": "unit",
+      "entry": "can_build",
+      "house": {
+        "stolen": [
+          false,
+          true,
+          true
+        ]
+      },
+      "name": "stolen tech byte 0, the other two stolen",
+      "type": {
+        "stolen": [
+          true,
+          false,
+          false
+        ]
+      }
+    },
+    {
       "answer": 0,
       "args": [
         false,
@@ -125,6 +173,54 @@
       }
     },
     {
+      "answer": 1,
+      "args": [
+        false,
+        true
+      ],
+      "class": "unit",
+      "entry": "can_build",
+      "house": {
+        "stolen": [
+          false,
+          true,
+          false
+        ]
+      },
+      "name": "stolen tech byte 1, stolen",
+      "type": {
+        "stolen": [
+          false,
+          true,
+          false
+        ]
+      }
+    },
+    {
+      "answer": 0,
+      "args": [
+        false,
+        true
+      ],
+      "class": "unit",
+      "entry": "can_build",
+      "house": {
+        "stolen": [
+          true,
+          false,
+          true
+        ]
+      },
+      "name": "stolen tech byte 1, the other two stolen",
+      "type": {
+        "stolen": [
+          false,
+          true,
+          false
+        ]
+      }
+    },
+    {
       "answer": 0,
       "args": [
         false,
@@ -134,6 +230,54 @@
       "entry": "can_build",
       "house": {},
       "name": "stolen tech byte 2",
+      "type": {
+        "stolen": [
+          false,
+          false,
+          true
+        ]
+      }
+    },
+    {
+      "answer": 1,
+      "args": [
+        false,
+        true
+      ],
+      "class": "unit",
+      "entry": "can_build",
+      "house": {
+        "stolen": [
+          false,
+          false,
+          true
+        ]
+      },
+      "name": "stolen tech byte 2, stolen",
+      "type": {
+        "stolen": [
+          false,
+          false,
+          true
+        ]
+      }
+    },
+    {
+      "answer": 0,
+      "args": [
+        false,
+        true
+      ],
+      "class": "unit",
+      "entry": "can_build",
+      "house": {
+        "stolen": [
+          true,
+          true,
+          false
+        ]
+      },
+      "name": "stolen tech byte 2, the other two stolen",
       "type": {
         "stolen": [
           false,

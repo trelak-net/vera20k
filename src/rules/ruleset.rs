@@ -1219,9 +1219,16 @@ pub struct GeneralRules {
     /// Interval in minutes between low-power degradation damage ticks on Powered=yes buildings.
     /// Parsed from DamageDelay= in [General]. Default 1.0 minute.
     pub damage_delay_minutes: f32,
-    /// Duration of spy-triggered total power blackout in game frames (15 fps).
-    /// Parsed from SpyPowerBlackout= in [General]. Default 1000 frames (~67 seconds).
-    pub spy_power_blackout_frames: u32,
+    /// `[General] SpyPowerBlackout=` (`RulesClass+0xD64`, ReadInt
+    /// `0x0066FBF1..0x0066FC0B`; the constructor's 0, `0x0066680A`): the
+    /// frames the owner of an infiltrated power plant blacks out for
+    /// (`BuildingClass::Infiltrate`, `0x004572DB`). Retail sets 1000.
+    pub spy_power_blackout: i32,
+    /// `[General] SpyMoneyStealPercent=` (`RulesClass+0xD68`, ReadDouble
+    /// stored as a float, `0x0066FC17..0x0066FC30`; the constructor's
+    /// `0x3F000000`, 0.5, `0x00666810`): the share of its owner's money an
+    /// infiltrated `Storage=` building yields (`0x0045743F`). Retail sets .5.
+    pub spy_money_steal_percent: NativeF32Bits,
     /// Fire/smoke anim types spawned on buildings below ConditionYellow health.
     /// Parsed from DamageFireTypes= in [General]. Default: FIRE01,FIRE02,FIRE03.
     pub damage_fire_types: Vec<AnimRef>,
@@ -2219,7 +2226,8 @@ impl Default for GeneralRules {
             bomb_ticking_sound: None,
             bomb_attach_sound: None,
             damage_delay_minutes: 1.0,
-            spy_power_blackout_frames: 1000,
+            spy_power_blackout: 0,
+            spy_money_steal_percent: NativeF32Bits::from_bits(0x3F00_0000),
             damage_fire_types: vec![],
             barrel_particle: None,
             tiberium_short_scan: 0x600,
@@ -3243,7 +3251,9 @@ impl GeneralRules {
             },
             infantry_death_anims,
             damage_delay_minutes: general.read_double("DamageDelay", 1.0) as f32,
-            spy_power_blackout_frames: general.read_int("SpyPowerBlackout", 1000).max(0) as u32,
+            spy_power_blackout: general.read_int("SpyPowerBlackout", defaults.spy_power_blackout),
+            spy_money_steal_percent: general
+                .read_double_to_float("SpyMoneyStealPercent", defaults.spy_money_steal_percent),
             damage_fire_types: general
                 .read_list("DamageFireTypes", 0x80)
                 .map(|tokens| {
@@ -5359,6 +5369,15 @@ impl RuleSet {
     fn country_rules(&self, id: &str) -> Option<&CountryRules> {
         let index = self.country_index(id)?;
         self.countries.get(self.country_name(index)?)
+    }
+
+    /// Whether `type_id` is in `[AI] BuildTech=` (`RulesClass+0x91C`, a
+    /// vector of BuildingType pointers, so the match is by identity, here a
+    /// case-insensitive name).
+    pub fn is_build_tech(&self, type_id: &str) -> bool {
+        self.build_tech_types
+            .iter()
+            .any(|tech| tech.eq_ignore_ascii_case(type_id))
     }
 
     /// Look up a superweapon type by ID (case-insensitive, gamemd parity).

@@ -182,7 +182,7 @@ fn the_building_choice_handles_nodes_as_native() {
         let mut power_state = PowerState::default();
         power_state.total_output = int(&row["output"]) as i32;
         power_state.total_drain = int(&row["drain"]) as i32;
-        power_state.start_blackout(0, int(&row["blackout"]) as u32);
+        power_state.start_blackout(0, int(&row["blackout"]) as i32);
         power_state.has_drained_power_source = flag(&row["drained_source"]);
         sim.power_states.insert(owner, power_state);
         let draws: Vec<&Value> = row["events"]

@@ -294,7 +294,7 @@ fn settled_repair_native_health_sample_factory_cadence_radar_and_later_advice() 
         sim.power_states
             .get_mut(&owner)
             .unwrap()
-            .start_blackout(int(&timer[0]) as u32, int(&timer[2]) as u32);
+            .start_blackout(int(&timer[0]) as u32, int(&timer[2]));
         sim.assess_house_derived_state(owner, &rules);
         let type_ref = sim.interner.intern("PENDING");
         assert!(sim.production.factories.test_enqueue_kernel(
@@ -384,7 +384,7 @@ fn native_blackout_setter_replaces_shorter_longer_and_zero_durations() {
         sim.power_states
             .get_mut(&owner)
             .unwrap()
-            .start_blackout(start, int(&prior[2]) as u32);
+            .start_blackout(start, int(&prior[2]));
         // Establish the supplied settled prior through the existing House
         // receiver. The full50BC90 comparison itself executes only the
         // setter; ForceShield/Spy activation and numeric inputs are outside.
@@ -398,7 +398,7 @@ fn native_blackout_setter_replaces_shorter_longer_and_zero_durations() {
         sim.power_states
             .get_mut(&owner)
             .unwrap()
-            .start_blackout(sim.session.binary_frame, int(&input["duration"]) as u32);
+            .start_blackout(sim.session.binary_frame, int(&input["duration"]));
         assert_power(&sim, owner, &row["output"], "whole50BC90 setter");
         assert_rng(&sim, &row["receipt"]["rng_after"], "whole50BC90 setter");
         assert_eq!(row["setter_execution"]["unique_instructions"], 13);
@@ -421,7 +421,7 @@ fn native_blackout_zero_one_and_two_remaining_with_clean_or_dirty_house() {
         sim.power_states
             .get_mut(&owner)
             .unwrap()
-            .start_blackout(start, int(&input["duration"]) as u32);
+            .start_blackout(start, int(&input["duration"]));
         // Reach a clean power assessment while the timer still has2 frames.
         // Local radar's separately supplied prior bool is not compared here.
         sim.assess_house_derived_state(owner, &rules);

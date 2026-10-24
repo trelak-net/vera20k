@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "native_sha256": "1cdd1180e49024fbda8ad568caac2e86e856063ff67ab38f62b7d2c7bb84298c",
+  "unicorn_binding": "2.1.4",
+  "unicorn_core": [
+    2,
+    1,
+    33621247
+  ],
+  "scope": "BuildingClass::Infiltrate on synthetic houses, building type, rules and one Super: every arm, their order, the local-player and radar-event gates of the radar event and the EVA lines. The Super has no anim and no custom charge time (+0x24 = -1).",
+  "assumptions": [
+    "GameMode 1, so IsPlayer compares each house with PlayerPtr.",
+    "Both houses hold no silo storage (+0x2FC) and a capacity (+0x310) of 200, so Spend_Money never drains buildings."
+  ],
+  "substitutions": [
+    "MapClass::Reset_Shroud 0x577AB0, CreateRadarEvent 0x65FA70 (answered per row) and VoxClass::PlayEVA 0x752700 are recorded stubs.",
+    "The building's vt+0x1B8 answers a fixed cell; vt+0x124 (Mark) returns."
+  ],
+  "entry_points": {
+    "infiltrate": "0x004571E0"
+  },
+  "replay_command": "python -m tools.spy_infiltration_oracle",
+  "payload_sha256": "bf4124e7f5ca1b259d0214e6b5bbb935cd54116a96436b3169899af4d2098084"
+}

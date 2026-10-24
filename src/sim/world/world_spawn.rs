@@ -1987,7 +1987,13 @@ impl Simulation {
             .collect();
         for (targeter, drops) in targeters {
             let target = (!drops).then_some(TargetKind::Entity(new_sid));
-            let _ = self.assign_target_represented(targeter, target, Some(rules));
+            let _ = self.assign_target_represented(
+                targeter,
+                target,
+                Some(rules),
+                registry,
+                frame_effects,
+            );
         }
         // 0x007397D2..0x007397DE: the unit's veterancy (`+0x150`); the rank
         // cache (`+0x13C`) stays the building's own.
@@ -2004,7 +2010,13 @@ impl Simulation {
             building.ai_repairable = true;
         }
         // 0x0073982C: the building takes the unit's target.
-        let _ = self.assign_target_represented(new_sid, source_target, Some(rules));
+        let _ = self.assign_target_represented(
+            new_sid,
+            source_target,
+            Some(rules),
+            registry,
+            frame_effects,
+        );
         self.initialize_cloak_after_unlimbo(new_sid, rules);
         self.add_unit_sensor_after_unlimbo(new_sid, rules);
         self.mission_spawned_entities = true;

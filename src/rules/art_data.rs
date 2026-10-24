@@ -1814,6 +1814,21 @@ impl ArtRegistry {
         resolved.image_id
     }
 
+    /// A type's `AltCameo=` image (`+0x710`), if declared. Both of gamemd's
+    /// reads take it from the image section (`+0x1F8`):
+    /// `TechnoTypeClass::ReadINI` (`0x00715A73`) and the savegame reload
+    /// (`0x00716D3F`), which, unlike its `Cameo=` read, retries no type-ID
+    /// section.
+    pub fn resolve_declared_alt_cameo_id(
+        &self,
+        type_id: &str,
+        rules_image: &str,
+    ) -> Option<String> {
+        let resolved: ResolvedObjectArt<'_> = self.resolve_object_art(type_id, rules_image);
+        self.get(&resolved.base_art_id)
+            .and_then(|entry| normalize_id(entry.alt_cameo.as_deref().unwrap_or_default()))
+    }
+
     /// Resolve the declared palette id for an asset, if any.
     pub fn resolve_declared_palette_id(&self, type_id: &str, rules_image: &str) -> Option<String> {
         let resolved: ResolvedObjectArt<'_> = self.resolve_object_art(type_id, rules_image);

@@ -2274,8 +2274,14 @@ mod retail_construction_tests {
             cells_nearest((i32::from(start.0), i32::from(start.1))),
             &["E1"],
         )[0];
-        sim.assign_target_represented(rhino, Some(TargetKind::Entity(gi)), Some(rules))
-            .expect("the Rhino takes the GI as its target");
+        sim.assign_target_represented(
+            rhino,
+            Some(TargetKind::Entity(gi)),
+            Some(rules),
+            None,
+            crate::sim::world::FrameEffects::default(),
+        )
+        .expect("the Rhino takes the GI as its target");
         let now = sim.session.binary_frame;
         sim.mission_assign_exact(rhino, MissionId::from_known(MissionType::Attack), now)
             .expect("the Rhino takes Attack");
@@ -2311,6 +2317,225 @@ mod retail_construction_tests {
         assert_eq!(charged, Some(1), "the Rhino's first Attack tick");
         assert!(died.is_some(), "the GI survived");
         assert!(crushed, "the GI died, but not under the Rhino");
+    }
+
+    /// The local Allied player's Spy sent into a Normal Soviet house's Tesla
+    /// Reactor walks in and leaves the game; the Soviet power blacks out for
+    /// `SpyPowerBlackout=` frames, and the sim announces it for the local
+    /// player's EVA (`sim::spy_infiltration`).
+    #[test]
+    #[ignore = "requires RA2_DIR with installed retail RA2/YR assets"]
+    fn retail_player_spy_blacks_out_a_computer_power_plant() {
+        use crate::sim::command::{Command, CommandEnvelope};
+        use crate::sim::spy_infiltration::InfiltrationEffect;
+        use crate::sim::world::SimSoundEvent;
+        use crate::skirmish_launch::{AiDifficulty, LaunchCountry};
+
+        let (mut scenario, _) =
+            retail_battle(|_| {}, &[(LaunchCountry::Russia, AiDifficulty::Normal)]);
+        let soviet = house_of(scenario.sim(), "Russians");
+        let mut reactor = None;
+        for _ in 0..6000 {
+            scenario.tick();
+            let sim = scenario.sim();
+            reactor = sim
+                .entities()
+                .values()
+                .find(|entity| {
+                    entity.owner() == soviet
+                        && !entity.dying
+                        && !entity.lifecycle.in_limbo
+                        && sim.interner.resolve(entity.type_ref()) == "NAPOWR"
+                })
+                .map(|entity| entity.stable_id());
+            if reactor.is_some() {
+                break;
+            }
+        }
+        let reactor = reactor.expect("a Tesla Reactor");
+        // Past its build-up.
+        for _ in 0..300 {
+            scenario.tick();
+        }
+        let runtime = &mut scenario.runtime;
+        let (sim, rules) = (&mut runtime.simulation, &runtime.resources.rules);
+        let at = {
+            let entity = sim.entities().get(reactor).expect("the reactor stands");
+            (i32::from(entity.position.rx), i32::from(entity.position.ry))
+        };
+        let america = house_of(sim, "Americans");
+        let cells = cells_nearest(at)
+            .into_iter()
+            .filter(|&(rx, ry)| (rx - at.0).abs().max((ry - at.1).abs()) >= 3);
+        let spy = spawn_on_free_cells(sim, rules, america, cells, &["SPY"])[0];
+        let tick = sim.session.tick;
+        sim.queue_command(CommandEnvelope::new(
+            america,
+            tick + 1,
+            Command::CaptureBuilding {
+                engineer_id: spy,
+                target_building_id: reactor,
+            },
+        ));
+        let mut announced = None;
+        for _ in 0..600 {
+            let output = tick_with_due_commands(&mut scenario);
+            announced = announced.or(output.sound_events.iter().find_map(|event| match event {
+                SimSoundEvent::BuildingInfiltrated {
+                    owner,
+                    infiltrator,
+                    effect,
+                    ..
+                } => Some((*owner, *infiltrator, *effect)),
+                _ => None,
+            }));
+            if scenario.sim().entities().get(spy).is_none() {
+                break;
+            }
+        }
+        let sim = scenario.sim();
+        assert_eq!(
+            announced,
+            Some((soviet, america, InfiltrationEffect::Power)),
+            "the spy never went in"
+        );
+        assert!(sim.entities().get(spy).is_none(), "the spy stayed");
+        let frame = sim.session.binary_frame;
+        assert!(sim.power_states[&soviet].blackout_remaining(frame) > 0);
+    }
+
+    /// "Allied Spy vs Soviet Power" (`09B5091C-G`: one SPY, the script
+    /// `0,4 / 47,131081 / 46,9 / 47,131083 / 46,11`) for a Normal American
+    /// house against the idle local Soviet house, which is given a Tesla
+    /// Reactor beside its MCV, guarded by a Sentry Gun and a Conscript. The
+    /// team's spy is spawned twelve cells from the reactor, towards its own
+    /// house's MCV. Action 0 (attack infantry) takes the flat walk over every
+    /// object (`0x006F8FE0`) and finds the Conscript, which the `MakeupKit`
+    /// (`Range=-2`) reaches from anywhere: its `MakesDisguise=` shot dresses
+    /// the spy as a Soviet Conscript, and the `FireOnce=` shot ends the
+    /// action. Action 47 brings it beside the reactor past guards that take
+    /// it for their own, and action 46 hands it the reactor:
+    /// `Assign_Target`'s infiltration arm heads it there, Mission_Attack's
+    /// computer arm puts it on Capture, and it walks in and blacks the local
+    /// house out.
+    #[test]
+    #[ignore = "requires RA2_DIR with installed retail RA2/YR assets"]
+    fn retail_computer_spy_team_infiltrates_a_tesla_reactor() {
+        use crate::sim::mission::MissionType;
+        use crate::sim::spy_infiltration::InfiltrationEffect;
+        use crate::sim::world::SimSoundEvent;
+        use crate::skirmish_launch::{AiDifficulty, LaunchCountry};
+
+        let (mut scenario, _) = retail_battle(
+            |session| {
+                session.local.country = LaunchCountry::Russia;
+                session.options.unit_count = 0;
+            },
+            &[(LaunchCountry::America, AiDifficulty::Normal)],
+        );
+        let runtime = &mut scenario.runtime;
+        let (sim, rules) = (&mut runtime.simulation, &runtime.resources.rules);
+        let soviet = house_of(sim, "Russians");
+        let america = house_of(sim, "Americans");
+        let at = |sim: &Simulation, id| {
+            let entity = sim.entities().get(id).expect("spawned");
+            (i32::from(entity.position.rx), i32::from(entity.position.ry))
+        };
+        let mcv = sim
+            .substrate
+            .entities
+            .iter_sorted()
+            .find(|(_, entity)| entity.owner() == soviet)
+            .map(|(id, _)| id)
+            .expect("the local MCV");
+        let (mx, my) = at(sim, mcv);
+        let reactor = spawn_on_free_cells(
+            sim,
+            rules,
+            soviet,
+            cells_nearest((mx + 5, my + 5)),
+            &["NAPOWR"],
+        )[0];
+        let (rx, ry) = at(sim, reactor);
+        spawn_on_free_cells(
+            sim,
+            rules,
+            soviet,
+            cells_nearest((rx, ry)),
+            &["NALASR", "E2"],
+        );
+        // Twelve cells out towards the American MCV. The nearest cells the
+        // other way lie in no zone (0xFFFF), and Evaluate_Candidate's zone
+        // test, which only DWORD -1 skips (`0x006F7E36`), then rejects every
+        // quarry of a spy standing there.
+        let american_mcv = sim
+            .substrate
+            .entities
+            .iter_sorted()
+            .find(|(_, entity)| entity.owner() == america)
+            .map(|(id, _)| id)
+            .expect("the American MCV");
+        let (ax, ay) = at(sim, american_mcv);
+        let reach = (ax - rx).abs().max((ay - ry).abs()).max(1);
+        let toward = (rx + (ax - rx) * 12 / reach, ry + (ay - ry) * 12 / reach);
+        let cells = cells_nearest(toward)
+            .into_iter()
+            .filter(|&(x, y)| (x - rx).abs().max((y - ry).abs()) >= 10);
+        let spy = spawn_on_free_cells(sim, rules, america, cells, &["SPY"])[0];
+        let id = sim
+            .interner
+            .get("09B5091C-G")
+            .expect("retail TeamType interned");
+        // The computer house may already have made the team; then it
+        // recruits the new spy.
+        sim.create_team(id, Some(america), rules)
+            .or_else(|| {
+                sim.team_script_vm
+                    .teams_in_order()
+                    .find(|team| team.team_type_id() == Some(id) && team.owner() == america)
+                    .map(|team| team.id())
+            })
+            .expect("a team of the TeamType");
+        let (mut capturing, mut announced, mut hurt) = (None, None, false);
+        for frame in 1..=2_000u32 {
+            let output = tick_with_due_commands(&mut scenario);
+            announced = announced.or(output.sound_events.iter().find_map(|event| match event {
+                SimSoundEvent::BuildingInfiltrated {
+                    owner,
+                    infiltrator,
+                    effect,
+                    ..
+                } => Some((frame, *owner, *infiltrator, *effect)),
+                _ => None,
+            }));
+            if let Some(entity) = scenario.sim().entities().get(spy) {
+                hurt |= entity.health.current < 100;
+                if capturing.is_none()
+                    && entity.mission.current().known() == Some(MissionType::Capture)
+                {
+                    let worn = entity.disguise.as_ref().filter(|d| d.is_disguised());
+                    capturing = Some((frame, worn.map(|d| (d.type_id(), d.house()))));
+                }
+            }
+            if announced.is_some() {
+                break;
+            }
+        }
+        eprintln!("09B5091C-G: took Capture at {capturing:?}, went in: {announced:?}");
+        let conscript = scenario.sim().interner.get("E2");
+        assert_eq!(
+            capturing.map(|(_, worn)| worn),
+            Some(Some((conscript, Some(soviet)))),
+            "the spy took Capture dressed as a Soviet Conscript"
+        );
+        assert!(!hurt, "a guard shot the disguised spy");
+        assert_eq!(
+            announced.map(|(_, owner, infiltrator, effect)| (owner, infiltrator, effect)),
+            Some((soviet, america, InfiltrationEffect::Power)),
+            "the spy never went in"
+        );
+        let sim = scenario.sim();
+        assert!(sim.power_states[&soviet].blackout_remaining(sim.session.binary_frame) > 0);
     }
 
     /// A Normal Soviet house's War Miner out on the ore with a load, brought

@@ -731,7 +731,13 @@ impl Simulation {
                 // dock contact.
                 self.queue_megamission(*entity_id, MissionType::Move, rules, frame_effects);
                 // Clear attack and order intent.
-                let _ = self.assign_target_represented(*entity_id, None, rules);
+                let _ = self.assign_target_represented(
+                    *entity_id,
+                    None,
+                    rules,
+                    overlay_registry,
+                    frame_effects,
+                );
                 if let Some(e) = self.substrate.entities.get_mut(*entity_id) {
                     // Event MegaMission4C7467 calls Assign_Target before the
                     // destination setter. Its changed-null path6FCF5B also
@@ -892,7 +898,13 @@ impl Simulation {
                 }
                 // Event Stop4C75F8 invokes virtual+3C8 AFTER its null
                 // destination4C75ED, including the Infantry class effects.
-                let _ = self.assign_target_represented(*entity_id, None, rules);
+                let _ = self.assign_target_represented(
+                    *entity_id,
+                    None,
+                    rules,
+                    overlay_registry,
+                    frame_effects,
+                );
                 // `0x004C75FE..0x004C7624`: a `BalloonHover=` type takes both
                 // again. Its setter's arm (`0x00741983`) kept the NavCom while
                 // the Target stood; without the Target this one clears it.
@@ -910,7 +922,13 @@ impl Simulation {
                         overlay_registry,
                         frame_effects,
                     );
-                    let _ = self.assign_target_represented(*entity_id, None, rules);
+                    let _ = self.assign_target_represented(
+                        *entity_id,
+                        None,
+                        rules,
+                        overlay_registry,
+                        frame_effects,
+                    );
                 }
                 // `0x004C762A..0x004C7634`: a spawner's manager drops its
                 // targets, so a queued launch is cancelled and an attacking
@@ -955,7 +973,13 @@ impl Simulation {
                 // `0x004C7639..0x004C7650`: an open-topped transport's riders
                 // let go of their targets too.
                 if let Some(rules) = rules {
-                    self.open_topped_passengers_take_target(*entity_id, None, rules);
+                    self.open_topped_passengers_take_target(
+                        *entity_id,
+                        None,
+                        rules,
+                        overlay_registry,
+                        frame_effects,
+                    );
                 }
                 self.commit_stop_miner_guard(*entity_id);
                 // `0x004C769C..0x004C76AC`: Stop takes a Slave Miner off its
@@ -998,6 +1022,8 @@ impl Simulation {
                     *attacker_id,
                     combat::TargetKind::Entity(*target_id),
                     rules,
+                    overlay_registry,
+                    frame_effects,
                 );
                 if issued {
                     // `0x004C747C`: the order's NULL destination through the
@@ -1015,6 +1041,8 @@ impl Simulation {
                             *attacker_id,
                             Some(combat::TargetKind::Entity(*target_id)),
                             rules,
+                            overlay_registry,
+                            frame_effects,
                         );
                     }
                 }
@@ -1047,6 +1075,8 @@ impl Simulation {
                     *attacker_id,
                     combat::TargetKind::Entity(*target_id),
                     rules,
+                    overlay_registry,
+                    frame_effects,
                 );
                 if issued {
                     self.assign_null_destination(
@@ -1062,6 +1092,8 @@ impl Simulation {
                             *attacker_id,
                             Some(combat::TargetKind::Entity(*target_id)),
                             rules,
+                            overlay_registry,
+                            frame_effects,
                         );
                     }
                 }
@@ -1090,6 +1122,8 @@ impl Simulation {
                     *attacker_id,
                     combat::TargetKind::Cell(*target_rx, *target_ry),
                     rules,
+                    overlay_registry,
+                    frame_effects,
                 );
                 if issued {
                     self.assign_null_destination(
@@ -1104,6 +1138,8 @@ impl Simulation {
                             *attacker_id,
                             Some(combat::TargetKind::Cell(*target_rx, *target_ry)),
                             rules,
+                            overlay_registry,
+                            frame_effects,
                         );
                     }
                 }
@@ -1134,7 +1170,13 @@ impl Simulation {
                 // Retask onto AttackMove (the order_intent set after the move
                 // issues is the real driver).
                 self.queue_megamission(*entity_id, MissionType::AttackMove, rules, frame_effects);
-                let _ = self.assign_target_represented(*entity_id, None, rules);
+                let _ = self.assign_target_represented(
+                    *entity_id,
+                    None,
+                    rules,
+                    overlay_registry,
+                    frame_effects,
+                );
 
                 // Snapshot speed, locomotor, and rules data in one lookup.
                 let Some(info) = self.resolve_move_info(*entity_id, rules) else {
@@ -1534,7 +1576,13 @@ impl Simulation {
                 // contact changes, without a parallel reservation teardown.
                 self.queue_megamission(*entity_id, MissionType::Enter, Some(rules), frame_effects);
                 // Event4C7467 dispatches the class target setter before Dest.
-                let _ = self.assign_target_represented(*entity_id, None, Some(rules));
+                let _ = self.assign_target_represented(
+                    *entity_id,
+                    None,
+                    Some(rules),
+                    overlay_registry,
+                    frame_effects,
+                );
                 if let Some(e) = self.substrate.entities.get_mut(*entity_id) {
                     e.order_intent = None;
                 }
@@ -1640,7 +1688,13 @@ impl Simulation {
                 );
                 // Clear existing state on the passenger.
                 // Event4C7467 dispatches the class target setter before Dest.
-                let _ = self.assign_target_represented(*passenger_id, None, Some(rules));
+                let _ = self.assign_target_represented(
+                    *passenger_id,
+                    None,
+                    Some(rules),
+                    overlay_registry,
+                    frame_effects,
+                );
                 if let Some(e) = self.substrate.entities.get_mut(*passenger_id) {
                     e.order_intent = None;
                     e.passenger_role = passenger::PassengerRole::Boarding {
@@ -1939,7 +1993,13 @@ impl Simulation {
                 );
                 // Clear conflicting state and set c4_plant.
                 // Event4C7467 dispatches the class target setter before Dest.
-                let _ = self.assign_target_represented(*attacker_id, None, Some(rules));
+                let _ = self.assign_target_represented(
+                    *attacker_id,
+                    None,
+                    Some(rules),
+                    overlay_registry,
+                    frame_effects,
+                );
                 if let Some(e) = self.substrate.entities.get_mut(*attacker_id) {
                     e.order_intent = None;
                     e.c4_plant = Some(crate::sim::components::C4PlantState {
@@ -2038,7 +2098,13 @@ impl Simulation {
                 );
                 // Clear conflicting state and set capture target.
                 // Event4C7467 dispatches the class target setter before Dest.
-                let _ = self.assign_target_represented(*engineer_id, None, Some(rules));
+                let _ = self.assign_target_represented(
+                    *engineer_id,
+                    None,
+                    Some(rules),
+                    overlay_registry,
+                    frame_effects,
+                );
                 if let Some(e) = self.substrate.entities.get_mut(*engineer_id) {
                     e.order_intent = None;
                 }
@@ -2148,7 +2214,13 @@ impl Simulation {
                             frame_effects,
                         );
                         // Event4C7467 dispatches the class target setter before Dest.
-                        let _ = sim.assign_target_represented(unit_id, None, Some(rules));
+                        let _ = sim.assign_target_represented(
+                            unit_id,
+                            None,
+                            Some(rules),
+                            overlay_registry,
+                            frame_effects,
+                        );
                         if let Some(e) = sim.substrate.entities.get_mut(unit_id) {
                             e.order_intent = None;
                             e.c4_plant = None;
@@ -2549,8 +2621,14 @@ impl Simulation {
             .order_intent = None;
         // Non-Foot receivers take the ordinary Event4C7467/4C747C arm;
         // G itself excludes them, but a decoded record still reaches it.
-        self.assign_target_represented(entity_id, if foot { None } else { target }, rules)
-            .unwrap_or_else(|cause| panic!("Area Guard order target: {cause}"));
+        self.assign_target_represented(
+            entity_id,
+            if foot { None } else { target },
+            rules,
+            overlay_registry,
+            frame_effects,
+        )
+        .unwrap_or_else(|cause| panic!("Area Guard order target: {cause}"));
         self.assign_destination_represented(
             entity_id,
             if foot { target.map(Into::into) } else { None },
@@ -2583,6 +2661,8 @@ impl Simulation {
         attacker_id: u64,
         target: combat::TargetKind,
         rules: Option<&RuleSet>,
+        overlay_registry: Option<&crate::rules::overlay_types::OverlayTypeRegistry>,
+        frame_effects: FrameEffects<'_>,
     ) -> bool {
         let Some(attacker) = self.substrate.entities.get(attacker_id) else {
             return false;
@@ -2598,8 +2678,14 @@ impl Simulation {
         }
         // Event4C7467 calls virtual+3C8, before4C747C's null destination.
         // A class refusal still leaves the accepted queued mission in place.
-        self.assign_target_represented(attacker_id, Some(target), rules)
-            .is_ok()
+        self.assign_target_represented(
+            attacker_id,
+            Some(target),
+            rules,
+            overlay_registry,
+            frame_effects,
+        )
+        .is_ok()
     }
 
     /// The Unload order a self-click sends: `ClickedMission(Unload, NULL,
@@ -2630,7 +2716,7 @@ impl Simulation {
         self.queue_megamission(id, MissionType::Unload, Some(rules), frame_effects);
         // Foot4DA1C0 (`0x004C7453`) clears the +5AC vector, distinct from
         // NavQueue588/598, and has no represented producer here.
-        self.assign_target_represented(id, None, Some(rules))
+        self.assign_target_represented(id, None, Some(rules), overlay_registry, frame_effects)
             .unwrap_or_else(|cause| panic!("Unload order target: {cause}"));
         self.assign_destination_represented(id, None, Some(rules), overlay_registry, frame_effects)
             .unwrap_or_else(|cause| panic!("Unload order destination: {cause}"));

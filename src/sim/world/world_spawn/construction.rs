@@ -271,6 +271,30 @@ impl Simulation {
                 self.session.binary_frame,
             );
         }
+        // After the managers, InitFromType makes the object veteran
+        // (`SetVeteran(1)`, `0x00750090`) where its house's spies entered a
+        // factory (`sim::spy_infiltration`): a `Trainable=` infantryman after
+        // a barracks (`+0x2BF`, `0x00517D20..0x00517D51`); after a war
+        // factory (`+0x2C0`) a `Trainable=` unit that is not `Naval=` (the
+        // constructor `0x0073563D..0x00735678` and InitFromType
+        // `0x00746860..0x0074689B` alike) and such a building that undeploys
+        // (`BuildingClass::Init_Managers`, `0x00442CD8..0x00442D0F`).
+        // Aircraft read neither. The countries' `VeteranInfantry=` and
+        // `VeteranUnits=` lists before them (`0x00517CE8`, `0x0074682B`) are
+        // dormant: no retail country sets one.
+        let house = self.houses.get(&ge.owner());
+        let veteran = obj.trainable
+            && house.is_some_and(|house| match category {
+                EntityCategory::Infantry => house.veteran_infantry(),
+                EntityCategory::Unit => house.veteran_units() && !obj.naval,
+                EntityCategory::Structure => {
+                    house.veteran_units() && !obj.naval && obj.undeploys_into.is_some()
+                }
+                _ => false,
+            });
+        if veteran {
+            crate::sim::combat::veterancy::set_veteran(ge);
+        }
     }
 }
 

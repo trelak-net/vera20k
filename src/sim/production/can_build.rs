@@ -22,10 +22,10 @@
 //!   Trigger: a computer house owning a Tech Secret Lab whose TaskForces
 //!   need its type. Effect: the type is refused where its TechLevel or
 //!   `RequiredHouses=` would refuse it. Frequency: rare.
-//! - The stolen-tech bytes (`+0x2BC..+0x2BE`) and masks (`+0x2C4..+0x2D0`)
-//!   are never set (spy infiltration is not ported), so a
-//!   `RequiresStolen*Tech=` type is always refused and `RequiredHouses=`
-//!   admits the house's own country only.
+//! - Not a difference: `RequiredHouses=` also admits the countries in the
+//!   house's masks (`+0x2C4..+0x2D0`, `0x004F7A07..0x004F7A51`), but only the
+//!   House constructor writes them (zero; operand census of each offset,
+//!   2026-10-12), so it admits the house's own country only, as VERA does.
 //! - A build limit below 1 counts what the house has produced of the type
 //!   (`+0x55A0`, `+0x55B4`, `+0x55C8`, `+0x55DC`), which is not kept: VERA
 //!   counts none. Dormant: retail `rulesmd.ini` sets `BuildLimit=1` on twelve
@@ -111,11 +111,9 @@ pub(crate) fn can_build(
     if override_on_map {
         return build_limit(sim, owner, obj, count_in_production);
     }
-    if obj.tech_level == -1
-        || obj.requires_stolen_third_tech
-        || obj.requires_stolen_soviet_tech
-        || obj.requires_stolen_allied_tech
-    {
+    // `0x004F7976..0x004F79E2`: each `RequiresStolen*Tech=` needs the
+    // house's stolen-tech byte, which a spy's BuildTech infiltration sets.
+    if obj.tech_level == -1 || !house.has_stolen_tech_for(obj) {
         return CanBuild::No;
     }
     let house_bit = crate::sim::ai_buildable::house_country_bit(
@@ -132,10 +130,7 @@ pub(crate) fn can_build(
     if !sim.session.game_options.super_weapons
         && obj.category == ObjectCategory::Building
         && let Some(super_weapon) = obj.super_weapon.as_deref()
-        && !rules
-            .build_tech_types
-            .iter()
-            .any(|type_id| type_id.eq_ignore_ascii_case(&obj.id))
+        && !rules.is_build_tech(&obj.id)
         && rules
             .super_weapon(super_weapon)
             .is_some_and(|super_weapon| super_weapon.disableable_from_shell)

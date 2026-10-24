@@ -660,12 +660,20 @@ fn gattling_cadence_matches_the_original() {
                         building,
                         Some(TargetKind::Entity(target)),
                         Some(&rules),
+                        None,
+                        crate::sim::world::FrameEffects::default(),
                     )
                     .unwrap();
                 }
                 Some(Event::Lose) => {
-                    sim.assign_target_represented(building, None, Some(&rules))
-                        .unwrap();
+                    sim.assign_target_represented(
+                        building,
+                        None,
+                        Some(&rules),
+                        None,
+                        crate::sim::world::FrameEffects::default(),
+                    )
+                    .unwrap();
                 }
                 Some(Event::Override) => {
                     assert!(sim.override_mission_on_damage_response(

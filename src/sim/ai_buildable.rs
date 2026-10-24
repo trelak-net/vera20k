@@ -102,11 +102,7 @@ pub(crate) fn candidate_allowed(
     let Some(primary) = candidate.super_weapon.as_deref() else {
         return true;
     };
-    if rules
-        .build_tech_types
-        .iter()
-        .any(|type_id| type_id.eq_ignore_ascii_case(&candidate.id))
-    {
+    if rules.is_build_tech(&candidate.id) {
         return true;
     }
     rules

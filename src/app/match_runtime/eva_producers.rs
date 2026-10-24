@@ -46,6 +46,8 @@
 //! - `BuildingClass::ChangeOwner 0x00448428/0x0044848A` (+ `0x00448459`
 //!   `QueueVoice(CaptureEvaEvent)`) → TechBuildingLost / BuildingCaptured /
 //!   per-type capture line (sim event).
+//! - `BuildingClass::Infiltrate 0x00457288..0x0045758B` → the infiltration
+//!   family (sim event, app radar admission; [`infiltration_eva_events`]).
 //! - `SuperClass::AI_Ready 0x006CBE63` → `*Ready` (sim event, table below);
 //!   `BuildingClass::OnConstructionComplete 0x00446995` → `*Detected` (sim
 //!   event, table below); `SuperClass::Launch` ×7 → `*Activated` (landed).
@@ -65,8 +67,6 @@
 //! - `FootClass::OnSold 0x004D9F94` → `EVA_UnitSold` (no unit selling).
 //! - `0x00448226` (primary-factory setter, `[this+0x3D3]=1` then
 //!   `0x0050B6F0`) → `EVA_PrimaryBuildingSelected` (no primary factory).
-//! - `BuildingClass::OnSpyInfiltrate 0x00457288..0x0045758B` (infiltration
-//!   family, `0x0050B6F0` on the spy owner / building owner) (no spy entry).
 //! - `RadarClass::PlaceBeacon 0x00430D78` (`EVA_BeaconPlaced`), `0x00430F1B`
 //!   (`CreateRadarEvent(0xB)` → `EVA_BeaconDetected`) (no beacons).
 //! - `HouseClass::MakeAlly 0x004F9F35` (`EVA_AllianceRequested` string
@@ -103,6 +103,7 @@
 use crate::map::houses::{HouseAllianceMap, is_allied_with};
 use crate::rules::object_type::ObjectType;
 use crate::rules::superweapon_type::SuperWeaponKind;
+use crate::sim::spy_infiltration::InfiltrationEffect;
 
 /// `EVA_NewRallyPointEstablished` (string `0x00818E58`), spoken at
 /// `0x00443A69` by the click handler.
@@ -117,6 +118,24 @@ pub(crate) const EVA_BUILDING_CAPTURED: &str = "EVA_BuildingCaptured";
 pub(crate) const EVA_TECH_BUILDING_LOST: &str = "EVA_TechBuildingLost";
 /// String `0x00824B70`.
 pub(crate) const EVA_PLAYER_DEFEATED: &str = "EVA_PlayerDefeated";
+/// String `0x008191E4`.
+const EVA_RADAR_SABOTAGED: &str = "EVA_RadarSabotaged";
+/// String `0x008191C4`.
+const EVA_BUILDING_INF_RADAR_SABOTAGED: &str = "EVA_BuildingInfRadarSabotaged";
+/// String `0x008191B0`.
+const EVA_POWER_SABOTAGED: &str = "EVA_PowerSabotaged";
+/// String `0x00819198`.
+const EVA_BUILDING_INFILTRATED: &str = "EVA_BuildingInfiltrated";
+/// String `0x0081917C`.
+const EVA_ENEMY_BASE_POWERED_DOWN: &str = "EVA_EnemyBasePoweredDown";
+/// String `0x0081916C`.
+const EVA_CASH_STOLEN: &str = "EVA_CashStolen";
+/// String `0x00819150`.
+const EVA_BUILDING_INF_CASH_STOLEN: &str = "EVA_BuildingInfCashStolen";
+/// String `0x00819138`.
+const EVA_TECHNOLOGY_STOLEN: &str = "EVA_TechnologyStolen";
+/// String `0x0081911C`.
+const EVA_NEW_TECHNOLOGY_ACQUIRED: &str = "EVA_NewTechnologyAcquired";
 
 /// `SuperClass::AI_Ready @ 0x006CBCA0`: `0x006CBDD7 MOV EAX,[Type+0xB4]`
 /// (`Type=`), `CMP EAX,0xB ; JA skip`, then the `0x006CBEA8` jump table. Read
@@ -219,6 +238,64 @@ pub(crate) fn capture_eva_events(
         lines.push(EVA_BUILDING_CAPTURED.to_string());
     }
     lines
+}
+
+/// The lines `BuildingClass::Infiltrate` (`0x004571E0`) speaks on the local
+/// machine, in native order. Every line but the owner's superweapon one
+/// (`0x0045738D..0x004573B7`) needs `radar_accepted`: its radar event
+/// (`0x0045722F CreateRadarEvent(9)`), created only when the owner or the
+/// spy's house is local (`0x004571FE`, `0x0045720E`). The owner's Spy
+/// Satellite silences both radar lines (`0x0045726C`, `0x004572A2`).
+pub(crate) fn infiltration_eva_events(
+    effect: InfiltrationEffect,
+    radar_accepted: bool,
+    local_is_owner: bool,
+    local_is_infiltrator: bool,
+) -> Vec<String> {
+    let owner = local_is_owner && radar_accepted;
+    let infiltrator = local_is_infiltrator && radar_accepted;
+    let mut lines: Vec<&str> = Vec::new();
+    match effect {
+        InfiltrationEffect::Radar { owner_spy_sat } => {
+            if owner && !owner_spy_sat {
+                lines.push(EVA_RADAR_SABOTAGED);
+            }
+            if infiltrator && !owner_spy_sat {
+                lines.push(EVA_BUILDING_INF_RADAR_SABOTAGED);
+            }
+        }
+        // `0x004572ED..0x00457347`: the owner's line, else the spy's two.
+        InfiltrationEffect::Power => {
+            if owner {
+                lines.push(EVA_POWER_SABOTAGED);
+            } else if infiltrator {
+                lines.extend([EVA_BUILDING_INFILTRATED, EVA_ENEMY_BASE_POWERED_DOWN]);
+            }
+        }
+        InfiltrationEffect::Tech | InfiltrationEffect::Factory => {
+            if owner {
+                lines.push(EVA_TECHNOLOGY_STOLEN);
+            }
+            if infiltrator {
+                lines.extend([EVA_BUILDING_INFILTRATED, EVA_NEW_TECHNOLOGY_ACQUIRED]);
+            }
+        }
+        InfiltrationEffect::SuperWeapon => {
+            if local_is_owner || infiltrator {
+                lines.push(EVA_BUILDING_INFILTRATED);
+            }
+        }
+        InfiltrationEffect::Cash => {
+            if owner {
+                lines.push(EVA_CASH_STOLEN);
+            }
+            if infiltrator {
+                lines.push(EVA_BUILDING_INF_CASH_STOLEN);
+            }
+        }
+        InfiltrationEffect::None => {}
+    }
+    lines.into_iter().map(str::to_string).collect()
 }
 
 /// `BuildingClass::SetRallyPoint 0x00443A45..0x00443A5D`: the rally click

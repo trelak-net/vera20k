@@ -1856,9 +1856,9 @@ enum SpecialArmTarget {
 /// `LAB_00469AA4` after this returns. `owner` is the bullet's `+0xB0`.
 ///
 /// RESIDUAL: the ElectricAssault (`0x0046937A`), IsLocomotor (`0x004694CB`),
-/// Airstrike (`0x00469705`), DirectRocker (`0x0046978E`) and MakesDisguise
-/// (`0x00469A03`) bodies are not ported; those arms claim the impact and do
-/// nothing else (see `SpecialDetonationAction`).
+/// Airstrike (`0x00469705`) and DirectRocker (`0x0046978E`) bodies are not
+/// ported; those arms claim the impact and do nothing else (see
+/// `SpecialDetonationAction`).
 fn run_special_detonation_arm(
     world: &mut Simulation,
     rules: &RuleSet,
@@ -1923,11 +1923,17 @@ fn run_special_detonation_arm(
             }
         }
         SpecialDetonationAction::NukeMaker => nuke_maker(world, rules, detonation),
+        SpecialDetonationAction::MakesDisguise => {
+            // 0x00469A03..0x00469A2A: no bullet Owner (+0xB0) -> nothing;
+            // otherwise Owner->DisguiseAs(Target) through vt+0x46C.
+            if world.substrate.entities.contains(owner) {
+                world.disguise_as(owner, object, !matches!(target, SpecialArmTarget::None));
+            }
+        }
         SpecialDetonationAction::ElectricAssault
         | SpecialDetonationAction::Locomotor
         | SpecialDetonationAction::Airstrike
-        | SpecialDetonationAction::DirectRocker
-        | SpecialDetonationAction::MakesDisguise => {
+        | SpecialDetonationAction::DirectRocker => {
             log::debug!(
                 "special detonation {action:?} from {owner} claimed with its body unported; \
                  shrapnel and area damage suppressed, the shared tail still runs"

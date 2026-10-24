@@ -1314,21 +1314,37 @@ pub(crate) fn try_queue_context_order_at_screen_point(
             }
 
             // Object51E3B0 Engineer decisions precede CanBeOccupiedBy and C4.
-            // Consume each Engineer's terminal action while retaining the
-            // other selected actors for their own actions below.
-            let mut consumed_engineer_action = false;
-            if context_actions_enabled
-                && let Some(orders) = hover.as_ref().and_then(|target| {
-                    engineer_capture_orders(sim, &resources.rules, &mut selected_units, target)
-                })
-            {
-                consumed_engineer_action = true;
-                queued.extend(
-                    orders
-                        .into_iter()
-                        .map(|command| CommandEnvelope::new(owner_id, execute_tick, command)),
-                );
-                if selected_units.is_empty() {
+            // Consume each Engineer's and spy's terminal action while retaining
+            // the other selected actors for their own actions below.
+            //
+            // RESIDUAL: natively the infiltration arm (0x0051EE3B) follows the
+            // garrison (0x0051E668) and C4 (0x0051E9C1) arms; it runs before
+            // them here so that a mixed selection keeps both orders. Trigger: a
+            // modded Infiltrate= type that is also C4=, over a CanC4= building
+            // it may enter. Retail's one infiltrator, SPY, takes none of the
+            // arms between, and an Occupier= one is garrisoned on arrival
+            // either way. Effect: it infiltrates where native may plant C4.
+            //
+            // RESIDUAL: force fire skips these producers, but the infiltration
+            // arm reads no modifier. Its one action test is base action Attack
+            // (0x0051EE62), which force fire keeps. Trigger: a Ctrl+click with
+            // a spy on a building it may enter. Effect: VERA's force attack with
+            // its MakeupKit where native enters. Rare.
+            let mut consumed_building_action = false;
+            if context_actions_enabled && let Some(target) = hover.as_ref() {
+                for producer in [engineer_capture_orders, infiltrator_capture_orders] {
+                    let Some(orders) = producer(sim, &resources.rules, &mut selected_units, target)
+                    else {
+                        continue;
+                    };
+                    consumed_building_action = true;
+                    queued.extend(
+                        orders
+                            .into_iter()
+                            .map(|command| CommandEnvelope::new(owner_id, execute_tick, command)),
+                    );
+                }
+                if consumed_building_action && selected_units.is_empty() {
                     return finish_order(state, queued, speaker_id);
                 }
             }
@@ -1542,7 +1558,7 @@ pub(crate) fn try_queue_context_order_at_screen_point(
                 }
             }
             if select_friendly_clicks && clicked_friendly && context_actions_enabled {
-                return if consumed_engineer_action {
+                return if consumed_building_action {
                     finish_order(state, queued, speaker_id)
                 } else {
                     false
@@ -1891,6 +1907,42 @@ fn engineer_capture_orders(
     consumed.then_some(orders)
 }
 
+/// The selected spies whose action over `hover` is Capture
+/// (`Simulation::infiltrator_building_action`): `ClickedAction_Object`
+/// (0x0051F190) keeps action 9, and `FootClass::ClickedAction_Object`
+/// (0x004D74E0) queues it as it does an Engineer's capture. None when no
+/// selected object takes the arm.
+fn infiltrator_capture_orders(
+    sim: &crate::sim::world::Simulation,
+    rules: &crate::rules::ruleset::RuleSet,
+    selected: &mut Vec<u64>,
+    hover: &HoverTargetKindWithId,
+) -> Option<Vec<Command>> {
+    if !matches!(
+        hover.kind,
+        HoverTargetKind::FriendlyStructure | HoverTargetKind::EnemyStructure
+    ) {
+        return None;
+    }
+    let mut consumed = false;
+    let mut orders = Vec::new();
+    selected.retain(|&id| {
+        if !sim.infiltrator_building_action(id, hover.stable_id, rules) {
+            return true;
+        }
+        consumed = true;
+        // Foot4D7716 calls Infantry+A0/Techno700C40 before enqueue.
+        if sim.techno_player_controllable(id, rules) {
+            orders.push(Command::CaptureBuilding {
+                engineer_id: id,
+                target_building_id: hover.stable_id,
+            });
+        }
+        false
+    });
+    consumed.then_some(orders)
+}
+
 /// The selected Engineers whose click on `target` is DisarmBomb
 /// (`InfantryClass::What_Action_OnObject`, 0x0051E462): their first action
 /// over an object carrying a bomb their player sees, whoever owns it.
@@ -2028,11 +2080,9 @@ fn ivan_cannot_bomb(
 /// ([`Simulation::selected_weapon_fire_error`]) is not ILLEGAL. Otherwise the action
 /// is None or Select (`0x0070056C`), and the object takes no order.
 ///
-/// RESIDUAL: the Infiltrate arm (`0x007004A0..0x00700531`) keeps Attack
-/// despite ILLEGAL for an `Infiltrate=` infantryman over a building its flags
-/// admit. VERA issues capture and C4 through their own orders before this,
-/// and has no spy infiltration order; a spy's click on a building it cannot
-/// shoot gets no order here, where retail enters it.
+/// The Infiltrate arm (`0x007004A0..0x00700531`) keeps Attack despite
+/// ILLEGAL for an `Infiltrate=` infantryman over a building its flags admit;
+/// the capture, infiltration and C4 orders take those clicks before this.
 fn click_attack_refused(
     sim: &crate::sim::world::Simulation,
     rules: &crate::rules::ruleset::RuleSet,
@@ -2071,6 +2121,61 @@ mod tests {
     use crate::sim::components::Health;
     use crate::sim::game_entity::GameEntity;
     use crate::sim::world::Simulation;
+
+    /// A spy's click on a building its flags admit is Capture: it takes the
+    /// Engineer's capture order and leaves the rest of the selection to their
+    /// own actions. Over a building it may not enter, it takes nothing.
+    #[test]
+    fn a_spy_click_on_a_building_it_may_enter_captures() {
+        let rules =
+            crate::rules::ruleset::RuleSet::from_ini(&crate::rules::ini_parser::IniFile::from_str(
+                "[InfantryTypes]\n0=SPY\n1=GI\n[BuildingTypes]\n0=PLANT\n1=DEPOT\n\
+                 [SPY]\nStrength=100\nInfiltrate=yes\nAgent=yes\n\
+                 [GI]\nStrength=125\n\
+                 [PLANT]\nStrength=750\nSpyable=yes\n[DEPOT]\nStrength=750\nCapturable=yes\n",
+            ))
+            .unwrap();
+        let mut sim = Simulation::new();
+        sim.resolve_type_handles(&rules);
+        for (house, human) in [("Americans", true), ("Russians", false)] {
+            let id = sim.interner.intern(house);
+            sim.houses.insert(
+                id,
+                crate::sim::house_state::HouseState::new(id, 0, None, human, 0, 10),
+            );
+            sim.session.house_order.push(id);
+        }
+        sim.session.game_mode_nonzero = true;
+        sim.session.current_house = sim.interner.get("Americans");
+        let mut spawn = |kind: &str, owner: &str, rx: u16| {
+            sim.spawn_object(kind, owner, rx, 5, 0, &rules).unwrap()
+        };
+        let spy = spawn("SPY", "Americans", 3);
+        let gi = spawn("GI", "Americans", 4);
+        let plant = spawn("PLANT", "Russians", 10);
+        let depot = spawn("DEPOT", "Russians", 14);
+        let hover = |stable_id| HoverTargetKindWithId {
+            kind: HoverTargetKind::EnemyStructure,
+            stable_id,
+        };
+
+        let mut selected = vec![gi, spy];
+        assert_eq!(
+            infiltrator_capture_orders(&sim, &rules, &mut selected, &hover(plant)),
+            Some(vec![Command::CaptureBuilding {
+                engineer_id: spy,
+                target_building_id: plant,
+            }])
+        );
+        assert_eq!(selected, [gi]);
+        let mut selected = vec![spy];
+        assert_eq!(
+            infiltrator_capture_orders(&sim, &rules, &mut selected, &hover(depot)),
+            None,
+            "a building that is not Spyable="
+        );
+        assert_eq!(selected, [spy]);
+    }
 
     /// `TechnoClass::What_Action_OnObject @ 0x00700548`: an unforced click
     /// orders Attack only to the objects whose GetFireError for the target is

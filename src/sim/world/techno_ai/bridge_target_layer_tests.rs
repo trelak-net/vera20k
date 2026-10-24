@@ -209,8 +209,14 @@ fn supply_step(sim: &mut Simulation, rules: &RuleSet, input: &Value) {
         }
     }
     if input["clear_target"] == true {
-        sim.assign_target_represented(1, None::<TargetKind>, Some(rules))
-            .unwrap();
+        sim.assign_target_represented(
+            1,
+            None::<TargetKind>,
+            Some(rules),
+            None,
+            crate::sim::world::FrameEffects::default(),
+        )
+        .unwrap();
     }
     let source = sim.substrate.entities.get_mut(1).unwrap();
     if let Some(timer) = input["rearm"].as_array() {

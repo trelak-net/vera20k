@@ -173,7 +173,7 @@ fn one_cell_undeploy_navcom_stays_at_the_separate_conversion_boundary() {
         InfantryPerCellBuildingAdmission::UndeployBuilding
     );
     assert!(
-        !sim.infantry_per_cell_engineer_entry(
+        !sim.infantry_per_cell_building_entry(
             INFANTRY,
             &rules,
             None,

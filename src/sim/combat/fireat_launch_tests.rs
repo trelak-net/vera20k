@@ -86,6 +86,8 @@ fn attack_aim_duel(corpus: &serde_json::Value) -> Option<(Duel, u64, u64)> {
             source_id,
             Some(super::TargetKind::Entity(target_id)),
             Some(&duel.rules),
+            None,
+            crate::sim::world::FrameEffects::default(),
         )
         .expect("original Unit Assign_Target receiver");
     Some((duel, source_id, target_id))
@@ -199,7 +201,13 @@ fn original_aim_query_reads_live_motion_rank_and_facing_without_mutation() {
         attack_aim_row(&corpus, "aim_cases", "veteran_target_aim"),
     );
     duel.sim
-        .assign_target_represented(source, None, Some(&duel.rules))
+        .assign_target_represented(
+            source,
+            None,
+            Some(&duel.rules),
+            None,
+            crate::sim::world::FrameEffects::default(),
+        )
         .unwrap();
     assert_read_only_native_aim(
         &duel,
@@ -287,7 +295,13 @@ fn original_direct_fireat_keeps_argument_speed_separate_from_live_tarcom_aim() {
         "fireat_argument_cell_with_null_tarcom",
     );
     duel.sim
-        .assign_target_represented(source, None, Some(&duel.rules))
+        .assign_target_represented(
+            source,
+            None,
+            Some(&duel.rules),
+            None,
+            crate::sim::world::FrameEffects::default(),
+        )
         .unwrap();
     assert_read_only_native_aim(&duel, source, null);
     let previous_bullets = duel

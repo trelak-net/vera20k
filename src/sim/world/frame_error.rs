@@ -16,12 +16,7 @@ pub struct FrameAdvanceError {
 }
 
 impl FrameAdvanceError {
-    pub(crate) fn bridge_repair(
-        tick: u64,
-        binary_frame: u32,
-        entity_id: u64,
-        cause: String,
-    ) -> Self {
+    pub(crate) fn new(tick: u64, binary_frame: u32, entity_id: u64, cause: String) -> Self {
         Self {
             tick,
             binary_frame,

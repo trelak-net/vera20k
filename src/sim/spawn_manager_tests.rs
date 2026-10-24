@@ -2293,8 +2293,14 @@ fn a_null_target_drops_the_managers_queued_retarget() {
     manager.mode = SpawnManagerMode::Launching;
     manager.set_target(Some(TargetKind::Entity(second)));
 
-    sim.assign_target_represented(dred, None, Some(&rules))
-        .expect("the DRED takes the setter");
+    sim.assign_target_represented(
+        dred,
+        None,
+        Some(&rules),
+        None,
+        crate::sim::world::FrameEffects::default(),
+    )
+    .expect("the DRED takes the setter");
     let manager = sim
         .substrate
         .entities

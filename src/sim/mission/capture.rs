@@ -2,20 +2,11 @@
 //!
 //! Infantry, Unit and Aircraft share the body (vt+0x214); the walk itself
 //! belongs to the destination the order gave, and the arrival to
-//! `InfantryClass::PerCellProcess` (an engineer's capture or repair, an
-//! occupier's garrison; `sim::movement::per_cell`). Each dispatch only keeps
-//! the order coherent: it heads for a building target, idles once no
-//! destination is left, and sends a computer house's capturer with nothing
-//! to capture hunting.
-//!
-//! RESIDUAL: PerCellProcess's arrival arms past the occupier's
-//! (`0x0051973C..`, `sim::movement::per_cell`) include the `Infiltrate=`
-//! one, which is not ported. An infiltrator the first arm below walks to its
-//! building target is never let in: it idles there, and script action 15
-//! (`team_script_vm::actions`, Coordinate_Attack) gives it Capture and the
-//! target again, so it keeps walking back. Trigger: action 15 with an
-//! `Infiltrate=` member, which no retail AIMD script has (maps with their
-//! own scripts may). Effect: the spy never infiltrates.
+//! `InfantryClass::PerCellProcess` (an engineer's capture or repair, a spy's
+//! infiltration, an occupier's garrison; `sim::movement::per_cell`). Each
+//! dispatch only keeps the order coherent: it heads for a building target,
+//! idles once no destination is left, and sends a computer house's capturer
+//! with nothing to capture hunting.
 
 use crate::map::entities::EntityCategory;
 use crate::rules::object_type::Ability;
@@ -127,7 +118,7 @@ pub(crate) fn mission_capture(
                     .is_some_and(|object| object.occupier))
     });
     if hunts {
-        let _ = sim.assign_target_represented(id, None, Some(rules));
+        let _ = sim.assign_target_represented(id, None, Some(rules), registry, effects);
         sim.assign_null_destination(id, Some(rules), registry, effects);
         let now = sim.session.binary_frame;
         let _ = sim.mission_queue_exact(

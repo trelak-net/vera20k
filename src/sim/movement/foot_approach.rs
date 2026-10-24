@@ -495,7 +495,7 @@ impl Simulation {
                         || human && mission == Some(MissionType::AreaGuard)
                         || !human && mission == Some(MissionType::Hunt)))
         {
-            self.assign_target_represented(id, None, Some(rules))
+            self.assign_target_represented(id, None, Some(rules), registry, frame_effects)
                 .map_err(|e| format!("Approach target clear: {e}"))?;
             self.assign_null_destination(id, Some(rules), registry, frame_effects);
             return Ok(None);
@@ -738,7 +738,7 @@ impl Simulation {
             return Ok(Some(cell));
         }
         let fallback = self.approach_fallback(id, retained_candidate, rules, &cells)?;
-        self.assign_target_represented(id, None, Some(rules))
+        self.assign_target_represented(id, None, Some(rules), registry, frame_effects)
             .map_err(|e| format!("Approach exhausted target clear: {e}"))?;
         if let Some(cell) = fallback {
             self.assign_destination_represented(

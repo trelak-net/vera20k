@@ -317,8 +317,19 @@ pub(crate) fn refresh_sidebar_projection(state: &mut AppState) {
         .sidebar_cameo_atlas
         .as_ref()
     {
+        let house = state
+            .match_state
+            .sim_runtime
+            .as_ref()
+            .and_then(|rt| rt.simulation.houses.get(&owner));
+        let rules = state.rules();
         for item in &mut view.items {
-            item.has_cameo_art = atlas.get(&item.type_id).is_some();
+            item.alt_cameo = house.is_some_and(|house| {
+                rules
+                    .and_then(|rules| rules.object(&item.type_id))
+                    .is_some_and(|obj| shows_alt_cameo(house, obj))
+            });
+            item.has_cameo_art = atlas.cameo(&item.type_id, item.alt_cameo).is_some();
         }
     }
     state
@@ -331,6 +342,27 @@ pub(crate) fn refresh_sidebar_projection(state: &mut AppState) {
 // ---------------------------------------------------------------------------
 // Minimap interaction
 // ---------------------------------------------------------------------------
+
+/// `TechnoTypeClass::GetCameo @ 0x00712040`'s choice of the `AltCameo=`
+/// image: a `Trainable=` type whose veterancy the local player's spies took
+/// (`HouseClass+0x2BF` for infantry; `+0x2C0` for vehicles, ships included,
+/// and for buildings that undeploy). [`SidebarCameoAtlas::cameo`] keeps the
+/// plain cameo when no alternate image loaded.
+///
+/// [`SidebarCameoAtlas::cameo`]: crate::render::sidebar_cameo_atlas::SidebarCameoAtlas::cameo
+fn shows_alt_cameo(
+    house: &crate::sim::house_state::HouseState,
+    obj: &crate::rules::object_type::ObjectType,
+) -> bool {
+    use crate::rules::object_type::ObjectCategory;
+    obj.trainable
+        && match obj.category {
+            ObjectCategory::Infantry => house.veteran_infantry(),
+            ObjectCategory::Vehicle => house.veteran_units(),
+            ObjectCategory::Building => house.veteran_units() && obj.undeploys_into.is_some(),
+            ObjectCategory::Aircraft => false,
+        }
+}
 
 pub(crate) fn is_cursor_over_minimap(state: &AppState) -> bool {
     // Minimap interaction disabled when radar is not online.
@@ -707,4 +739,48 @@ pub(crate) fn begin_main_load_pass<'a>(
         timestamp_writes: None,
         occlusion_query_set: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::shows_alt_cameo;
+    use crate::sim::house_state::HouseState;
+
+    /// Retail rules and art: whose cameo `TechnoTypeClass::GetCameo`
+    /// switches after each factory infiltration, and the image section the
+    /// `AltCameo=` comes from (MTNK's `Image=GTNK`).
+    #[test]
+    fn retail_alt_cameos_follow_the_stolen_veterancy() {
+        let Some(retail) = crate::rules::retail_ini_fixture::retail_battle_rules() else {
+            return;
+        };
+        let rules = &retail.rules;
+        let id = crate::sim::intern::InternedId::default();
+        let shows = |house: &HouseState, kind: &str| {
+            shows_alt_cameo(house, rules.object(kind).expect("a retail type"))
+        };
+        let mut barracks = HouseState::new(id, 0, None, true, 0, 10);
+        barracks.grant_veteran_infantry();
+        assert!(shows(&barracks, "E1"));
+        assert!(!shows(&barracks, "SPY"), "Trainable=no");
+        assert!(!shows(&barracks, "MTNK"));
+        let mut war_factory = HouseState::new(id, 0, None, true, 0, 10);
+        war_factory.grant_veteran_units();
+        assert!(shows(&war_factory, "MTNK"));
+        assert!(shows(&war_factory, "DEST"), "GetCameo does not ask Naval=");
+        assert!(!shows(&war_factory, "ORCA"));
+        assert!(!shows(&war_factory, "E1"));
+
+        let alt = |kind: &str| {
+            let image = &rules.object(kind).unwrap().image;
+            rules.art().resolve_declared_alt_cameo_id(kind, image)
+        };
+        assert_eq!(alt("E1").as_deref(), Some("GIUICO"));
+        assert_eq!(alt("MTNK").as_deref(), Some("GTNKUICO"));
+        assert_eq!(
+            alt("ORCA").as_deref(),
+            Some("FALCUICO"),
+            "declared, but GetCameo never draws an aircraft's"
+        );
+    }
 }

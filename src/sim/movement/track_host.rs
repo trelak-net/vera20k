@@ -1309,7 +1309,7 @@ impl Simulation {
             // Unit738AF5/738C75 calls Target(NULL) then Destination(NULL,1)
             // before its queue gate. Use the shared concrete setter owners,
             // including retained burst, movement, and Teleporter side effects.
-            let _ = self.assign_target_represented(id, None, rules);
+            let _ = self.assign_target_represented(id, None, rules, None, effects);
             self.assign_null_destination(id, rules, None, effects);
         }
         // Unit738CFA..D12 suppresses assignment only after preceding writes.

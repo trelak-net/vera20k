@@ -1306,6 +1306,8 @@ fn cancelled_constructor_building_runs_shared_destructor_without_uninit() {
                 observer,
                 Some(crate::sim::combat::TargetKind::Entity(object)),
                 Some(&rules),
+                None,
+                crate::sim::world::FrameEffects::default(),
             )
             .unwrap();
             Some(observer)

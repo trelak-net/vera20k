@@ -1471,7 +1471,7 @@ pub(crate) fn apply_launch_shroud_option(sim: &mut Simulation, local_owner: Opti
     if !sim.houses.get(&owner).is_some_and(|house| house.is_human) {
         return;
     }
-    sim.reveal_whole_map_for_owner(owner);
+    sim.reveal_launch_map_for_owner(owner);
 }
 
 fn assign_launch_base_centers(

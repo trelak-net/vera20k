@@ -95,12 +95,12 @@ pub fn launch(
     // `0x006CD17B..0x006CD18B` calls the shared House50BC90 replacement
     // setter, even when its duration is shorter than the previous outage.
     // The native owner House already exists; Rust's derived power entry may
-    // still be lazy. The setter keeps the signed duration's bits.
+    // still be lazy. The setter takes the signed duration.
     if sim.houses.contains_key(&owner) {
         sim.power_states
             .entry(owner)
             .or_default()
-            .start_blackout(frame, general.force_shield_blackout_duration as u32);
+            .start_blackout(frame, general.force_shield_blackout_duration);
     }
 
     // BuildingClass::Array holds the buildings in construction order.

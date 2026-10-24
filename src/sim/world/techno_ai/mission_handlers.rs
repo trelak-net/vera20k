@@ -31,6 +31,10 @@ mod infantry_fire_oracle_tests;
 #[path = "engineer_hunt_tests.rs"]
 mod engineer_hunt_tests;
 
+#[cfg(test)]
+#[path = "infantry_capture_arm_tests.rs"]
+mod infantry_capture_arm_tests;
+
 /// Re-arm the evidence-backed Foot/Unit handler subset without duplicating the
 /// legacy movement, combat, or target-selection systems.
 ///
@@ -250,8 +254,8 @@ pub(crate) fn dispatch_foot_mission(
         // Doing is the instance+6C4 action index; Type+6C4 is the separate
         // UndeployDelay. Shared522510 establishes Doing27..30 exactly.
         //
-        // RESIDUAL (GSI-07.06): the following preceding C4/infiltration
-        // overrides remain outside this deployed/action-clock chain.
+        // RESIDUAL (GSI-07.06): the override's C4 arm remains outside this
+        // deployed/action-clock chain.
         // - **This arm is FIRST in the override and is NOT AI-gated.** A
         //   demolition infantryman — `InfantryType->C4` (`+0xEC2`, key `"C4"`
         //   at `0x00825978`, store `0x00524559`) or `HasWeaponAbility(0xE)` —
@@ -274,10 +278,8 @@ pub(crate) fn dispatch_foot_mission(
         //   Psi-Corps Trooper. Player effect: VERA shoots the building where
         //   retail walks in and plants. Frequency: low-to-moderate — the
         //   ordinary right-click resolver issues the enter action directly.
-        // - An AI-owned `Infiltrate=`(`+0xEBE`) / `Occupier=`(`+0xEB4`) /
-        //   `Assaulter=`(`+0xEB5`) infantryman converts to
-        //   `Assign_Mission(Capture)` and returns 1. Frequency: every such
-        //   dispatch of a computer house's infantryman.
+        //   It precedes the computer capture arm below, which no retail C4=
+        //   type (TANY, GHOST, PTROOP) takes.
         //
         // RESIDUAL (GSI-07.06) — two further Foot-body steps are absent:
         // - Step 1, the `HoverAttack` re-anchor. When `TechnoType+0x390`
@@ -295,6 +297,13 @@ pub(crate) fn dispatch_foot_mission(
         //   after a non-null pick. The producer, consumer and team-coordinate
         //   reader remain one required Tesla charging chain; none has a Rust
         //   latch owner yet. This is unrelated to tank-bunker containment.
+        // `InfantryClass::Mission_Attack @ 0x0051F3E0` and `Mission_Hunt @
+        // 0x0051F540` share their computer capture arm.
+        (EntityCategory::Infantry, Some(MissionType::Attack | MissionType::Hunt))
+            if computer_capture_building(sim, id, rules).is_some() =>
+        {
+            infantry_computer_capture(sim, id, rules, ctx)
+        }
         // Deployed infantry never reach the Foot body — `InfantryClass`'s
         // Attack slot `+0x210` is a real override at `0x0051F3E0` whose
         // deployed arm runs the in-place re-acquire and returns the PLAIN
@@ -453,7 +462,13 @@ pub(crate) fn dispatch_foot_mission(
                 let mut fired = false;
                 if below {
                     //521411 setter precedes521426's fixed-index legality.
-                    let _ = sim.assign_target_represented(id, Some(target), Some(rules));
+                    let _ = sim.assign_target_represented(
+                        id,
+                        Some(target),
+                        Some(rules),
+                        ctx.overlay_registry,
+                        ctx.effects,
+                    );
                     let actor = sim.substrate.entities.get(id).expect("deployed shim actor");
                     let actual_target = actor.attack_target.as_ref().map(|attack| attack.target);
                     let error = crate::sim::combat::fire_error_world::FireSubject {
@@ -487,7 +502,13 @@ pub(crate) fn dispatch_foot_mission(
                         fired = true;
                     }
                     //521449/52147E: only the attempted-fire arms clear TarCom.
-                    let _ = sim.assign_target_represented(id, None, Some(rules));
+                    let _ = sim.assign_target_represented(
+                        id,
+                        None,
+                        Some(rules),
+                        ctx.overlay_registry,
+                        ctx.effects,
+                    );
                 }
                 if fired {
                     let _ = sim.infantry_do_action(id, 29, false, rules, ctx.effects);
@@ -683,6 +704,35 @@ pub(crate) fn dispatch_foot_mission(
                 ctx.overlay_registry,
                 ctx.effects,
             ))
+        }
+        // `InfantryClass::Mission_Hunt`'s second arm (`0x0051F5C0..0x0051F609`):
+        // a computer house's deployed infantryman (Doing `0x1B..0x1E`) with no
+        // Target undeploys (Do_Action(0x1F, 0, 0)) and returns 1, drawing
+        // nothing. Any other infantryman takes the Foot body (`0x0051F60C`).
+        // A stale Target is one the native detach has already cleared.
+        (EntityCategory::Infantry, Some(MissionType::Hunt))
+            if input.infantry_deployed_do_type
+                && (!input.has_attack_target || attack_target_is_stale(sim, id))
+                && sim
+                    .substrate
+                    .entities
+                    .get(id)
+                    .is_some_and(|actor| !sim.owner_is_human(actor.owner())) =>
+        {
+            if let Err(cause) = sim.infantry_do_action(
+                id,
+                crate::sim::movement::infantry_action::DO_UNDEPLOY,
+                false,
+                rules,
+                ctx.effects,
+            ) {
+                log::debug!("infantry {id} Hunt undeploy: {cause}");
+            }
+            MissionHandlerEvaluation {
+                delay: 1,
+                clear_stale_attack_target: input.has_attack_target,
+                queue: None,
+            }
         }
         (EntityCategory::Unit | EntityCategory::Infantry, Some(MissionType::Hunt)) => {
             evaluate_foot_hunt(sim, id, rules, ctx)
@@ -1248,17 +1298,10 @@ pub(crate) fn foot_enter_idle_mode_selection(
 /// `UpdateIdleAction` now uses its one Infantry receiver synchronously, before
 /// the cadence draw in that human no-target arm.
 ///
-/// RESIDUAL — **`InfantryClass::Mission_Hunt @ 0x0051F540`** (slot `+0x228`,
-/// single DATA xref `0x007EB280`; `0x007EB280 - 0x007EB058 = 0x228`), the
-/// override above this body for infantry. Both of its arms open with
-/// `HouseClass::IsControlledByHuman(...) == 0`: a computer house's
-/// `Infiltrate`/`Occupier`/`Assaulter` infantryman holding a building
-/// `Assign_Mission(Capture)`s and returns 1, and its deployed man with no
-/// target plays `Do_Action(0x1F)` and returns 1 — **both consume no RNG at
-/// all**. Trigger: a computer house's infantry on Hunt. Player effect: such an
-/// infantryman scans and fights where retail captures or undeploys.
-/// Frequency: every Hunt dispatch of those infantry. Downstream risk: one RNG
-/// draw per dispatch that retail does not make.
+/// Infantry reach this body past `InfantryClass::Mission_Hunt @ 0x0051F540`
+/// (slot `+0x228`, single DATA xref `0x007EB280`), whose two computer arms
+/// are their own dispatch arms: the capture arm
+/// ([`infantry_computer_capture`]) and the deployed man's undeploy.
 fn evaluate_foot_hunt(
     sim: &mut Simulation,
     id: u64,
@@ -1367,6 +1410,62 @@ fn hunt_engineer_capture(
     if sim.mission_ready_to_commence(id, rules) {
         let _ = sim.mission_commence_exact(id, now);
     }
+}
+
+/// The computer capture arm `InfantryClass::Mission_Attack`
+/// (`0x0051F456..0x0051F4D2`) and `Mission_Hunt` (`0x0051F540..0x0051F5BF`)
+/// share, on the building [`computer_capture_building`] answers. The
+/// infantryman takes it as its destination (vt+0x480(Target, 1)) and Capture
+/// as its mission (Assign_Mission, vt+0x1F0 `0x005B2FD0`), and the arm
+/// returns 1, drawing nothing. [`crate::sim::mission::capture`] then walks it
+/// in, and PerCellProcess garrisons it or lets the spy infiltrate.
+fn infantry_computer_capture(
+    sim: &mut Simulation,
+    id: u64,
+    rules: &RuleSet,
+    ctx: super::ObjectAiCtx<'_>,
+) -> MissionHandlerEvaluation {
+    if let Some(building) = computer_capture_building(sim, id, rules) {
+        let _ = sim.assign_destination_represented(
+            id,
+            Some(crate::sim::components::NavTargetRef::object(building)),
+            Some(rules),
+            ctx.overlay_registry,
+            ctx.effects,
+        );
+        let now = sim.session.binary_frame;
+        let _ = sim.mission_assign_exact(id, MissionId::from_known(MissionType::Capture), now);
+    }
+    MissionHandlerEvaluation::cadence(1)
+}
+
+/// The building the computer capture arm takes: the Target (`+0x2B4`) of a
+/// computer house's infantryman (`HouseClass::IsControlledByHuman @
+/// 0x0050B730` false), when it is a building and the infantryman is
+/// `Infiltrate=` (`+0xEBE`), or an `Occupier=` (`+0xEB4`) or `Assaulter=`
+/// (`+0xEB5`) that the building `CanBeOccupiedBy` (`0x00457CE0`). A stale
+/// Target ([`attack_target_is_stale`]) is one the native detach has already
+/// cleared. The infiltrator's arm asks no building flag; only its target
+/// setter asks `Spyable=` or `Capturable=`
+/// ([`Simulation::infiltrator_target_building`]).
+fn computer_capture_building(sim: &Simulation, id: u64, rules: &RuleSet) -> Option<u64> {
+    let entity = sim.substrate.entities.get(id)?;
+    if sim.owner_is_human(entity.owner()) {
+        return None;
+    }
+    let crate::sim::combat::TargetKind::Entity(building) = entity.attack_target.as_ref()?.target
+    else {
+        return None;
+    };
+    let target = sim.substrate.entities.get(building)?;
+    if target.category != EntityCategory::Structure || target.dying || !target.is_alive() {
+        return None;
+    }
+    let object = sim.object_type(entity.type_ref(), rules)?;
+    (object.infiltrate
+        || ((object.occupier || object.assaulter)
+            && crate::sim::passenger::building_can_be_occupied_by(sim, rules, building, id)))
+    .then_some(building)
 }
 
 /// Archive the raw physical Map565730 Cell receiver, never Foot's HeadTo.
@@ -1508,6 +1607,8 @@ fn evaluate_foot_rescue(
                     id,
                     Some(crate::sim::combat::TargetKind::Entity(pick)),
                     Some(rules),
+                    ctx.overlay_registry,
+                    ctx.effects,
                 );
             }
         }
@@ -1636,7 +1737,8 @@ pub(super) fn evaluate_foot_area_guard(
             .is_some_and(|distance| distance > leash)
     {
         //4D6EB8 precedes4D6ECB, even when the class target setter refuses.
-        let _ = sim.assign_target_represented(id, None, Some(rules));
+        let _ =
+            sim.assign_target_represented(id, None, Some(rules), ctx.overlay_registry, ctx.effects);
         let destination = match post {
             crate::sim::combat::TargetKind::Cell(rx, ry) => {
                 crate::sim::components::NavTargetRef::cell(rx, ry)
@@ -2245,6 +2347,8 @@ fn infantry_deployed_attack_reacquire(
             id,
             pick.map(crate::sim::combat::TargetKind::Entity),
             Some(rules),
+            ctx.overlay_registry,
+            ctx.effects,
         );
     }
     if pick.is_some() {

@@ -317,7 +317,13 @@ fn command_attack(fixture: &mut SuppliedFootFixture, case: &Value, rules: &RuleS
     let target = fixture.target(&case["input"]["target"]);
     fixture
         .sim
-        .assign_target_represented(fixture.actor, target, Some(rules))
+        .assign_target_represented(
+            fixture.actor,
+            target,
+            Some(rules),
+            None,
+            crate::sim::world::FrameEffects::default(),
+        )
         .unwrap();
     let queue = &case["input"]["attack_queue"];
     fixture

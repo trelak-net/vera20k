@@ -611,10 +611,17 @@ impl DisguiseRuntime {
         disguise_type: Option<InternedId>,
         house: Option<InternedId>,
     ) {
-        self.disguised = true;
-        self.disguise_creation_frame = frame;
+        self.raise(frame);
         self.disguise_type = disguise_type;
         self.disguised_as_house = house;
+    }
+
+    /// `TechnoClass::DisguiseAs @ 0x0070E280` for a non-null target: the flag
+    /// (`+0x1D8`) and the frame it was raised (`+0x1DC`), keeping the type
+    /// and house.
+    fn raise(&mut self, frame: u32) {
+        self.disguised = true;
+        self.disguise_creation_frame = frame;
     }
 
     /// `UnitClass::ClearDisguise` additionally clears type and house.
@@ -658,6 +665,72 @@ impl DisguiseRuntime {
 }
 
 impl crate::sim::world::Simulation {
+    /// vt+0x46C `DisguiseAs(target)`: what the bullet's Owner does when a
+    /// `MakesDisguise=` warhead detonates (`0x00469A03..0x00469A2A`), with the
+    /// bullet's Target (`+0x10C`). `target` is that Target's object;
+    /// `target_present` is whether the Target was non-null at all, as a cell
+    /// is.
+    ///
+    /// - `InfantryClass::DisguiseAs @ 0x00522700` takes an Infantry Target
+    ///   only (WhatAmI 15). After the Techno base below, it wears the Target's
+    ///   own disguise if the Target is disguised (vt+0xC4, `+0x1D8`), through
+    ///   GetDisguise(1) and GetDisguiseHouse(1) (`0x00522640`, `0x005226C0`).
+    ///   Otherwise it wears the Target's type (vt+0x88) and owner (vt+0x3C).
+    ///   For a null field those getters fall back on the current player's
+    ///   side or house. VERA never reaches those fallbacks: only this body
+    ///   disguises an infantryman, and it always writes both fields.
+    /// - `TechnoClass::DisguiseAs @ 0x0070E280`, the Building and Aircraft
+    ///   slot, raises the flag for any non-null Target.
+    /// - Each ends in vt+0x49C (`0x0070CCF0`), the radar's dirty mark, which
+    ///   `RadarTracker` derives from this state. Neither body draws.
+    ///
+    /// RESIDUAL: `UnitClass::DisguiseAs @ 0x00746670` (a Unit, cell overlay
+    /// or terrain Target) is not ported, so a vehicle's shot disguises
+    /// nothing. Trigger: a Unit firing a `MakesDisguise=` warhead. Frequency:
+    /// never with retail rules, where only `[SPY]` mounts one (`[MGTK]`'s
+    /// `Primary=TankMakeupKit` is commented out). Risk: modded rules only.
+    pub(crate) fn disguise_as(&mut self, firer: u64, target: Option<u64>, target_present: bool) {
+        use crate::map::entities::EntityCategory;
+
+        let Some(category) = self.substrate.entities.get(firer).map(|e| e.category) else {
+            return;
+        };
+        let worn = match category {
+            EntityCategory::Infantry => {
+                let Some(target) = target
+                    .and_then(|id| self.substrate.entities.get(id))
+                    .filter(|target| target.category == EntityCategory::Infantry)
+                else {
+                    return;
+                };
+                Some(
+                    match target.disguise.as_ref().filter(|d| d.is_disguised()) {
+                        Some(disguise) => (disguise.type_id(), disguise.house()),
+                        None => (Some(target.type_ref()), Some(target.owner())),
+                    },
+                )
+            }
+            EntityCategory::Structure | EntityCategory::Aircraft if target_present => None,
+            EntityCategory::Structure | EntityCategory::Aircraft => return,
+            EntityCategory::Unit => {
+                log::debug!("UnitClass::DisguiseAs 746670 for {firer} is not ported");
+                return;
+            }
+        };
+        let frame = self.session.binary_frame;
+        let disguise = self
+            .substrate
+            .entities
+            .get_mut(firer)
+            .expect("present firer")
+            .disguise
+            .get_or_insert_with(|| DisguiseRuntime::new(frame));
+        match worn {
+            Some((kind, house)) => disguise.acquire(frame, kind, house),
+            None => disguise.raise(frame),
+        }
+    }
+
     /// UnitAI736479..73649C, immediately after FootAI, admits the one
     /// UpdateDisguise7468C0 owner. Original executable comparisons live in
     /// `tools/spatial_oracle/mirage_disguise`; this is not a Techno pre-step.
@@ -812,6 +885,10 @@ mod sound_tests;
 #[cfg(test)]
 #[path = "mirage_disguise_tests.rs"]
 pub(in crate::sim) mod mirage_tests;
+
+#[cfg(test)]
+#[path = "spy_disguise_tests.rs"]
+mod spy_disguise_tests;
 
 #[cfg(test)]
 mod tests {

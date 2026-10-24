@@ -433,6 +433,23 @@ impl SuperWeaponInstance {
         true
     }
 
+    /// `SuperClass::Reset @ 0x006CE0B0` past its anim release
+    /// ([`reset_super`]): the charge ends (`+0x6F`) and the recharge timer
+    /// restarts with [`Self::recharge_time`]; a stopped timer is stopped again
+    /// at once, keeping all of it (`0x006CE12A..0x006CE18F`).
+    /// `CameoChargeState` (`+0x78`, -1) is the sidebar's. The grant, the hold
+    /// and the drain state stay.
+    fn reset(&mut self, sw: &SuperWeaponType, current_frame: u32) {
+        let frame = current_frame as i32;
+        let stopped = self.charge_start_tick == -1;
+        self.is_ready = false;
+        let mut timer = CdTimer::started(frame, self.recharge_time(sw));
+        if stopped {
+            timer.pause(frame);
+        }
+        self.store_charge_timer(timer);
+    }
+
     /// Compute charge progress as 0.0–1.0 for sidebar display.
     /// Only valid when is_active and not is_ready.
     ///
@@ -449,6 +466,27 @@ impl SuperWeaponInstance {
         let remaining = self.charge_timer().remaining(current_frame as i32);
         let elapsed = full_recharge_frames.wrapping_sub(remaining) as f32;
         (elapsed / full_recharge_frames as f32).clamp(0.0, 1.0)
+    }
+}
+
+/// `SuperClass::Reset @ 0x006CE0B0` on `owner`'s Super of `sw_type`: the
+/// anim release ([`Simulation::release_super_anim`],
+/// `0x006CE0B6..0x006CE121`), then [`SuperWeaponInstance::reset`]. Its
+/// callers are `BuildingClass::Infiltrate` (`0x00457388`,
+/// `sim::spy_infiltration`) and the trigger action ResetSW, which is not
+/// ported. A Super the house never received does nothing.
+pub(crate) fn reset_super(sim: &mut Simulation, rules: &RuleSet, owner: InternedId, sw_type: &str) {
+    let (Some(type_id), Some(sw)) = (sim.interner.get(sw_type), rules.super_weapon(sw_type)) else {
+        return;
+    };
+    sim.release_super_anim(owner, type_id);
+    let frame = sim.session.binary_frame;
+    if let Some(instance) = sim
+        .super_weapons
+        .get_mut(&owner)
+        .and_then(|weapons| weapons.get_mut(&type_id))
+    {
+        instance.reset(sw, frame);
     }
 }
 

@@ -1227,9 +1227,13 @@ impl SpawnHost for WorldSpawn<'_, '_> {
     }
 
     fn assign_target(&mut self, child: u64, target: Option<TargetKind>) {
-        let _ = self
-            .sim
-            .assign_target_represented(child, target, self.context.rules());
+        let _ = self.sim.assign_target_represented(
+            child,
+            target,
+            self.context.rules(),
+            None,
+            FrameEffects::default(),
+        );
     }
 
     fn limbo(&mut self, child: u64) {

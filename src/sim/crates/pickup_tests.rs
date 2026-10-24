@@ -510,7 +510,8 @@ fn armor_and_firepower_crates_multiply_once_and_announce() {
     assert!(eva_events(&sim).contains(&(owner, "EVA_UnitFirePowerUpgraded")));
 }
 
-/// `0x00481F9D..0x0048203C`: `MapClass::Reveal` for the actor's house.
+/// `0x00481F9D..0x0048203C`: `MapClass::Reveal` for the actor's house,
+/// which also sets its map-clear byte (`+0x241`, `0x00577DB0`).
 #[test]
 fn reveal_crate_reveals_the_whole_map_for_the_owner() {
     let (mut sim, _, registry, owner, actor) = multiplayer_fixture(POWERUP_REVEAL as u8);
@@ -518,6 +519,7 @@ fn reveal_crate_reveals_the_whole_map_for_the_owner() {
     sim.fog.width = sim.session.map_width;
     sim.fog.height = sim.session.map_height;
     assert!(!sim.fog.whole_map_revealed_for_owner(owner));
+    assert!(!sim.houses[&owner].map_is_clear);
 
     assert!(pickup_crate(
         &mut sim,
@@ -529,6 +531,7 @@ fn reveal_crate_reveals_the_whole_map_for_the_owner() {
     ));
 
     assert!(sim.fog.whole_map_revealed_for_owner(owner));
+    assert!(sim.houses[&owner].map_is_clear);
     // `0x0048202D..0x0048203C`: the one arm without the local-player test.
     assert_eq!(sounds(&sim), vec![("CrateReveal".to_string(), None)]);
 }

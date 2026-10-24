@@ -118,6 +118,8 @@ impl Replay {
                     scene.miner,
                     Some(TargetKind::Entity(first)),
                     Some(&scene.rules),
+                    None,
+                    crate::sim::world::FrameEffects::default(),
                 )
                 .unwrap();
         }

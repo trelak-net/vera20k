@@ -265,7 +265,13 @@ struct WorldExit<'a> {
 impl attack_mission::ExitHost for WorldExit<'_> {
     fn clear_target(&mut self) {
         self.sim
-            .assign_target_represented(self.id, None, Some(self.rules))
+            .assign_target_represented(
+                self.id,
+                None,
+                Some(self.rules),
+                None,
+                FrameEffects::default(),
+            )
             .expect("aircraft dispatch");
     }
 

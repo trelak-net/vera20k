@@ -53,7 +53,8 @@ impl Simulation {
     /// `vt+0x3C8` `Assign_Target(NULL)`: `TechnoClass::Assign_Target @
     /// 0x006FCDB0`, Infantry's `0x0051B1F0`.
     pub(super) fn team_member_clear_target(&mut self, id: u64, rules: &RuleSet) {
-        let _ = self.assign_target_represented(id, None, Some(rules));
+        let _ =
+            self.assign_target_represented(id, None, Some(rules), None, FrameEffects::default());
     }
 
     /// `vt+0x3C8` `Assign_Target(target)`.
@@ -62,8 +63,16 @@ impl Simulation {
         id: u64,
         target: TeamTarget,
         rules: &RuleSet,
+        registry: Option<&OverlayTypeRegistry>,
+        frame_effects: FrameEffects<'_>,
     ) {
-        let _ = self.assign_target_represented(id, Some(target.target_kind()), Some(rules));
+        let _ = self.assign_target_represented(
+            id,
+            Some(target.target_kind()),
+            Some(rules),
+            registry,
+            frame_effects,
+        );
     }
 
     /// `Set_ArchiveTarget(NULL)` (`0x0070C610`), a plain store.

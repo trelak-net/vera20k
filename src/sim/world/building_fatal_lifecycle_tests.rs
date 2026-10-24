@@ -353,8 +353,14 @@ impl Fixture {
             .spawn_object("MTNK", "Americans", 11, 8, 128, &rules)
             .unwrap();
         if let Some(attacker) = prior.get("attacker") {
-            sim.assign_target_represented(unit, Some(TargetKind::Entity(building)), Some(&rules))
-                .unwrap();
+            sim.assign_target_represented(
+                unit,
+                Some(TargetKind::Entity(building)),
+                Some(&rules),
+                None,
+                crate::sim::world::FrameEffects::default(),
+            )
+            .unwrap();
             let actor = sim.substrate.entities.get_mut(unit).unwrap();
             actor.body_facing.snap(
                 int(&attacker["body_facing_words"][0]) as u16,

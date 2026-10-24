@@ -63,6 +63,7 @@ pub(crate) mod scenario_post_map;
 pub mod scenario_session; // app->sim launch descriptor (per-match seed pipeline)
 pub(crate) mod score;
 pub mod sensor_lifecycle;
+pub mod spy_infiltration; // BuildingClass::Infiltrate (a spy's effects on the building it enters)
 pub(crate) mod stage;
 pub mod temporal;
 pub mod timer; // signed frame-anchored countdown primitive

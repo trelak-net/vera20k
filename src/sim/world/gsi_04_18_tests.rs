@@ -961,3 +961,38 @@ fn shroud_current_sight_spy_sat_replays_allied_buildings_but_not_mobile_admissio
         assert_eq!(sim.fog.sight_admissions[&(1, viewer)], admission);
     }
 }
+
+/// `MapClass::Reset_Shroud @ 0x00577AB0`, as the Darkness crate and a spy in
+/// a radar building ask it, runs the same callbacks as the Spy Satellite's
+/// loss. The house's own objects and its allies' buildings see again, the
+/// rest of the map is shrouded, and the map-clear byte is cleared.
+#[test]
+fn reset_shroud_replays_own_sight_and_allied_buildings() {
+    let (mut sim, rules, viewer) = fixture();
+    let ally = sim.interner.intern("Alliance");
+    sim.house_alliances
+        .entry("ALLIANCE".into())
+        .or_default()
+        .insert("AMERICANS".into());
+    sim.house_alliances
+        .entry("AMERICANS".into())
+        .or_default()
+        .insert("ALLIANCE".into());
+    insert_sight_unit(&mut sim, 1, viewer, 4, 4);
+    insert_structure(&mut sim, 2, ally, "GSI418SIGHT", 18);
+    sim.refresh_fog(&vision::VisionConfig::default(), Some(&rules));
+    assert!(sim.fog.is_cell_visible(viewer, 18, 12));
+    sim.reveal_map_for_owner(viewer, &rules);
+    assert!(sim.houses[&viewer].map_is_clear);
+    assert!(sim.fog.is_cell_revealed(viewer, 23, 23));
+
+    sim.reset_shroud_for_owner(viewer, &rules);
+
+    assert!(!sim.houses[&viewer].map_is_clear);
+    assert!(!sim.fog.is_cell_revealed(viewer, 23, 23));
+    assert!(sim.fog.is_cell_visible(viewer, 4, 4), "its own unit");
+    assert!(
+        sim.fog.is_cell_visible(viewer, 18, 12),
+        "its ally's building"
+    );
+}

@@ -247,7 +247,13 @@ impl GuardHost for WorldGuard<'_> {
 
     fn clear_target(&mut self) {
         self.sim
-            .assign_target_represented(self.id, None, Some(self.rules))
+            .assign_target_represented(
+                self.id,
+                None,
+                Some(self.rules),
+                None,
+                crate::sim::world::FrameEffects::default(),
+            )
             .expect("aircraft dispatch");
     }
 
@@ -281,7 +287,13 @@ impl GuardHost for WorldGuard<'_> {
             return;
         };
         self.sim
-            .assign_target_represented(self.id, Some(TargetKind::Entity(unit)), Some(self.rules))
+            .assign_target_represented(
+                self.id,
+                Some(TargetKind::Entity(unit)),
+                Some(self.rules),
+                None,
+                crate::sim::world::FrameEffects::default(),
+            )
             .expect("aircraft dispatch");
         self.queue(MissionType::Attack);
     }

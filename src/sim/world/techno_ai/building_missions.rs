@@ -687,7 +687,13 @@ fn mission_attack(
 fn attack_prelude(sim: &mut Simulation, id: u64, rules: &RuleSet) -> Option<(TargetKind, i32)> {
     let entity = sim.substrate.entities.get(id)?;
     let Some(target) = entity.attack_target.as_ref().map(|attack| attack.target) else {
-        let _ = sim.assign_target_represented(id, None, Some(rules));
+        let _ = sim.assign_target_represented(
+            id,
+            None,
+            Some(rules),
+            None,
+            crate::sim::world::FrameEffects::default(),
+        );
         clear_support_count(sim, id);
         if !waits(sim, id) {
             queue_and_commence(sim, id, MissionType::Guard, rules);
@@ -724,7 +730,13 @@ fn attack_arm(
         }
         // `0x0044B0DE`: the drop tail (`+0x664 = 0` at `0x0044B0ED`).
         FireError::Ammo | FireError::Illegal | FireError::Cant | FireError::Range => {
-            let _ = sim.assign_target_represented(id, None, Some(rules));
+            let _ = sim.assign_target_represented(
+                id,
+                None,
+                Some(rules),
+                ctx.overlay_registry,
+                ctx.effects,
+            );
             clear_support_count(sim, id);
             if waits(sim, id) {
                 return 1;
@@ -1287,7 +1299,7 @@ pub(super) fn range_drop(sim: &mut Simulation, id: u64, rules: &RuleSet, ctx: Ob
     {
         return;
     }
-    let _ = sim.assign_target_represented(id, None, Some(rules));
+    let _ = sim.assign_target_represented(id, None, Some(rules), ctx.overlay_registry, ctx.effects);
 }
 
 impl Simulation {

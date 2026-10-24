@@ -643,9 +643,13 @@ impl<'r> ScanHost for WorldScan<'_, 'r> {
     }
 
     fn assign_target(&mut self, target: Option<TargetKind>) {
-        let _ = self
-            .sim
-            .assign_target_represented(self.id, target, Some(self.rules));
+        let _ = self.sim.assign_target_represented(
+            self.id,
+            target,
+            Some(self.rules),
+            self.ctx.overlay_registry,
+            self.ctx.effects,
+        );
     }
 
     fn greatest_threat(&mut self, mask: ScanMission) -> Option<TargetKind> {

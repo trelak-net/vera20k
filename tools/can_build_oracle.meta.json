@@ -19,5 +19,6 @@
     "can_build": "0x004F7870",
     "check_build_limit": "0x0050B370"
   },
-  "payload_sha256": "0a6734dbcf3f54131c2cc6a2512ef0c6b58765dc9f11ff6d06378cb33bc37ad4"
+  "replay_command": "python -m tools.can_build_oracle",
+  "payload_sha256": "66c5de09b93590c8811797b68c88cfabc80f5808df012e6df16e6df1a4fbbc92"
 }

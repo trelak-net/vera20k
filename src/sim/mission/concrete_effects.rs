@@ -151,6 +151,71 @@ impl<'r> RepresentedConcreteMissionEffects<'r> {
             frame_effects,
         }
     }
+
+    /// Whether the receiver's mode-one destination setter takes
+    /// `destination` without failing: the read-only half of
+    /// [`ConcreteMissionEffects::preflight`].
+    fn destination_available(
+        &self,
+        sim: &Simulation,
+        receiver: u64,
+        destination: Option<NavTargetRef>,
+    ) -> bool {
+        if self.rules.is_some()
+            && let Some(
+                NavTargetRef::Entity { id }
+                | NavTargetRef::Object { id }
+                | NavTargetRef::Building { id },
+            ) = destination
+            && !sim.substrate.entities.contains(id)
+            // Building455D50 only archives the pointer; it never asks the
+            // destination for a coordinate or otherwise dereferences it.
+            && sim.substrate.entities.get(receiver).is_some_and(|actor| {
+                actor.category != crate::map::entities::EntityCategory::Structure
+            })
+        {
+            return false;
+        }
+        let (Some(rules), Some(destination)) = (self.rules, destination) else {
+            return true;
+        };
+        let actor = sim
+            .substrate
+            .entities
+            .get(receiver)
+            .expect("present receiver");
+        if matches!(
+            actor.category,
+            crate::map::entities::EntityCategory::Unit
+                | crate::map::entities::EntityCategory::Infantry
+        ) && sim.object_type(actor.type_ref(), rules).is_none()
+        {
+            return false;
+        }
+        if actor.category == crate::map::entities::EntityCategory::Unit
+            && sim.unit_setter_receiver(receiver, Some(rules))
+            && !matches!(destination, NavTargetRef::Cell { .. })
+            && crate::sim::movement::nav_target_coordinate(
+                destination,
+                Some(receiver),
+                &sim.substrate.entities,
+                sim.resolved_terrain.as_ref(),
+                Some((rules, &sim.interner)),
+            )
+            .is_err()
+        {
+            // An object +4C projection is read-only: unlike Cell lookup,
+            // this does not stamp the shared dummy during preflight.
+            return false;
+        }
+        !sim.infantry_setter_receiver(receiver, destination, rules)
+            || sim.infantry_destination_inputs_available(
+                receiver,
+                destination,
+                rules,
+                self.overlay_registry,
+            )
+    }
 }
 
 impl private::Sealed for RepresentedConcreteMissionEffects<'_> {}
@@ -175,69 +240,28 @@ impl ConcreteMissionEffects for RepresentedConcreteMissionEffects<'_> {
                 }
             });
         }
-        let destination = match request {
-            ConcreteSetterRequest::Target { .. } => None,
-            ConcreteSetterRequest::Destination { requested }
-            | ConcreteSetterRequest::TargetAndDestination {
-                requested_destination: requested,
-                ..
-            } => requested,
+        let (target, destination) = match request {
+            ConcreteSetterRequest::Target { requested } => (requested, None),
+            ConcreteSetterRequest::Destination { requested } => (None, requested),
+            ConcreteSetterRequest::TargetAndDestination {
+                requested_target,
+                requested_destination,
+            } => (requested_target, requested_destination),
         };
-        if self.rules.is_some()
-            && let Some(
-                NavTargetRef::Entity { id }
-                | NavTargetRef::Object { id }
-                | NavTargetRef::Building { id },
-            ) = destination
-            && !sim.substrate.entities.contains(id)
-            // Building455D50 only archives the pointer; it never asks the
-            // destination for a coordinate or otherwise dereferences it.
-            && sim.substrate.entities.get(receiver).is_some_and(|actor| {
-                actor.category != crate::map::entities::EntityCategory::Structure
-            })
-        {
+        if !self.destination_available(sim, receiver, destination) {
             return Err(AuthorityUnavailable::DestinationSetter(receiver));
         }
-        if let (Some(rules), Some(destination)) = (self.rules, destination) {
-            let actor = sim
-                .substrate
-                .entities
-                .get(receiver)
-                .expect("present receiver");
-            if matches!(
-                actor.category,
-                crate::map::entities::EntityCategory::Unit
-                    | crate::map::entities::EntityCategory::Infantry
-            ) && sim.object_type(actor.type_ref(), rules).is_none()
-            {
-                return Err(AuthorityUnavailable::DestinationSetter(receiver));
-            }
-            if actor.category == crate::map::entities::EntityCategory::Unit
-                && sim.unit_setter_receiver(receiver, Some(rules))
-                && !matches!(destination, NavTargetRef::Cell { .. })
-                && crate::sim::movement::nav_target_coordinate(
-                    destination,
-                    Some(receiver),
-                    &sim.substrate.entities,
-                    sim.resolved_terrain.as_ref(),
-                    Some((rules, &sim.interner)),
-                )
-                .is_err()
-            {
-                // An object +4C projection is read-only: unlike Cell lookup,
-                // this does not stamp the shared dummy during preflight.
-                return Err(AuthorityUnavailable::DestinationSetter(receiver));
-            }
-            if sim.infantry_setter_receiver(receiver, destination, rules)
-                && !sim.infantry_destination_inputs_available(
-                    receiver,
-                    destination,
-                    rules,
-                    self.overlay_registry,
-                )
-            {
-                return Err(AuthorityUnavailable::DestinationSetter(receiver));
-            }
+        // The Infantry Target setter's infiltration arm sets a destination of
+        // its own ([`Self::apply_target`]). NavCom, which decides that arm,
+        // has no writer before it, so this answers as the arm will.
+        if self
+            .rules
+            .and_then(|rules| sim.infiltrator_target_building(receiver, target, rules))
+            .is_some_and(|building| {
+                !self.destination_available(sim, receiver, Some(NavTargetRef::object(building)))
+            })
+        {
+            return Err(AuthorityUnavailable::TargetSetter(receiver));
         }
         Ok(RepresentedPrepared { receiver })
     }
@@ -299,6 +323,15 @@ impl ConcreteMissionEffects for RepresentedConcreteMissionEffects<'_> {
             entity.clear_live_path_head();
         }
         represented_assign_target_admitted(entity, requested, commits);
+        //51B2B1..51B33F: an Infiltrate= infantryman with no NavCom heads for
+        // a building target it may enter (vt+0x480(target, 1)).
+        if infantry
+            && let Some(building) = self.rules.and_then(|rules| {
+                sim.infiltrator_target_building(prepared.receiver, requested, rules)
+            })
+        {
+            self.apply_destination_mode_one(sim, prepared, Some(NavTargetRef::object(building)));
+        }
     }
 
     fn apply_destination_mode_one(

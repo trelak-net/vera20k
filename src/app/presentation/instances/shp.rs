@@ -170,10 +170,11 @@ pub(crate) fn build_shp_instances(
             local_owner_id,
             state.rules(),
         );
+        // Infantry's draw (0x00518DDF) and the shared remap (0x00705DAB) both
+        // ask vt+0x440 (0x0070EE30) before taking the disguise.
         let active_disguise = entity.disguise.as_ref().filter(|disguise| {
             disguise.is_disguised()
-                && (entity.category != EntityCategory::Unit
-                    || DrawState::draws_disguise(entity, sim.session.binary_frame, observer))
+                && DrawState::draws_disguise(entity, sim.session.binary_frame, observer)
         });
         let type_name = if entity.category == EntityCategory::Unit {
             if entity.unit_deploying() {

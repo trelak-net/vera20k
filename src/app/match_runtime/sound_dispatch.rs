@@ -793,6 +793,34 @@ pub(super) fn dispatch_sim_sound_events(
                 }
                 continue;
             }
+            SimSoundEvent::BuildingInfiltrated {
+                owner,
+                infiltrator,
+                effect,
+                radar,
+            } => {
+                // `BuildingClass::Infiltrate 0x004571FE/0x0045720E CALL
+                // 0x0050B6F0` on the owner, then the spy's house: only then
+                // `0x0045722F CreateRadarEvent(9)`. The lines are
+                // `eva_producers::infiltration_eva_events`; every `PlayEVA`
+                // call passes `EDX = -1`.
+                let local_is_owner = owner_is_local(&sim.interner, owner, local_owner_name);
+                let local_is_infiltrator =
+                    owner_is_local(&sim.interner, infiltrator, local_owner_name);
+                let radar_accepted = (local_is_owner || local_is_infiltrator) && admit_radar(radar);
+                for event in eva_producers::infiltration_eva_events(
+                    effect,
+                    radar_accepted,
+                    local_is_owner,
+                    local_is_infiltrator,
+                ) {
+                    output.push(GameSoundEvent::Eva {
+                        event,
+                        type_override: None,
+                    });
+                }
+                continue;
+            }
             SimSoundEvent::SuperWeaponReady { owner, sw_type } => {
                 // `HouseClass::Update 0x004F8E42 CMP ESI,[PlayerPtr] ;
                 // SETZ CL ; PUSH ECX` is `SuperClass::AI_Ready`'s
@@ -1554,6 +1582,58 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["EVA_Repairing", "EVA_InsufficientFunds", "EVA_UnitRepaired"],
         );
+    }
+
+    /// `tools/spy_infiltration_oracle.json`: the radar event and the EVA
+    /// lines `BuildingClass::Infiltrate` (`0x004571E0`) asks for on the local
+    /// player's machine, through the dispatcher and its radar admission.
+    #[test]
+    fn infiltration_announcements_match_the_original() {
+        use crate::sim::spy_infiltration::spy_infiltration_tests::{HOUSES, replay, rows};
+        for row in rows() {
+            let name = row["name"].as_str().unwrap();
+            let local = HOUSES
+                .iter()
+                .find(|(role, _)| row["local"] == *role)
+                .unwrap()
+                .1;
+            let mut replayed = replay(&row);
+            let events = std::mem::take(&mut replayed.sim.sound_events);
+            let mut asked = Vec::new();
+            let mut output = SoundEventQueue::new();
+            dispatch_sim_sound_events(
+                events,
+                &replayed.sim,
+                &replayed.rules,
+                Some(local),
+                &mut |request| {
+                    asked.push(serde_json::json!([
+                        request.event_type as i32,
+                        [request.rx, request.ry]
+                    ]));
+                    row["radar_accepted"].as_bool().unwrap()
+                },
+                &mut output,
+            );
+            let expected = row["expected"]["events"].as_array().unwrap();
+            let of_kind = |kind: &str| -> Vec<serde_json::Value> {
+                expected
+                    .iter()
+                    .filter(|event| event[0] == kind)
+                    .map(|event| match kind {
+                        "radar_event" => serde_json::json!([event[1], event[2]]),
+                        _ => event[1].clone(),
+                    })
+                    .collect()
+            };
+            assert_eq!(asked, of_kind("radar_event"), "{name}: the radar event");
+            let spoken: Vec<serde_json::Value> = output
+                .drain()
+                .iter()
+                .map(|event| serde_json::json!(event.sound_id()))
+                .collect();
+            assert_eq!(spoken, of_kind("eva"), "{name}: the EVA lines");
+        }
     }
 
     #[test]

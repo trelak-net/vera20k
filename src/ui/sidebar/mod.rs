@@ -147,6 +147,8 @@ pub struct SidebarItem {
     pub display_name: String,
     pub cost: Option<i32>,
     pub has_cameo_art: bool,
+    /// Draw the type's `AltCameo=` image (`TechnoTypeClass::GetCameo`).
+    pub alt_cameo: bool,
     pub queue_category: ProductionCategory,
     pub enabled: bool,
     pub progress: f32,
@@ -375,6 +377,7 @@ mod tests {
             display_name: "LightningStormSpecial".to_string(),
             cost: None,
             has_cameo_art: true,
+            alt_cameo: false,
             queue_category: ProductionCategory::Defense,
             enabled: true,
             progress: if is_ready { 1.0 } else { 0.5 },

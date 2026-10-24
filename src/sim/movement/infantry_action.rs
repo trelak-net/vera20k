@@ -53,6 +53,7 @@ pub(crate) const DO_FIRE_FLY: i32 = 0x1A;
 pub(crate) const DO_DEPLOY: i32 = 0x1B;
 pub(crate) const DO_DEPLOYED: i32 = 0x1C;
 pub(crate) const DO_DEPLOYED_IDLE: i32 = 0x1E;
+pub(crate) const DO_UNDEPLOY: i32 = 0x1F;
 pub(crate) const DO_PARADROP: i32 = 0x21;
 pub(crate) const DO_AIR_DEATH_START: i32 = 0x22;
 pub(crate) const DO_AIR_DEATH_FALLING: i32 = 0x23;

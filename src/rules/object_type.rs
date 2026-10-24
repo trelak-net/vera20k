@@ -1173,16 +1173,28 @@ pub struct ObjectType {
     /// still scans for a target (`0x0051E296..0x0051E2BC`), and a team on
     /// action 15 sends it in (`0x006EB71A..0x006EB759`).
     pub infiltrate: bool,
+    /// `Agent=` (`InfantryTypeClass+0xEC4`, ReadBool `0x00524598..0x005245B2`
+    /// on key `0x00825954`, constructor clear `0x005237B6`, infantry only):
+    /// an infiltrator that spies. It enters `Spyable=` buildings where any
+    /// other infiltrator enters `Capturable=` ones (`0x0051EE6B..0x0051EEE7`),
+    /// and entering one runs [`crate::sim::spy_infiltration`]'s
+    /// `BuildingClass::Infiltrate` (`0x00519FF8`).
+    pub agent: bool,
 
     /// Whether this unit can self-deploy/undeploy via the Deploy command.
     /// Parsed from `Deployer=yes` in rules.ini. Triggers `Deploy`/`NoDeploy`
     /// cursor when the player hovers over this unit itself.
     pub deployer: bool,
 
-    /// Whether this building can be infiltrated by a spy or captured by an engineer.
-    /// Parsed from `Capturable=yes` in rules.ini. Enables the `Enter` cursor
-    /// when an enemy Engineer or Spy is selected and hovering this building.
+    /// `Capturable=` (`BuildingTypeClass+0x1572`): an engineer may capture
+    /// this building, and an infiltrator that is not `Agent=` may enter it
+    /// (`0x0051EE85..0x0051EE9F`). A spy asks [`Self::spyable`] instead.
     pub capturable: bool,
+    /// `Spyable=` (`BuildingTypeClass+0x1576`, ReadBool
+    /// `0x0046002F..0x00460043`, constructor clear `0x0045E05D` with EBX zeroed
+    /// at `0x0045DD9A`, buildings only): an `Agent=` infiltrator may enter it
+    /// (`0x0051EED9..0x0051EEE7`, `0x0051B324..0x0051B330`).
+    pub spyable: bool,
 
     /// `NeedsEngineer=` — `BuildingTypeClass::ReadINI 0x0046023E..0x0046024B`
     /// stores it at `+0x1552`. A tech building that starts neutral and is
@@ -2651,8 +2663,10 @@ impl ObjectType {
             ivan: category == ObjectCategory::Infantry && section.read_bool("Ivan", false),
             infiltrate: category == ObjectCategory::Infantry
                 && section.read_bool("Infiltrate", false),
+            agent: category == ObjectCategory::Infantry && section.read_bool("Agent", false),
             deployer: section.read_bool("Deployer", false),
             capturable: section.read_bool("Capturable", false),
+            spyable: category == ObjectCategory::Building && section.read_bool("Spyable", false),
             needs_engineer: section.read_bool("NeedsEngineer", false),
             capture_eva_event: section
                 .read_name("CaptureEvaEvent", 0x64)

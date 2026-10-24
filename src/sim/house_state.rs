@@ -349,6 +349,29 @@ pub struct HouseAiActivationLatches {
     pub auto_base_building: bool,
 }
 
+/// House bytes `+0x2BC..+0x2C0`. The constructor clears all five
+/// (`0x004F5855..0x004F586D`); `BuildingClass::Infiltrate @ 0x004571E0` is
+/// their only writer (operand census of each offset, 2026-10-12) and never
+/// clears one.
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+)]
+struct SpyGains {
+    /// `+0x2BC`: the third side's technology, read by CanBuild for
+    /// `RequiresStolenThirdTech=` (`0x004F79DA`).
+    third_tech: bool,
+    /// `+0x2BD`: the Soviets' technology (`RequiresStolenSovietTech=`,
+    /// `0x004F79C6`).
+    soviet_tech: bool,
+    /// `+0x2BE`: the Allies' technology (`RequiresStolenAlliedTech=`,
+    /// `0x004F798A`).
+    allied_tech: bool,
+    /// `+0x2BF`: veteran infantry.
+    veteran_infantry: bool,
+    /// `+0x2C0`: veteran units.
+    veteran_units: bool,
+}
+
 /// Per-player game state.
 ///
 /// Created once per player at game start, lives for the duration of the match.
@@ -570,6 +593,10 @@ pub struct HouseState {
     /// operand `0x54e0`, 9 hits (with Load `0x0050332D`), 2026-10-12.
     #[serde(default)]
     lost_building: Option<u64>,
+    /// What this house's spies took (House `+0x2BC..+0x2C0`), written only by
+    /// `BuildingClass::Infiltrate` (`sim::spy_infiltration`).
+    #[serde(default)]
+    spy_gains: SpyGains,
     /// House+1F4: first discovery of this House's foreign object by PlayerPtr.
     /// Constructor4F5716 clears it; TechnoDiscovered6F4A25 sets it and no
     /// clearing writer exists. TEvent71F0FB reads it for event kind5, after
@@ -920,6 +947,61 @@ impl HouseState {
     /// House+54E0, read by a computer engineer's Greatest_Threat.
     pub(crate) fn lost_building(&self) -> Option<u64> {
         self.lost_building
+    }
+
+    /// `BuildingClass::Infiltrate`'s tech arm (`0x004573C6..0x004573E4`): the
+    /// infiltrated BuildTech building's `AIBasePlanningSide=` names the side
+    /// whose technology this house now has: 0 the Allies' (`+0x2BE`), 1 the
+    /// Soviets' (`+0x2BD`), any other the third side's (`+0x2BC`).
+    pub(crate) fn steal_tech(&mut self, planning_side: i32) {
+        match planning_side {
+            0 => self.spy_gains.allied_tech = true,
+            1 => self.spy_gains.soviet_tech = true,
+            _ => self.spy_gains.third_tech = true,
+        }
+    }
+
+    /// `HouseClass::CanBuild`'s `RequiresStolen*Tech=` gates
+    /// (`0x004F7976..0x004F79E2`): whether this house has stolen what
+    /// `obj` requires.
+    pub(crate) fn has_stolen_tech_for(&self, obj: &crate::rules::object_type::ObjectType) -> bool {
+        (!obj.requires_stolen_allied_tech || self.spy_gains.allied_tech)
+            && (!obj.requires_stolen_soviet_tech || self.spy_gains.soviet_tech)
+            && (!obj.requires_stolen_third_tech || self.spy_gains.third_tech)
+    }
+
+    /// Infiltrate's factory arm on a `Factory=InfantryType` building
+    /// (`0x0045751E`): this house's infantry start veteran from now on.
+    pub(crate) fn grant_veteran_infantry(&mut self) {
+        self.spy_gains.veteran_infantry = true;
+    }
+
+    /// Infiltrate's factory arm on a `Factory=UnitType` building
+    /// (`0x004574BD`): this house's vehicles (and undeploying buildings)
+    /// start veteran from now on.
+    pub(crate) fn grant_veteran_units(&mut self) {
+        self.spy_gains.veteran_units = true;
+    }
+
+    /// House `+0x2BF`, read by `InfantryClass::InitFromType` (`0x00517D2A`).
+    pub(crate) fn veteran_infantry(&self) -> bool {
+        self.spy_gains.veteran_infantry
+    }
+
+    /// House `+0x2C0`, read by the Unit constructor and InitFromType
+    /// (`0x00735647`, `0x0074686A`) and `BuildingClass::Init_Managers`
+    /// (`0x00442CE0`).
+    pub(crate) fn veteran_units(&self) -> bool {
+        self.spy_gains.veteran_units
+    }
+
+    /// Folded only once a spy has taken something, so other houses hash as
+    /// earlier schemas did.
+    pub(crate) fn hash_spy_gains(&self, hasher: &mut impl std::hash::Hasher) {
+        if self.spy_gains != SpyGains::default() {
+            std::hash::Hash::hash(b"house-spy-gains-v1", hasher);
+            std::hash::Hash::hash(&self.spy_gains, hasher);
+        }
     }
 
     /// Folded only while set, so a house that never lost a building hashes as
@@ -1298,6 +1380,7 @@ impl HouseState {
             stats: MatchStatistics::default(),
             building_capture_notified: false,
             lost_building: None,
+            spy_gains: SpyGains::default(),
             discovered_by_current_house: false,
             economy: Economy::new(credits),
             strategy_emergency: HouseStrategyEmergencyState::default(),

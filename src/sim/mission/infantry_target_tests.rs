@@ -248,8 +248,14 @@ fn compare_original_infantry_target_rows(consumer: TargetConsumer) {
         } else {
             match consumer {
                 TargetConsumer::ClassSetter => {
-                    sim.assign_target_represented(1, requested, Some(rules))
-                        .unwrap();
+                    sim.assign_target_represented(
+                        1,
+                        requested,
+                        Some(rules),
+                        None,
+                        crate::sim::world::FrameEffects::default(),
+                    )
+                    .unwrap();
                 }
                 TargetConsumer::ResetGuard => {
                     sim.substrate
@@ -296,7 +302,13 @@ fn compare_original_infantry_target_rows(consumer: TargetConsumer) {
                     );
                     transport.passenger_role = PassengerRole::Transport { cargo };
                     sim.substrate.entities.insert(transport);
-                    sim.open_topped_passengers_take_target(4, requested, rules);
+                    sim.open_topped_passengers_take_target(
+                        4,
+                        requested,
+                        rules,
+                        None,
+                        crate::sim::world::FrameEffects::default(),
+                    );
                 }
                 TargetConsumer::OwnerChange => {
                     let new_owner = sim.interner.intern("NewOwner");

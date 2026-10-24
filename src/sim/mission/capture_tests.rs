@@ -171,8 +171,14 @@ fn a_capturing_infantryman_heads_for_its_building_target() {
     let tank = capturer(&mut sim, &rules, "LTNK", "Americans", 16);
     let all = [engineer, occupier, rifleman, tank];
     for id in all {
-        sim.assign_target_represented(id, Some(TargetKind::Entity(plant)), Some(&rules))
-            .unwrap();
+        sim.assign_target_represented(
+            id,
+            Some(TargetKind::Entity(plant)),
+            Some(&rules),
+            None,
+            crate::sim::world::FrameEffects::default(),
+        )
+        .unwrap();
     }
 
     for id in all {

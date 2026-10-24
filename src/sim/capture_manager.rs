@@ -792,7 +792,7 @@ impl Simulation {
         let strength = object.strength;
         // 0x00472405: an OpenTopped unit's passengers drop their targets
         // (`0x00710550(unit, 0)`).
-        self.open_topped_passengers_take_target(unit_id, None, rules);
+        self.open_topped_passengers_take_target(unit_id, None, rules, registry, frame_effects);
         let Some(unit) = self.substrate.entities.get(unit_id) else {
             return;
         };

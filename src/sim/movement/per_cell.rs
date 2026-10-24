@@ -477,8 +477,8 @@ impl Simulation {
 
     /// `InfantryClass::Per_Cell_Process @ 0x00519630`: for reason 2 its
     /// occupier arm (`0x00519675..0x00519739`,
-    /// [`Self::infantry_per_cell_occupy`]), Engineer building receiver
-    /// (`0x00519948..0x0051A02E`), tethered radio8 release
+    /// [`Self::infantry_per_cell_occupy`]), building receiver (an Engineer's,
+    /// or a spy's infiltration, `0x00519948..0x0051A06E`), tethered radio8 release
     /// (`0x0051A7F8..0x0051A812`), then the Foot body for a live owner
     /// (`0x0051A9EB` tests only IsAlive, `+0x90`).
     ///
@@ -505,7 +505,7 @@ impl Simulation {
         }
         let entry = match rules {
             Some(rules) if reason == PerCellReason::Arrival => {
-                self.infantry_per_cell_engineer_entry(id, rules, registry, effects)?
+                self.infantry_per_cell_building_entry(id, rules, registry, effects)?
             }
             _ => Default::default(),
         };
@@ -599,26 +599,7 @@ impl Simulation {
             );
             return Ok(true);
         }
-        self.assign_null_destination(id, Some(rules), registry, effects);
-        let Some(coord) = self.substrate.entities.get(building).map(|entity| {
-            super::ground_pose::object_get_coords(entity, self.resolved_terrain.as_ref())
-        }) else {
-            return Ok(true);
-        };
-        self.infantry_scatter_from(
-            id,
-            (coord.x, coord.y),
-            super::ScatterFlags::new(true, true),
-            rules,
-            registry,
-            effects,
-        )
-        .map_err(|cause| FrameAdvanceError {
-            tick: self.session.tick,
-            binary_frame: self.session.binary_frame,
-            entity_id: id,
-            cause,
-        })?;
+        self.turn_away_from_building(id, building, rules, registry, effects)?;
         Ok(true)
     }
 

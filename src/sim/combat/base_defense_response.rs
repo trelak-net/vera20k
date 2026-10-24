@@ -263,6 +263,8 @@ impl ResponseSelection {
                     responder.entity_id,
                     Some(TargetKind::Entity(attacker_id)),
                     Some(rules),
+                    None,
+                    FrameEffects::default(),
                 )
                 .expect("selected responder remains present during synchronous target assignment");
             let Some(responder_entity) = world.substrate.entities.get(responder.entity_id) else {

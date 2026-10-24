@@ -15,10 +15,11 @@ Sections, each case executed in a fresh emulator:
 A row names its types: Q is the asked type (index 10 of its class), B0..B7
 BuildingTypes 0..7, U0..U2 UnitTypes 0..2, I0..I1 InfantryTypes 0..1 and
 A0..A2 AircraftTypes 0..2. Every factory holds an object, as VERA's do.
-The fixture house has no secret labs, stolen tech, AltOwner bits or
-produced counts (+0x55A0..+0x55DC), which VERA does not keep (residuals in
-src/sim/production/can_build.rs); no BuildingType it reads has
-PowersUpBuilding= and no InfantryType VehicleThief=.
+The fixture house has no secret labs, AltOwner bits or produced counts
+(+0x55A0..+0x55DC), which VERA does not keep (residuals in
+src/sim/production/can_build.rs); a row may give it stolen-tech bytes
+(+0x2BC..+0x2BE). No BuildingType it reads has PowersUpBuilding= and no
+InfantryType VehicleThief=.
 """
 from pathlib import Path
 
@@ -190,6 +191,7 @@ def run(row):
     emu.uc.mem_write(HOUSE + 0x1EC, bytes([int(house.get('human', True)),
                                            int(house.get('control', house.get('human', True)))]))
     emu.write32(HOUSE + 0x2D4, house.get('docks', 0))
+    emu.uc.mem_write(HOUSE + 0x2BC, bytes(int(b) for b in house.get('stolen', [0, 0, 0])))
     for name, (_code, base) in GROUPS.items():
         emu.vector(RULES + base, [int(m[1:]) for m in row.get('groups', {}).get(name, [])])
     alternate = row.get('proc_alternate')
@@ -252,6 +254,10 @@ def can_build():
         stolen = [False] * 3
         stolen[slot] = True
         add(can_build_row(f'stolen tech byte {slot}', type_={'stolen': stolen}))
+        add(can_build_row(f'stolen tech byte {slot}, stolen', type_={'stolen': stolen},
+                          house={'stolen': stolen}))
+        add(can_build_row(f'stolen tech byte {slot}, the other two stolen',
+                          type_={'stolen': stolen}, house={'stolen': [not b for b in stolen]}))
     add(can_build_row('RequiredHouses without the house', type_={'required': [0, 2]}))
     add(can_build_row('RequiredHouses with the house', type_={'required': [1, 2]}))
     add(can_build_row('ForbiddenHouses with the house', type_={'forbidden': [1]}))

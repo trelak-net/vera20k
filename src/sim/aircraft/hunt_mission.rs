@@ -175,7 +175,13 @@ impl HuntHost for WorldHunt<'_> {
 
     fn assign_target(&mut self, threat: Option<u64>) {
         self.sim
-            .assign_target_represented(self.id, threat.map(TargetKind::Entity), Some(self.rules))
+            .assign_target_represented(
+                self.id,
+                threat.map(TargetKind::Entity),
+                Some(self.rules),
+                None,
+                crate::sim::world::FrameEffects::default(),
+            )
             .expect("hunting aircraft");
     }
 

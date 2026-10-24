@@ -62,7 +62,7 @@ pub(crate) enum EngineerBuildingAction {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct EngineerEntryResult {
+pub(crate) struct BuildingEntryResult {
     pub(crate) bridge_state_changed: bool,
     pub(crate) return_before_foot: bool,
 }
@@ -74,6 +74,22 @@ mod bridge_engineer_admission_tests;
 #[cfg(test)]
 #[path = "building_control_tests.rs"]
 mod building_control_tests;
+
+/// The infiltration arms' type test (`0x0051EE4E..0x0051EEE7`,
+/// `0x0051B2BD..0x0051B330`): an `Infiltrate=` infantryman (`+0xEBE`) may
+/// enter a `Spyable=` building (`+0x1576`) if it is an `Agent=` one
+/// (`+0xEC4`), else a `Capturable=` one (`+0x1572`).
+fn infiltrator_admits(
+    infantry: &crate::rules::object_type::ObjectType,
+    building: &crate::rules::object_type::ObjectType,
+) -> bool {
+    infantry.infiltrate
+        && if infantry.agent {
+            building.spyable
+        } else {
+            building.capturable
+        }
+}
 
 impl Simulation {
     pub(crate) fn house_is_human_player(&self, owner: InternedId) -> bool {
@@ -247,6 +263,82 @@ impl Simulation {
         ))
     }
 
+    /// `InfantryClass::What_Action_OnObject`'s infiltration arm
+    /// (`0x0051EE3B..0x0051EEEF`): the local player's (`0x0050B6F0`)
+    /// `Infiltrate=` infantryman over a building its own house is not allied
+    /// to (`0x004F9A90`, one-way) that takes it — `Spyable=` for an `Agent=`
+    /// one, `Capturable=` for any other — turns its Attack action (5) into
+    /// Capture (9). Its base action is Attack there because
+    /// `TechnoClass::What_Action_OnObject` keeps Attack despite an ILLEGAL
+    /// fire error for exactly those flags (`0x007004A0..0x00700531`,
+    /// `0x00700548`); that function's other gates are the input producer's
+    /// hover classification and modifiers. The
+    /// foundation-zone search that follows (`0x0051EEFA..0x0051F04B`) only
+    /// leaves its loop: the action stays 9.
+    pub(crate) fn infiltrator_building_action(
+        &self,
+        actor_id: u64,
+        target_id: u64,
+        rules: &RuleSet,
+    ) -> bool {
+        let (Some(actor), Some(target)) = (
+            self.substrate.entities.get(actor_id),
+            self.substrate.entities.get(target_id),
+        ) else {
+            return false;
+        };
+        if actor.category != EntityCategory::Infantry
+            || target.category != EntityCategory::Structure
+            || !self.house_is_human_player(actor.owner())
+        {
+            return false;
+        }
+        let (Some(infantry), Some(building)) = (
+            self.object_type(actor.type_ref(), rules),
+            self.object_type(target.type_ref(), rules),
+        ) else {
+            return false;
+        };
+        infiltrator_admits(infantry, building)
+            && !crate::map::houses::is_allied_with(
+                &self.house_alliances,
+                self.interner.resolve(actor.owner()),
+                self.interner.resolve(target.owner()),
+            )
+    }
+
+    /// `InfantryClass::Assign_Target`'s infiltration arm
+    /// (`0x0051B2B1..0x0051B33F`), after the Techno base write: the building
+    /// an `Infiltrate=` infantryman with no NavCom (`+0x5A4`) heads for when
+    /// handed `target` (vt+0x480(target, 1)), if [`infiltrator_admits`] it.
+    /// Unlike the click's arm ([`Self::infiltrator_building_action`]), it asks
+    /// neither the owner's control nor alliance. Every path through the
+    /// setter's tail then clears `+0x68E`, a re-acquisition latch VERA does
+    /// not keep (`mission_handlers`, GSI-07.06).
+    pub(crate) fn infiltrator_target_building(
+        &self,
+        actor_id: u64,
+        target: Option<crate::sim::combat::TargetKind>,
+        rules: &RuleSet,
+    ) -> Option<u64> {
+        let Some(crate::sim::combat::TargetKind::Entity(building_id)) = target else {
+            return None;
+        };
+        let actor = self.substrate.entities.get(actor_id)?;
+        let building = self.substrate.entities.get(building_id)?;
+        if actor.category != EntityCategory::Infantry
+            || actor.navigation.nav_com.is_some()
+            || building.category != EntityCategory::Structure
+        {
+            return None;
+        }
+        infiltrator_admits(
+            self.object_type(actor.type_ref(), rules)?,
+            self.object_type(building.type_ref(), rules)?,
+        )
+        .then_some(building_id)
+    }
+
     fn announce_bridge_repair(
         &mut self,
         owner: InternedId,
@@ -338,6 +430,8 @@ impl Simulation {
             attacker_id,
             Some(combat::TargetKind::Entity(target_sid)),
             Some(rules),
+            overlay_registry,
+            FrameEffects::default(),
         );
     }
 
@@ -568,42 +662,51 @@ impl Simulation {
         }
     }
 
-    /// Ordinary Infantry PerCell2 engineer receiver. The active object cursor
+    /// Ordinary Infantry PerCell2 building receiver (`0x00519B17..0x0051A06E`):
+    /// an Engineer's capture, repair or bridge repair, or
+    /// [`Self::infantry_per_cell_infiltrator_entry`]. The active object cursor
     /// owns removal/next-object cadence; there is no second sorted repair pass.
-    pub(crate) fn infantry_per_cell_engineer_entry(
+    pub(crate) fn infantry_per_cell_building_entry(
         &mut self,
         engineer_id: u64,
         rules: &RuleSet,
         registry: Option<&crate::rules::overlay_types::OverlayTypeRegistry>,
         frame_effects: FrameEffects<'_>,
-    ) -> Result<EngineerEntryResult, super::FrameAdvanceError> {
+    ) -> Result<BuildingEntryResult, super::FrameAdvanceError> {
         let Some(engineer) = self.substrate.entities.get(engineer_id) else {
-            return Ok(EngineerEntryResult::default());
+            return Ok(BuildingEntryResult::default());
         };
         if engineer.category != EntityCategory::Infantry {
-            return Ok(EngineerEntryResult::default());
+            return Ok(BuildingEntryResult::default());
         }
         let InfantryPerCellBuildingAdmission::GroundBuilding(building_id) =
             self.infantry_per_cell_building_admission(engineer, rules)
         else {
-            return Ok(EngineerEntryResult::default());
+            return Ok(BuildingEntryResult::default());
         };
         //519B3E's optional hut Tag event1 precedes this type gate. The live
         //Tag receiver remains a separate required chain; ordinary Hills has
         //no attached hut/Engineer Tag.519B58 tests Engineer before hut type.
-        if !self
-            .object_type(engineer.type_ref(), rules)
-            .is_some_and(|t| t.engineer)
-        {
-            return Ok(EngineerEntryResult::default());
+        let Some(infantry_type) = self.object_type(engineer.type_ref(), rules) else {
+            return Ok(BuildingEntryResult::default());
+        };
+        if !infantry_type.engineer {
+            return self.infantry_per_cell_infiltrator_entry(
+                engineer_id,
+                building_id,
+                infantry_type.agent,
+                rules,
+                registry,
+                frame_effects,
+            );
         }
         let cell = (engineer.position.rx, engineer.position.ry);
         let owner = engineer.owner();
         let Some(building) = self.substrate.entities.get(building_id) else {
-            return Ok(EngineerEntryResult::default());
+            return Ok(BuildingEntryResult::default());
         };
         let Some(object) = self.object_type(building.type_ref(), rules) else {
-            return Ok(EngineerEntryResult::default());
+            return Ok(BuildingEntryResult::default());
         };
         if !object.bridge_repair_hut {
             let allied = crate::map::houses::is_allied_with(
@@ -629,31 +732,16 @@ impl Simulation {
                 )
                 .unwrap_or(-1);
             if (repair && full) || (!repair && capturable && refused_capture) {
-                //519FB9/519EBB/519EFC: SetDestination(NULL,true), then
-                //Scatter(real Building GetCoords,true,true), immediate return
-                //before FootPerCell. The real-coordinate arm does not Process.
-                let coord = crate::sim::movement::ground_pose::object_get_coords(
-                    building,
-                    self.resolved_terrain.as_ref(),
-                );
-                self.assign_null_destination(engineer_id, Some(rules), None, frame_effects);
-                self.infantry_scatter_from(
+                //519FB9/519EBB/519EFC, then an immediate return before
+                //FootPerCell.
+                self.turn_away_from_building(
                     engineer_id,
-                    (coord.x, coord.y),
-                    crate::sim::movement::ScatterFlags::new(true, true),
+                    building_id,
                     rules,
                     registry,
                     frame_effects,
-                )
-                .map_err(|cause| {
-                    super::FrameAdvanceError::bridge_repair(
-                        self.session.tick,
-                        self.session.binary_frame,
-                        engineer_id,
-                        cause,
-                    )
-                })?;
-                return Ok(EngineerEntryResult {
+                )?;
+                return Ok(BuildingEntryResult {
                     return_before_foot: true,
                     ..Default::default()
                 });
@@ -684,7 +772,7 @@ impl Simulation {
                 engineer_id,
                 super::UninitContext::new(Some(rules), registry).with_effects(frame_effects),
             );
-            return Ok(EngineerEntryResult {
+            return Ok(BuildingEntryResult {
                 bridge_state_changed: changed,
                 return_before_foot: true,
             });
@@ -701,7 +789,7 @@ impl Simulation {
             frame_effects,
         )
         .map_err(|cause| {
-            super::FrameAdvanceError::bridge_repair(
+            super::FrameAdvanceError::new(
                 self.session.tick,
                 self.session.binary_frame,
                 engineer_id,
@@ -717,9 +805,101 @@ impl Simulation {
             engineer_id,
             super::UninitContext::new(Some(rules), registry).with_effects(frame_effects),
         );
-        Ok(EngineerEntryResult {
+        Ok(BuildingEntryResult {
             bridge_state_changed: changed,
             return_before_foot: true,
+        })
+    }
+
+    /// The PerCell2 building receiver's arm for an infantryman that is not
+    /// an Engineer (`0x00519B66` → `0x00519FF8..0x0051A06E`); both ends
+    /// return before the Foot body.
+    ///
+    /// An `Agent=` one runs `BuildingClass::Infiltrate` with its house
+    /// (`0x0051A002..0x0051A00B`, [`crate::sim::spy_infiltration`]) and
+    /// leaves the game as an engineer does: the attached Tag's event 0x30,
+    /// then vt+0xF8 UnInit (`0x0051A010..0x0051A02E`). Any other drops its
+    /// destination (vt+0x480(NULL, 1)) and scatters from the building's
+    /// GetCoords (vt+0x174(coord, 1, 1); `0x0051A03E..0x0051A061`).
+    ///
+    /// RESIDUAL: no Tag event is raised (`TagClass::Raise_Event`,
+    /// `0x006E53A0`). The receiver gives the building's Tag event 1 ("entered
+    /// by", `0x00519B3E..0x00519B53`) before its Engineer test, and an
+    /// `Agent=` spy's own Tag event 0x30 after the infiltration
+    /// (`0x0051A010..0x0051A025`); VERA attaches no Tags to objects. Trigger:
+    /// a map Tag on the building or on the spy. Effect: its trigger does not
+    /// spring. A building or spy a house builds has no Tag.
+    fn infantry_per_cell_infiltrator_entry(
+        &mut self,
+        infantry_id: u64,
+        building_id: u64,
+        agent: bool,
+        rules: &RuleSet,
+        registry: Option<&crate::rules::overlay_types::OverlayTypeRegistry>,
+        frame_effects: FrameEffects<'_>,
+    ) -> Result<BuildingEntryResult, super::FrameAdvanceError> {
+        let entered = BuildingEntryResult {
+            return_before_foot: true,
+            ..Default::default()
+        };
+        if agent {
+            if let Some(owner) = self
+                .substrate
+                .entities
+                .get(infantry_id)
+                .map(|infantry| infantry.owner())
+            {
+                self.infiltrate_building(building_id, owner, rules);
+            }
+            self.uninit_with_context(
+                infantry_id,
+                super::UninitContext::new(Some(rules), registry).with_effects(frame_effects),
+            );
+            return Ok(entered);
+        }
+        self.turn_away_from_building(infantry_id, building_id, rules, registry, frame_effects)?;
+        Ok(entered)
+    }
+
+    /// How PerCell2 turns an infantryman away from a building: the occupier
+    /// arm (`0x005196DD..0x00519700`) and the building receiver
+    /// (`0x00519EBB`, `0x00519EFC`, `0x00519FB9`, `0x0051A03E..0x0051A061`).
+    /// SetDestination(NULL, 1) (vt+0x480), then Scatter from the building's
+    /// real GetCoords (vt+0x174(coord, 1, 1)), which does not Process. The
+    /// Scatter's heading away from the building draws one Scenario
+    /// `RandomRanged(0, 4)` (`0x0051D258..0x0051D2D4`).
+    pub(crate) fn turn_away_from_building(
+        &mut self,
+        infantry_id: u64,
+        building_id: u64,
+        rules: &RuleSet,
+        registry: Option<&crate::rules::overlay_types::OverlayTypeRegistry>,
+        frame_effects: FrameEffects<'_>,
+    ) -> Result<(), super::FrameAdvanceError> {
+        self.assign_null_destination(infantry_id, Some(rules), registry, frame_effects);
+        let Some(coord) = self.substrate.entities.get(building_id).map(|building| {
+            crate::sim::movement::ground_pose::object_get_coords(
+                building,
+                self.resolved_terrain.as_ref(),
+            )
+        }) else {
+            return Ok(());
+        };
+        self.infantry_scatter_from(
+            infantry_id,
+            (coord.x, coord.y),
+            crate::sim::movement::ScatterFlags::new(true, true),
+            rules,
+            registry,
+            frame_effects,
+        )
+        .map_err(|cause| {
+            super::FrameAdvanceError::new(
+                self.session.tick,
+                self.session.binary_frame,
+                infantry_id,
+                cause,
+            )
         })
     }
 
@@ -1510,7 +1690,13 @@ impl Simulation {
                 PursuitAction::DropTargetAndMovement { entity_id } => {
                     // Foot4D5730 dispatches virtual+3C8 on Sticky refusal,
                     // then the class NULL destination (0x004D573E).
-                    let _ = self.assign_target_represented(entity_id, None, Some(rules));
+                    let _ = self.assign_target_represented(
+                        entity_id,
+                        None,
+                        Some(rules),
+                        overlay_registry,
+                        frame_effects,
+                    );
                     self.assign_null_destination(entity_id, Some(rules), None, frame_effects);
                     if let Some(e) = self.substrate.entities.get_mut(entity_id) {
                         e.movement_target = None;

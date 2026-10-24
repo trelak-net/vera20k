@@ -957,9 +957,11 @@ impl FogState {
         a == b || are_houses_friendly(&self.alliances, interner.resolve(a), interner.resolve(b))
     }
 
-    /// Clear all explored/revealed state for the given owner.
-    /// `MapClass::Reset_Shroud @ 0x00577AB0` for one house; spy infiltration
-    /// and the Darkness crate reset an owner's map knowledge with it.
+    /// Shroud `owner`'s whole buffer again for fog-only fixtures, re-admitting
+    /// only its own admitted sight: no live callbacks, gap pass or map-clear
+    /// byte. The game resets a map through `Simulation::reset_shroud_for_owner`
+    /// (`MapClass::Reset_Shroud @ 0x00577AB0`).
+    #[cfg(test)]
     pub fn reset_explored_for_owner(&mut self, owner: InternedId) {
         let cells = self.rectangular_cells();
         self.transition_whole_map_for_owner(owner, cells, true, false);

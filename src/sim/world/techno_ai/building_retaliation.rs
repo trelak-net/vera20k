@@ -140,8 +140,13 @@ impl Simulation {
                 }
             }
         } else {
-            let _ =
-                self.assign_target_represented(id, Some(TargetKind::Entity(source)), Some(rules));
+            let _ = self.assign_target_represented(
+                id,
+                Some(TargetKind::Entity(source)),
+                Some(rules),
+                overlay_registry,
+                crate::sim::world::FrameEffects::default(),
+            );
         }
         ping
     }

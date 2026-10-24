@@ -204,16 +204,114 @@ impl Simulation {
         }
     }
 
-    /// `MapClass::Reveal @ 0x00577D90` for one house: every allocated cell
-    /// becomes explored, once (`House+0x240`). Natively only `PlayerPtr`'s
-    /// shroud changes; VERA keeps one plane per house, so the lobby's no-shroud
-    /// option and the Reveal crate both ask for their house here.
-    pub(crate) fn reveal_whole_map_for_owner(&mut self, owner: crate::sim::intern::InternedId) {
+    /// The lobby's `Shroud=no` start for the local house
+    /// (`scenario_bootstrap::apply_launch_shroud_option`): every allocated
+    /// cell becomes explored, once (`House+0x240`), with no sight, gap pass
+    /// or map-clear byte. Its native routine is not traced. It is not
+    /// [`Self::reveal_map_for_owner`], whose only callers are the Reveal crate
+    /// (`0x00481FC3`) and the Spy Satellite (`0x00509064`).
+    pub(crate) fn reveal_launch_map_for_owner(&mut self, owner: crate::sim::intern::InternedId) {
         if let Some(terrain) = self.resolved_terrain.as_ref() {
             let cells: Vec<(u16, u16)> = terrain.iter().map(|cell| (cell.rx, cell.ry)).collect();
             self.fog.reveal_cells_for_owner(owner, cells);
         } else {
             self.fog.reveal_all_for_owner(owner);
+        }
+    }
+
+    /// `MapClass::Reveal @ 0x00577D90` for `owner`: it sets the house's
+    /// map-clear byte (`+0x241`, `0x00577DB0`), then explores every allocated
+    /// cell ([`Self::transition_house_map`]). A Spy Satellite coming online
+    /// and the Reveal crate call it.
+    pub(crate) fn reveal_map_for_owner(
+        &mut self,
+        owner: crate::sim::intern::InternedId,
+        rules: &RuleSet,
+    ) {
+        self.transition_house_map(owner, false, rules);
+    }
+
+    /// `MapClass::Reset_Shroud @ 0x00577AB0` for `owner`: it clears the
+    /// house's map-clear byte (`+0x241`, `0x00577ACA`), then shrouds every
+    /// allocated cell again ([`Self::transition_house_map`]). The last Spy
+    /// Satellite going offline, the Darkness crate and a spy in a radar
+    /// building call it.
+    pub(crate) fn reset_shroud_for_owner(
+        &mut self,
+        owner: crate::sim::intern::InternedId,
+        rules: &RuleSet,
+    ) {
+        self.transition_house_map(owner, true, rules);
+    }
+
+    /// The bulk store that `Reveal` and `Reset_Shroud` share. It is bracketed
+    /// by `0x004ADEE0` (each callback object releases its sight and gap on
+    /// `owner`'s map) and `0x004ADCD0` (each re-admits them, in registration
+    /// order, its gap as it is now). Gap removal reads the house's Spy
+    /// Satellite byte (`+0x577A`), which its caller changes only afterwards.
+    /// The map-clear byte (`+0x241`) is written whatever the map does. A
+    /// reveal is skipped once the map is revealed (`+0x240`); a reset never
+    /// is. Natively only `PlayerPtr`'s shroud changes; VERA keeps one plane
+    /// per house.
+    fn transition_house_map(
+        &mut self,
+        owner: crate::sim::intern::InternedId,
+        reset: bool,
+        rules: &RuleSet,
+    ) {
+        if self.fog.width != 0
+            && self.fog.height != 0
+            && (reset || !self.fog.whole_map_revealed_for_owner(owner))
+        {
+            let cells = self.resolved_terrain.as_ref().map_or_else(
+                || self.fog.rectangular_cells(),
+                |terrain| terrain.iter().map(|cell| (cell.rx, cell.ry)).collect(),
+            );
+            //4ADEE0/4ADCD0 do not release allied mobile sight. The represented
+            //multiplayer known-own branch and stock AllyReveal=yes directional
+            //allied Building arm select callbacks; untouched admissions survive
+            //the bulk counter overwrite. Independent41B discovery, campaign
+            //Human and the RevealToAll alternate-recipient branch remain caller
+            //residuals.
+            let sources: std::collections::BTreeSet<u64> = self
+                .substrate
+                .entities
+                .iter_sorted()
+                .filter_map(|(id, entity)| {
+                    if !entity.lifecycle.object_alive || entity.lifecycle.in_limbo {
+                        return None;
+                    }
+                    let own = entity.owner() == owner;
+                    let allied_building = entity.category == EntityCategory::Structure
+                        && crate::map::houses::is_allied_with(
+                            &self.house_alliances,
+                            self.interner.resolve(entity.owner()),
+                            self.interner.resolve(owner),
+                        );
+                    (own || allied_building).then_some(id)
+                })
+                .collect();
+            let old_spy_sat_active = self
+                .houses
+                .get(&owner)
+                .is_some_and(|house| house.spy_sat_active);
+            let (gaps, admitted_gap) = self.prepare_spy_sat_gap_reentry(owner, rules);
+            self.fog.transition_whole_map_with_gap_reentry(
+                owner,
+                cells,
+                reset,
+                old_spy_sat_active,
+                &sources,
+                Some(&gaps),
+            );
+            //577D90 sets240 before callbacks; every successful6FB170
+            //re-admission clears it again, including a friendly generator.
+            if admitted_gap {
+                self.fog.invalidate_whole_map_reveal_for_owner(owner);
+            }
+        }
+        if let Some(house) = self.houses.get_mut(&owner) {
+            house.map_is_clear = !reset;
         }
     }
 

@@ -742,8 +742,14 @@ fn a_retail_grand_cannons_mission_aim_starts_and_releases_the_retail_cue() {
             ai_counter: 0,
             dispatch_timer: MissionDispatchTimer::from_raw(frame as i32, 0),
         });
-    sim.assign_target_represented(id, Some(TargetKind::Entity(enemy)), Some(&rules))
-        .expect("target assignment");
+    sim.assign_target_represented(
+        id,
+        Some(TargetKind::Entity(enemy)),
+        Some(&rules),
+        None,
+        FrameEffects::default(),
+    )
+    .expect("target assignment");
     assert!(
         sim.substrate
             .entities

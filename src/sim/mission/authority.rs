@@ -701,17 +701,22 @@ impl Simulation {
         self.mission_restore_exact_with_effects(receiver, &mut effects)
     }
 
+    /// The overlay registry and frame effects serve the Infantry setter's
+    /// `Infiltrate=` arm, the one that sets a destination
+    /// ([`Simulation::infiltrator_target_building`]).
     pub(crate) fn assign_target_represented(
         &mut self,
         receiver: u64,
         requested: Option<TargetKind>,
         rules: Option<&RuleSet>,
+        overlay_registry: Option<&crate::rules::overlay_types::OverlayTypeRegistry>,
+        frame_effects: FrameEffects<'_>,
     ) -> Result<(), MissionAuthorityError> {
         if !self.substrate.entities.contains(receiver) {
             return Err(MissionAuthorityError::MissingReceiver(receiver));
         }
         let mut effects =
-            RepresentedConcreteMissionEffects::new(rules, None, FrameEffects::default());
+            RepresentedConcreteMissionEffects::new(rules, overlay_registry, frame_effects);
         let prepared =
             effects.preflight(self, receiver, ConcreteSetterRequest::Target { requested })?;
         effects.apply_target(self, &prepared, requested);

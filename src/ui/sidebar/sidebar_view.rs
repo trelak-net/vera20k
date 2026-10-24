@@ -347,6 +347,7 @@ pub(crate) fn build_sidebar_view_with_spec(
                 display_name: entry.display_name,
                 cost: entry.cost,
                 has_cameo_art: false,
+                alt_cameo: false,
                 queue_category: entry.queue_category,
                 enabled: entry.enabled,
                 progress: entry.progress,

@@ -390,7 +390,7 @@ impl Simulation {
         if let Some((team_id, _)) = self.team_script_vm.team_for_member(id) {
             self.team_scan_limit(team_id, rules, registry, frame_effects);
         }
-        let _ = self.assign_target_represented(id, None, Some(rules));
+        let _ = self.assign_target_represented(id, None, Some(rules), registry, frame_effects);
     }
 
     /// 0x4B2E77..0x4B2F1A / 0x6A24C7..: a stopped Foot holding a target it

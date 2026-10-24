@@ -1613,7 +1613,7 @@ fn fireat_tail(
             world.team_fire_once_complete(snap.stable_id, rules, overlay_registry, effects);
         }
         world
-            .assign_target_represented(snap.stable_id, None, Some(rules))
+            .assign_target_represented(snap.stable_id, None, Some(rules), overlay_registry, effects)
             .expect("FireOnce firer retains its concrete target receiver");
     }
 }
@@ -1991,7 +1991,13 @@ pub(crate) fn visit_fire(
     boundary.commit(world, run, rules, overlay_registry, emit, pings);
     for removed in emit.remove_attack.drain(remove_start..) {
         world
-            .assign_target_represented(removed, None, Some(rules))
+            .assign_target_represented(
+                removed,
+                None,
+                Some(rules),
+                overlay_registry,
+                FrameEffects::default(),
+            )
             .expect("FireAt target receiver remains retained");
     }
     deduct_fire_ammo(world, &emit.ammo_deduct[ammo_start..]);

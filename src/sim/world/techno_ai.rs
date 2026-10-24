@@ -1376,7 +1376,7 @@ fn illegal_target_drop_step(sim: &mut Simulation, id: u64, rules: &RuleSet) {
     if matches!(code, FireError::Illegal | FireError::Cant) {
         //6FA4CB dispatches class+3C8 before this object's mission handler:
         // Infantry51B1F0 clears68D/requests its action and invalidates5E0.
-        sim.assign_target_represented(id, None, Some(rules))
+        sim.assign_target_represented(id, None, Some(rules), None, FrameEffects::default())
             .expect("the queried target-drop receiver remains present");
     }
 }
@@ -1561,7 +1561,7 @@ fn allied_target_drop_step(sim: &mut Simulation, id: u64, rules: &RuleSet) {
     }
     //6FA46C precedes the subsequent live target re-read and illegal test.
     // Preserve class refusal and synchronous action/path effects.
-    sim.assign_target_represented(id, None, Some(rules))
+    sim.assign_target_represented(id, None, Some(rules), None, FrameEffects::default())
         .expect("the queried allied-target receiver remains present");
 }
 
@@ -1953,7 +1953,7 @@ fn clear_passive_target_off_mission(sim: &mut Simulation, id: u64, rules: Option
     if !drop {
         return;
     }
-    let _ = sim.assign_target_represented(id, None, rules);
+    let _ = sim.assign_target_represented(id, None, rules, None, FrameEffects::default());
     if let Some(entity) = sim.substrate.entities.get_mut(id) {
         entity.passively_acquired_target = false;
     }

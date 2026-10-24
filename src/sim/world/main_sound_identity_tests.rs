@@ -89,8 +89,14 @@ fn scene(rules: &RuleSet) -> (Simulation, [u64; 2], u64, u64) {
     let target = sim
         .spawn_object("TARGET", "Enemy", 20, 24, 0, rules)
         .unwrap();
-    sim.assign_target_represented(gun, Some(TargetKind::Entity(target)), Some(rules))
-        .unwrap();
+    sim.assign_target_represented(
+        gun,
+        Some(TargetKind::Entity(target)),
+        Some(rules),
+        None,
+        crate::sim::world::FrameEffects::default(),
+    )
+    .unwrap();
     assert!(sim.interner.get("LateGun").is_none());
     assert!(sim.interner.get("LateWarhead").is_none());
     (sim, squids, gun, target)

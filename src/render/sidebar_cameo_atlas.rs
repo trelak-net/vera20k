@@ -33,16 +33,30 @@ pub struct SidebarCameoEntry {
 pub struct SidebarCameoAtlas {
     pub texture: BatchTexture,
     entries: HashMap<String, SidebarCameoEntry>,
+    /// Each type's `AltCameo=` image that loaded, by type id.
+    alt_entries: HashMap<String, SidebarCameoEntry>,
 }
 
 impl SidebarCameoAtlas {
     pub fn get(&self, type_id: &str) -> Option<&SidebarCameoEntry> {
         self.entries.get(&type_id.to_ascii_uppercase())
     }
+
+    /// The cameo `TechnoTypeClass::GetCameo @ 0x00712040` returns: the
+    /// type's `AltCameo=` image when `alt` holds and it loaded
+    /// (`pAltCameo != NULL`), else its plain cameo.
+    pub fn cameo(&self, type_id: &str, alt: bool) -> Option<&SidebarCameoEntry> {
+        let key = type_id.to_ascii_uppercase();
+        alt.then(|| self.alt_entries.get(&key))
+            .flatten()
+            .or_else(|| self.entries.get(&key))
+    }
 }
 
 struct RenderedCameo {
     type_id: String,
+    /// An `AltCameo=` image, packed into [`SidebarCameoAtlas::alt_entries`].
+    alt: bool,
     rgba: Vec<u8>,
     width: u32,
     height: u32,
@@ -71,6 +85,9 @@ pub fn build_sidebar_cameo_atlas(
         if let Some(cameo) = render_cameo(type_id, asset_manager, rules, palette) {
             rendered.push(cameo);
         }
+        if let Some(cameo) = render_alt_cameo(type_id, asset_manager, rules, palette) {
+            rendered.push(cameo);
+        }
     }
 
     // Load superweapon sidebar images (e.g. BOLTICON, CHROICON).
@@ -79,7 +96,7 @@ pub fn build_sidebar_cameo_atlas(
         if let Some(ref image_name) = sw.sidebar_image {
             let upper = image_name.to_ascii_uppercase();
             // Skip if already loaded (e.g. SPYPICON reused as unit cameo).
-            if rendered.iter().any(|r| r.type_id == upper) {
+            if rendered.iter().any(|r| !r.alt && r.type_id == upper) {
                 continue;
             }
             if let Some(cameo) = render_sw_cameo(&upper, asset_manager, palette) {
@@ -231,22 +248,31 @@ fn render_cameo(
     let (data, file_name) = candidates
         .iter()
         .find_map(|name| asset_manager.get_ref(name).map(|data| (data, name.clone())))?;
-    let shp = ShpFile::from_bytes(data).ok()?;
-    if shp.frames.is_empty() {
-        return None;
-    }
-
-    let frame_rgba = shp.frame_to_rgba(0, palette).ok()?;
-    let frame = &shp.frames[0];
-    let full_w = shp.width as u32;
-    let full_h = shp.height as u32;
-    if full_w == 0 || full_h == 0 {
-        return None;
-    }
-    let mut full_rgba = vec![0u8; (full_w * full_h * 4) as usize];
-    blit_frame_into_full_bounds(&mut full_rgba, full_w, full_h, frame, &frame_rgba);
-    let cameo = rendered_cameo_from_canvas(type_id, full_rgba, full_w, full_h)?;
+    let cameo = render_shp_frame0(type_id, data, palette)?;
     log::debug!("Sidebar cameo {} loaded from {}", type_id, file_name);
+    Some(cameo)
+}
+
+/// A type's `AltCameo=` image: `<AltCameo>.SHP`, read from the type's image
+/// section only (`TechnoTypeClass::ReadINI`, section `+0x1F8` at
+/// `0x00715A73`), with no fallback when it is missing.
+fn render_alt_cameo(
+    type_id: &str,
+    asset_manager: &AssetManager,
+    rules: &RuleSet,
+    palette: &Palette,
+) -> Option<RenderedCameo> {
+    let rules_image = rules
+        .object(type_id)
+        .map(|obj| obj.image.clone())
+        .unwrap_or_else(|| type_id.to_string());
+    let alt_cameo = rules
+        .art()
+        .resolve_declared_alt_cameo_id(type_id, &rules_image)?;
+    let shp_name = format!("{alt_cameo}.SHP");
+    let mut cameo = render_shp_frame0(type_id, asset_manager.get_ref(&shp_name)?, palette)?;
+    cameo.alt = true;
+    log::debug!("Sidebar alt cameo {} loaded from {}", type_id, shp_name);
     Some(cameo)
 }
 
@@ -260,7 +286,13 @@ fn render_sw_cameo(
     palette: &Palette,
 ) -> Option<RenderedCameo> {
     let shp_name = format!("{image_name}.SHP");
-    let data = asset_manager.get_ref(&shp_name)?;
+    let cameo = render_shp_frame0(image_name, asset_manager.get_ref(&shp_name)?, palette)?;
+    log::debug!("SW sidebar cameo {} loaded from {}", image_name, shp_name);
+    Some(cameo)
+}
+
+/// Frame 0 of a cameo SHP on its full canvas, keyed by `key`.
+fn render_shp_frame0(key: &str, data: &[u8], palette: &Palette) -> Option<RenderedCameo> {
     let shp = ShpFile::from_bytes(data).ok()?;
     if shp.frames.is_empty() {
         return None;
@@ -274,9 +306,7 @@ fn render_sw_cameo(
     }
     let mut full_rgba = vec![0u8; (full_w * full_h * 4) as usize];
     blit_frame_into_full_bounds(&mut full_rgba, full_w, full_h, frame, &frame_rgba);
-    let cameo = rendered_cameo_from_canvas(image_name, full_rgba, full_w, full_h)?;
-    log::debug!("SW sidebar cameo {} loaded from {}", image_name, shp_name);
-    Some(cameo)
+    rendered_cameo_from_canvas(key, full_rgba, full_w, full_h)
 }
 
 /// Repo-only fallback guesses kept out of `rules::art_data`.
@@ -358,6 +388,7 @@ fn rendered_cameo_from_canvas(
         crop_visible_bounds(&full_rgba, canvas_width, canvas_height)?;
     Some(RenderedCameo {
         type_id: type_id.to_ascii_uppercase(),
+        alt: false,
         rgba,
         width,
         height,
@@ -479,6 +510,7 @@ fn pack_cameos(
     }
     let mut rgba = vec![0u8; (atlas_width * atlas_height * 4) as usize];
     let mut entries = HashMap::with_capacity(cameos.len());
+    let mut alt_entries = HashMap::new();
     let aw = atlas_width as f32;
     let ah = atlas_height as f32;
 
@@ -491,7 +523,12 @@ fn pack_cameos(
             rgba[dst_start..dst_start + byte_count]
                 .copy_from_slice(&cameo.rgba[src_start..src_start + byte_count]);
         }
-        entries.insert(
+        let target = if cameo.alt {
+            &mut alt_entries
+        } else {
+            &mut entries
+        };
+        target.insert(
             cameo.type_id.clone(),
             SidebarCameoEntry {
                 uv_origin: [px as f32 / aw, py as f32 / ah],
@@ -506,6 +543,7 @@ fn pack_cameos(
     Some(SidebarCameoAtlas {
         texture: batch.create_texture(gpu, &rgba, atlas_width, atlas_height),
         entries,
+        alt_entries,
     })
 }
 

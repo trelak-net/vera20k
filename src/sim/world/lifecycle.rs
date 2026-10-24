@@ -3258,7 +3258,13 @@ impl Simulation {
             }
         }
         if walking_infantry {
-            let _ = self.assign_target_represented(stable_id, None, context.rules);
+            let _ = self.assign_target_represented(
+                stable_id,
+                None,
+                context.rules,
+                None,
+                FrameEffects::default(),
+            );
         } else if let Some(entity) = self.substrate.entities.get_mut(stable_id) {
             crate::sim::mission::concrete_effects::represented_assign_target(entity, None);
         }
@@ -3615,7 +3621,7 @@ impl Simulation {
 
             let target_cleared = self.listener_targets(listener_id, target);
             if target_cleared {
-                self.assign_target_represented(listener_id, None, rules)
+                self.assign_target_represented(listener_id, None, rules, registry, effects)
                     .expect("detach sweep listener remains present for the target clear");
             }
 
@@ -3842,7 +3848,7 @@ impl Simulation {
         }
 
         if clears_current_target {
-            self.assign_target_represented(listener_id, None, rules)
+            self.assign_target_represented(listener_id, None, rules, registry, effects)
                 .expect("expiry listener remains present");
             if mission_is_suspended {
                 self.mission_restore_represented(listener_id, rules, registry, effects)

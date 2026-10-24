@@ -593,7 +593,7 @@ impl Simulation {
             .get(id)
             .ok_or("retired Walk failed-path receiver")?;
         if actor.mission.effective().raw() == 15 {
-            self.assign_target_represented(id, None, Some(rules))
+            self.assign_target_represented(id, None, Some(rules), None, frame_effects)
                 .map_err(|error| format!("{error:?}"))?;
             self.assign_null_destination(id, Some(rules), None, frame_effects);
         }

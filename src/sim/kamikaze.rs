@@ -285,9 +285,13 @@ impl KamikazeHost for WorldHost<'_> {
             .ok()
             .zip(u16::try_from(y).ok())
             .map(|(x, y)| TargetKind::Cell(x, y));
-        let _ = self
-            .sim
-            .assign_target_represented(child, cell, Some(self.rules));
+        let _ = self.sim.assign_target_represented(
+            child,
+            cell,
+            Some(self.rules),
+            None,
+            FrameEffects::default(),
+        );
     }
 
     fn queue_attack(&mut self, child: u64) {

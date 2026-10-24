@@ -85,9 +85,8 @@ impl PowerState {
     /// House50BC90, also called by ForceShield6CD18B: replace the timer,
     /// including a shorter or zero duration, and dirty power only. Original
     /// setter/overlap controls are preserved in house_power_consumers.
-    pub(crate) fn start_blackout(&mut self, binary_frame: u32, duration: u32) {
-        self.blackout_timer
-            .start(binary_frame as i32, duration as i32);
+    pub(crate) fn start_blackout(&mut self, binary_frame: u32, duration: i32) {
+        self.blackout_timer.start(binary_frame as i32, duration);
         self.invalidate(false);
     }
 
@@ -119,6 +118,18 @@ impl PowerState {
     #[cfg(test)]
     pub(crate) fn radar_recheck_for_test(&self) -> bool {
         self.radar_dirty
+    }
+
+    /// House+5778: the next House update reassesses power.
+    #[cfg(test)]
+    pub(crate) fn power_recheck_for_test(&self) -> bool {
+        self.power_dirty
+    }
+
+    /// House+2A4/+2AC.
+    #[cfg(test)]
+    pub(crate) fn blackout_timer_for_test(&self) -> crate::sim::timer::CdTimer {
+        self.blackout_timer
     }
 
     #[cfg(test)]
@@ -522,20 +533,6 @@ pub fn is_building_powered(
         .is_none_or(PowerState::has_full_power)
 }
 
-/// Trigger a spy-infiltration power blackout for the target owner.
-///
-/// Arms the House countdown for the configured duration from `[General]`.
-/// While active, the owner's power output is forced to 0.
-#[cfg(test)]
-pub fn trigger_spy_blackout(
-    power_states: &mut BTreeMap<InternedId, PowerState>,
-    owner_id: InternedId,
-    duration_frames: u32,
-) {
-    let state = power_states.entry(owner_id).or_default();
-    state.start_blackout(0, duration_frames);
-}
-
 /// Check if the given owner has at least one active (powered) radar building.
 pub fn has_active_radar(
     power_states: &BTreeMap<InternedId, PowerState>,
@@ -898,7 +895,7 @@ BuildSpeed=0.02
         assert!(!states[&owner].is_low_power);
         tick_power_states(&mut states, &mut store, &rules, &interner, 0);
         assert!(states[&owner].is_low_power);
-        trigger_spy_blackout(&mut states, owner, 2);
+        states.entry(owner).or_default().start_blackout(0, 2);
         store.remove(2);
         tick_power_states(&mut states, &mut store, &rules, &interner, 0);
         assert!(!states[&owner].is_low_power);
@@ -1009,7 +1006,7 @@ BuildSpeed=0.02
         let interner = test_interner();
         let allies = intern::test_intern("Allies");
         let mut states: BTreeMap<InternedId, PowerState> = BTreeMap::new();
-        trigger_spy_blackout(&mut states, allies, 5);
+        states.entry(allies).or_default().start_blackout(0, 5);
 
         // House4F844B..4F84EA resets at exactly one remaining frame.
         // Assessments before that boundary preserve the original start/delay.

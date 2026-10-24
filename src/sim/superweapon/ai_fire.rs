@@ -351,13 +351,7 @@ fn rally_value(
             _ if ty.is_plug => value(&values.plug),
             _ if ty.is_temple => value(&values.temple),
             _ if ty.hover_pad => value(&values.helipad),
-            _ if rules
-                .build_tech_types
-                .iter()
-                .any(|tech| tech.eq_ignore_ascii_case(&ty.id)) =>
-            {
-                value(&values.tech_center)
-            }
+            _ if rules.is_build_tech(&ty.id) => value(&values.tech_center),
             _ => 4,
         },
         EntityCategory::Infantry if ty.engineer => value(&values.engineer),

@@ -833,7 +833,7 @@ fn process_boarding_passenger(
         }
         // A boarding open-topped unit's own riders let go of their targets
         // (Unit `0x0073A76E..0x0073A77C`).
-        sim.open_topped_passengers_take_target(pax_id, None, rules);
+        sim.open_topped_passengers_take_target(pax_id, None, rules, registry, effects);
 
         if transport_gunner {
             receive_gunner(sim, rules, transport_id, pax_id);
@@ -1035,6 +1035,8 @@ impl Simulation {
         transport_id: u64,
         target: Option<crate::sim::combat::TargetKind>,
         rules: &RuleSet,
+        overlay_registry: Option<&crate::rules::overlay_types::OverlayTypeRegistry>,
+        frame_effects: FrameEffects<'_>,
     ) {
         let Some(transport) = self.substrate.entities.get(transport_id) else {
             return;
@@ -1053,7 +1055,13 @@ impl Simulation {
         for passenger in passengers {
             // Original71056C dispatches each receiver's virtual+3C8, including
             // Infantry51B1F0's synchronous action/path/latch effects.
-            let _ = self.assign_target_represented(passenger, target, Some(rules));
+            let _ = self.assign_target_represented(
+                passenger,
+                target,
+                Some(rules),
+                overlay_registry,
+                frame_effects,
+            );
         }
     }
 }

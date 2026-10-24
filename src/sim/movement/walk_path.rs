@@ -354,7 +354,7 @@ impl Simulation {
                 && actor.attack_target.is_some()
                 && !self.foot_can_reach_navigation_cell(id, coordinate, rules)?
             {
-                self.assign_target_represented(id, None, Some(rules))
+                self.assign_target_represented(id, None, Some(rules), None, frame_effects)
                     .map_err(|error| format!("{error:?}"))?;
             }
         }

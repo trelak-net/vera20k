@@ -657,9 +657,9 @@ pub enum Command {
         target_rx: u16,
         target_ry: u16,
     },
-    /// Order an engineer to capture an enemy building.
-    /// Engineer walks to the building, instantly transfers ownership on arrival,
-    /// and is consumed.
+    /// The Capture click (action 9) of an Engineer or a spy on a building:
+    /// the infantryman walks in, and on arrival `InfantryClass::PerCellProcess`
+    /// captures, repairs or infiltrates it (`sim::movement::per_cell`).
     CaptureBuilding {
         engineer_id: u64,
         target_building_id: u64,

@@ -445,8 +445,14 @@ fn set_target_matches_the_original() {
             sim.power_states.insert(owner, power_state);
         }
         let requested = (input["args"][0] != 0).then_some(TargetKind::Entity(target));
-        sim.assign_target_represented(building, requested, Some(&rules))
-            .unwrap();
+        sim.assign_target_represented(
+            building,
+            requested,
+            Some(&rules),
+            None,
+            crate::sim::world::FrameEffects::default(),
+        )
+        .unwrap();
         assert_eq!(
             sim.substrate
                 .entities
@@ -630,12 +636,20 @@ fn building_dispatch_cadence_matches_the_original() {
                         building,
                         Some(TargetKind::Entity(target)),
                         Some(&rules),
+                        None,
+                        crate::sim::world::FrameEffects::default(),
                     )
                     .unwrap();
                 }
                 Some(Event::Lose) => {
-                    sim.assign_target_represented(building, None, Some(&rules))
-                        .unwrap();
+                    sim.assign_target_represented(
+                        building,
+                        None,
+                        Some(&rules),
+                        None,
+                        crate::sim::world::FrameEffects::default(),
+                    )
+                    .unwrap();
                 }
                 Some(Event::Order) | None => {}
             }

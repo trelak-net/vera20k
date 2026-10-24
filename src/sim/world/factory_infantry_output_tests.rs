@@ -308,8 +308,14 @@ fn ground_command_fixture(
             target_actor.mission.queued().raw(),
             prior["queued"].as_i64().unwrap() as i32
         );
-        sim.assign_target_represented(id, Some(TargetKind::Entity(target)), Some(&rules))
-            .unwrap();
+        sim.assign_target_represented(
+            id,
+            Some(TargetKind::Entity(target)),
+            Some(&rules),
+            None,
+            crate::sim::world::FrameEffects::default(),
+        )
+        .unwrap();
     }
     if row["name"] == "current_cell_raw20_B" && state["walk"]["moving"] != 0 {
         // The original contrast changes only +124; membership and the
