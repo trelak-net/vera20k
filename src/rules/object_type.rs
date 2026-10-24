@@ -119,6 +119,7 @@ pub enum PipScale {
     Tiberium,
     Passengers,
     Ammo,
+    MindControl,
 }
 
 impl PipScale {
@@ -127,6 +128,7 @@ impl PipScale {
             "tiberium" => Self::Tiberium,
             "passengers" => Self::Passengers,
             "ammo" => Self::Ammo,
+            "mindcontrol" => Self::MindControl,
             _ => Self::None,
         }
     }
@@ -1372,6 +1374,10 @@ pub struct ObjectType {
     /// What pip display to render below the health bar (PipScale= in rules.ini).
     /// `Tiberium` shows per-bale cargo pips for harvesters using pips2.shp.
     pub pip_scale: PipScale,
+    /// Infantry cargo color (Pip=), separate from the garrison's OccupyPip.
+    pub passenger_pip: usize,
+    /// Ammo pip wrap width; zero draws one bullet per remaining round.
+    pub pip_wrap: i32,
 
     /// Whether this building absorbs infantry (Yuri Bio Reactor).
     /// Parsed from `InfantryAbsorb=yes` in rules.ini.
@@ -2715,6 +2721,14 @@ impl ObjectType {
                 .read_name("PipScale", 0x20)
                 .map(PipScale::from_ini)
                 .unwrap_or_default(),
+            passenger_pip: section.read_name("Pip", 0x20).map_or(1, |name| {
+                match name.to_ascii_lowercase().as_str() {
+                    "empty" => 0, "white" => 1, "green" => 2,
+                    "yellow" => 3, "red" => 4, "blue" => 5,
+                    _ => 1,
+                }
+            }),
+            pip_wrap: section.read_int("PipWrap", 0),
             infantry_absorb: section.read_bool("InfantryAbsorb", false),
             unit_absorb: section.read_bool("UnitAbsorb", false),
             grinding: section.read_bool("Grinding", false),

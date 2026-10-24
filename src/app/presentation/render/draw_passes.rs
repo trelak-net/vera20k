@@ -536,10 +536,8 @@ pub(super) fn dispatch_draw_passes(
         .match_presentation
         .selection_overlay
         .as_ref()
-        .map(|o| {
-            o.tiberium_pip_texture()
-                .unwrap_or_else(|| o.white_texture())
-        });
+        .and_then(|o| o.unit_readout_pips())
+        .map(|pips| pips.texture());
     draw_pooled_no_depth(
         &mut pass,
         &state.renderer.batch_renderer,

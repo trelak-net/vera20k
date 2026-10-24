@@ -110,6 +110,7 @@ pub struct SelectionOverlay {
     /// `0x0D` for the organic arm (the red cross) and frame `0x14` for the
     /// units arm (the white wrench).
     self_heal_pip: Option<CenteredShapeStrip>,
+    unit_readout_pips: Option<CenteredShapeStrip>,
 }
 
 /// Every frame of one SHP packed side by side at its stored size, each with
@@ -360,6 +361,10 @@ impl SelectionOverlay {
             bomb_clock,
             repair_wrench,
             self_heal_pip,
+            unit_readout_pips: assets.and_then(|assets| {
+                load_centered_shape_strip(gpu, batch, assets, "pips2.shp", "palette.pal")
+                    .or_else(|| load_centered_shape_strip(gpu, batch, assets, "pips2.shp", "unittem.pal"))
+            }),
         }
     }
 
@@ -375,6 +380,10 @@ impl SelectionOverlay {
 
     /// The self-heal status pip art (PIPS.SHP frames 0x0D / 0x14), when the
     /// assets have it.
+    pub fn unit_readout_pips(&self) -> Option<&CenteredShapeStrip> {
+        self.unit_readout_pips.as_ref()
+    }
+
     pub fn self_heal_pip(&self) -> Option<&CenteredShapeStrip> {
         self.self_heal_pip.as_ref()
     }

@@ -61,9 +61,8 @@
 //!   house's Grinders. Frequency: AI Yuri games with a Grinder.
 //! - The link line (`DrawLinks @ 0x00472160`, the node timer from
 //!   `MindControlAttackLineFrames=`), the overload flash counter (`+0x44`)
-//!   and the Mastermind's `PipScale=MindControl` pips (`0x0070A15C` ->
-//!   `0x00708C30` case 5 -> Count `0x004722D0`) feed only rendering and are
-//!   not kept.
+//!   remain unmodeled. Mastermind count/capacity pips now read this manager
+//!   directly in app/presentation/unit_readouts.rs.
 //! - The Mastermind's overload rocking (`+0x330`, sideways lean 0.015/0.03)
 //!   has no VERA rocking producer; its Scenario draw is kept.
 //! - An expired ring anim clears the victim's `+0x2C8` natively
@@ -152,9 +151,12 @@ impl CaptureManagerState {
         !self.nodes.is_empty()
     }
 
-    fn count(&self) -> i32 {
+    pub(crate) fn count(&self) -> i32 {
         i32::try_from(self.nodes.len()).unwrap_or(i32::MAX)
     }
+
+    pub(crate) fn capacity(&self) -> i32 { self.max_control }
+    pub(crate) fn is_overloaded(&self) -> bool { self.infinite && self.count() > self.max_control }
 
     /// CanCapture's capacity gate (`0x00471C90`, gate 8): a finite manager
     /// below its limit, or one limited to a single victim, which CaptureUnit
