@@ -157,10 +157,7 @@ pub(crate) fn anim_palette_light(
 /// committed `binary_frame`. VERA's compatibility tint, for translucent and
 /// effect draws, is linear in the intensity and takes the same ratio.
 ///
-/// RESIDUAL: DrawSHP and TechnoClass::Draw also scale a building an airstrike
-/// aims at that is off
-/// the curtain (`0x0070633E..0x00706375`), with the airstrike's tint
-/// (`sim/superweapon/invulnerability.rs`).
+/// Airstrike target buildings also apply the separate airstrike tint phase.
 pub(crate) fn techno_effect_light(
     entity: &crate::sim::game_entity::GameEntity,
     tint: [f32; 3],
@@ -233,6 +230,13 @@ fn techno_effect_light_at(
     let tinted = curtain.map_or(flashed, |curtain| {
         curtain.effect_tint_intensity(flashed, frame as i32)
     });
+    let tinted = if entity.airstrike.controller.is_some()
+        && entity.category == crate::map::entities::EntityCategory::Structure
+    {
+        entity.airstrike.tint.intensity(tinted, frame as i32)
+    } else {
+        tinted
+    };
     let ratio = if intensity == 0 {
         1.0
     } else {
@@ -255,8 +259,7 @@ fn techno_effect_light_at(
 /// Which blits OR it into their pixels is the blitter's
 /// ([`crate::render::tactical_draw_plan::BlitPolicy::ors_colour_word`]).
 ///
-/// RESIDUAL: an airstrike's target (`+0x294`) ORs the `LaserTargetColor=`
-/// word (retail HighRed) the same way; it comes with the airstrike.
+/// A designated airstrike target uses LaserTargetColor (retail HighRed).
 pub(crate) fn building_colour_word(
     building: &crate::sim::game_entity::GameEntity,
     sim: &Simulation,
@@ -270,12 +273,15 @@ pub(crate) fn building_colour_word(
                 sim.session.binary_frame,
             )
     });
-    if !shielded || shrouded() {
+    let marked = building.airstrike.controller.is_some();
+    if (!shielded && !marked) || shrouded() {
         return 0;
     }
-    rules
-        .color_add
-        .rgb565_word(rules.general.force_shield_color)
+    rules.color_add.rgb565_word(if shielded {
+        rules.general.force_shield_color
+    } else {
+        rules.general.laser_target_color
+    })
 }
 
 pub(crate) fn color_scheme_rgb(

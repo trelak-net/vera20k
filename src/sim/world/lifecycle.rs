@@ -3221,6 +3221,12 @@ impl Simulation {
     /// Native execution of an Aircraft's: `tools/spatial_oracle/fly_stop`'s
     /// Stun rows, replayed by `fly_process_tests::fly_death_stun_matches_native_rows`.
     pub(crate) fn techno_death_stun(&mut self, stable_id: u64, context: UninitContext<'_>) {
+        self.airstrike_cancel(
+            stable_id,
+            context.rules(),
+            context.registry(),
+            context.effects(),
+        );
         self.magnetron_release(
             stable_id,
             false,
@@ -3476,6 +3482,7 @@ impl Simulation {
             || listener.capture_manager.is_some()
             || listener.temporal.has_link()
             || listener.magnetron.references().any(|id| id == expired_id)
+            || listener.airstrike.references().any(|id| id == expired_id)
             || listener.tesla_charging.names(expired_id)
             || listener.distributed_fire.names(expired_id)
             || listener.parasite_eating_me.is_some()
@@ -4369,6 +4376,13 @@ impl Simulation {
                 // Building44EA77 removes a charger for either expiry control;
                 // the overpower latch changes at the next Building AI update.
                 self.tesla_pointer_expired(listener_id, expired_id);
+                self.airstrike_pointer_expired(
+                    listener_id,
+                    expired_id,
+                    context.rules(),
+                    context.registry(),
+                    context.effects(),
+                );
                 self.magnetron_pointer_expired(
                     listener_id,
                     expired_id,

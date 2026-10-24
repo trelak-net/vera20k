@@ -264,6 +264,14 @@ impl Simulation {
         if let Some(rules) = rules {
             ge.capture_manager = crate::sim::capture_manager::init_capture_manager(obj, rules);
             ge.temporal = crate::sim::temporal::init_temporal(obj, rules);
+            if obj.airstrike_team_type.as_ref().is_some_and(|name| {
+                rules
+                    .aircraft_ids
+                    .iter()
+                    .any(|id| id.eq_ignore_ascii_case(name))
+            }) {
+                ge.airstrike.manager = Some(Default::default());
+            }
             ge.spawn_manager = crate::sim::spawn_manager::init_spawn_manager(
                 obj,
                 rules,

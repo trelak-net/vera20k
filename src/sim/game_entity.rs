@@ -641,6 +641,7 @@ pub struct GameEntity {
     pub(crate) foot_locomotor_swap_active: bool,
     #[serde(default)]
     pub(crate) magnetron: crate::sim::magnetron::MagnetronState,
+    pub(crate) airstrike: crate::sim::airstrike::AirstrikeState,
     /// Techno+0x1F8, constructor zero (`0x006F2CE1`). The Unit setter's
     /// Teleporter arm raises it when a Drive cannot end yet (`0x007425C6`), so
     /// the next setter call runs for an unchanged NavCom (`0x00741A88`); every
@@ -1747,6 +1748,7 @@ impl GameEntity {
             foot_occupation_enabled: true,
             foot_locomotor_swap_active: false,
             magnetron: Default::default(),
+            airstrike: Default::default(),
             setter_force_reassign: false,
             chrono_warp_delay: 0,
             attack_target: None,

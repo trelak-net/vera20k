@@ -887,6 +887,14 @@ pub struct ObjectType {
     /// enter its progress state even when the contact was already at Strength.
     pub manual_reload: bool,
 
+    /// TechnoType+61C..630: Boris reinforcement counts, types and frame recharge.
+    pub airstrike_team: i32,
+    pub elite_airstrike_team: i32,
+    pub airstrike_team_type: Option<String>,
+    pub elite_airstrike_team_type: Option<String>,
+    pub airstrike_recharge_time: i32,
+    pub elite_airstrike_recharge_time: i32,
+
     // -- Spawn manager (Spawns= pool: V3, Dreadnought, Boomer, Carrier, Destroyer) --
     /// TechnoType this unit spawns as sub-units (`Spawns=`). Presence of a
     /// resolvable value is the sole gate on creating a spawn manager, matching
@@ -2508,6 +2516,16 @@ impl ObjectType {
             ammo: section.read_int("Ammo", -1),
             initial_ammo: section.read_int("InitialAmmo", -1),
 
+            airstrike_team: section.read_int("AirstrikeTeam", 0),
+            elite_airstrike_team: section.read_int("EliteAirstrikeTeam", 0),
+            airstrike_team_type: section
+                .read_type_name("AirstrikeTeamType", 0x80)
+                .map(str::to_ascii_uppercase),
+            elite_airstrike_team_type: section
+                .read_type_name("EliteAirstrikeTeamType", 0x80)
+                .map(str::to_ascii_uppercase),
+            airstrike_recharge_time: section.read_int("AirstrikeRechargeTime", 0),
+            elite_airstrike_recharge_time: section.read_int("EliteAirstrikeRechargeTime", 0),
             // Spawn manager pool
             // `0x00714E97..0x00714EB3` reads the name through
             // `AircraftTypeClass::FindOrAllocate @ 0x0041CEF0`, which answers

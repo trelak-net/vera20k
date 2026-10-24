@@ -321,7 +321,7 @@ pub(crate) struct ExitFacts {
     /// `HouseClass::IsControlledByHuman @ 0x0050B730`.
     pub human: bool,
     /// `+0x294`, an AirstrikeClass (Boris' MiGs): the aircraft leaf's
-    /// `airstrike_manager_present`, which no VERA producer sets.
+    /// `airstrike_manager_present`, installed by the Boris reinforcement owner.
     pub airstrike: bool,
 }
 

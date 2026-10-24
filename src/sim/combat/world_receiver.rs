@@ -1877,8 +1877,8 @@ enum SpecialArmTarget {
 /// at `0x00469A3F`. So the caller runs neither, and runs the shared tail below
 /// `LAB_00469AA4` after this returns. `owner` is the bullet's `+0xB0`.
 ///
-/// RESIDUAL: Airstrike (`0x00469705`) and DirectRocker (`0x0046978E`) bodies are not
-/// ported; those arms claim the impact and do nothing else (see
+/// RESIDUAL: DirectRocker (`0x0046978E`) remains unported and claims its
+/// impact without another effect (see
 /// `SpecialDetonationAction`).
 fn run_special_detonation_arm(
     world: &mut Simulation,
@@ -1960,7 +1960,10 @@ fn run_special_detonation_arm(
             overlay_registry,
             effects,
         ),
-        SpecialDetonationAction::Airstrike | SpecialDetonationAction::DirectRocker => {
+        SpecialDetonationAction::Airstrike => {
+            world.airstrike_detonation(owner, object, rules, overlay_registry, effects)
+        }
+        SpecialDetonationAction::DirectRocker => {
             log::debug!(
                 "special detonation {action:?} from {owner} claimed with its body unported; \
                  shrapnel and area damage suppressed, the shared tail still runs"

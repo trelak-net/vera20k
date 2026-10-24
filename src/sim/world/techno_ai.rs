@@ -1284,6 +1284,7 @@ fn techno_common_steps(
     turret_rotate_sample: Option<bool>,
 ) -> bool {
     iron_tint_step(sim, id);
+    sim.airstrike_tint_step(id);
     // Techno6F9EBB follows the tint head and precedes veterancy/drain work.
     // A queued voice probes its handle only when this actor really reaches
     // this slot; recording final Logic membership would lose early exits.
@@ -1361,13 +1362,7 @@ fn berserk_step(
 /// curtained object's tint stage, whose stage 2 draws from the Scenario
 /// stream ([`InvulnerabilityState::update_tint`]).
 ///
-/// RESIDUAL: the next step, `TechnoClass::UpdateAirstrikeTint`
-/// (`0x0070E920`, called at `0x006F9EB6`), steps the airstrike tint of a
-/// building its own AirstrikeClass (`+0x294`) targets and makes the same
-/// Scenario `RandomRanged(-5, 5)` draw at that stage machine's stage 2 step.
-/// VERA has no AirstrikeClass (Boris' airstrike), so the draw is missing with
-/// it. Trigger: a building marked by Boris. Downstream: later Scenario draws
-/// shift.
+/// UpdateAirstrikeTint70E920 follows this call in techno_common_steps.
 ///
 /// [`InvulnerabilityState::update_tint`]: crate::sim::superweapon::invulnerability::InvulnerabilityState::update_tint
 fn iron_tint_step(sim: &mut Simulation, id: u64) {

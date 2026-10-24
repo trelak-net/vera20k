@@ -706,25 +706,11 @@ pub fn projectile_shrapnel_count(
 /// same bullet detonating (every stock special weapon but the dog's and the
 /// Terror Drone's jump is Inviso).
 ///
-/// RESIDUAL — **three special effect bodies are not implemented in VERA.**
-/// MindControl (`capture_manager`), IvanBomb and BombDisarm (`bomb`), Parasite
-/// (`combat/parasite.rs`; the Giant Squid's grapple is its own residual there),
-/// Temporal (`temporal`) and MakesDisguise (`cloak_disguise`, whose Unit body
-/// is its own residual there) run their bodies, and NukeMaker
-/// (`combat::world_receiver`) drops the nuclear warhead. ElectricAssault
-/// registers Tesla chargers (`tesla_charging`). Locomotor, Airstrike and DirectRocker claim the detonation, suppress damage
-/// and shrapnel exactly as native does, and then run the shared tail without
-/// performing their effect.
-/// - Trigger: a stock weapon whose warhead carries one of those flags: the
-///   Magnetron's `[MagneticBeam]`/`[MagneticBeamE]` and Boris's `[Flare]` (DirectRocker
-///   has no live stock line).
-/// - Player effect: the shot lands, plays its animation and leaves its crater,
-///   but no vehicle is lifted and no airstrike called, and
-///   the target takes no damage from that shot.
-/// - Frequency: every game with Magnetrons (Yuri) or Boris.
-/// - Downstream risk: each port adds snapshotted, hashed state (the
-///   piggyback lift links, the AirstrikeClass manager) with its
-///   own `SNAPSHOT_VERSION` bump.
+/// MindControl, bombs, Parasite, Temporal, disguise, nuclear payloads and
+/// Tesla charging dispatch their respective owners. Locomotor uses Magnetron
+/// lifting and Airstrike uses Boris's manager. DirectRocker remains unported;
+/// no stock weapon enables it. Every special arm still suppresses ordinary
+/// damage/shrapnel and continues through the shared detonation tail.
 ///
 /// The ordinary-arm AreaDamage return2 means near-center Iron Curtain
 /// isolation (489968/489B3B), covered by ifv_area_receipt.json. The shared
@@ -759,7 +745,7 @@ pub enum SpecialDetonationAction {
     /// `Locomotor=` CLSID, implemented by `sim::magnetron`.
     Locomotor,
     /// `Airstrike=` (`+0x16c`), test `0x00469705` ->
-    /// `AirstrikeClass::SetTarget @ 0x0041d830`. UNIMPLEMENTED.
+    /// `AirstrikeClass::SetTarget @ 0x0041d830`, implemented by `sim::airstrike`.
     ///
     /// The decompile shows this arm as conditional; the disassembly does not.
     /// `0x0046970d JZ 0x0046978e` is its only fall-through and fires on the

@@ -821,6 +821,9 @@ pub struct GeneralRules {
     /// value, constructor 0 (`0x006678C1`). A Force Shielded building's draws
     /// OR its colour into their pixels (`app/presentation/lighting.rs`).
     pub force_shield_color: i32,
+    pub laser_target_color: i32,
+    pub airstrike_attack_voice: Option<String>,
+    pub airstrike_abort_sound: Option<String>,
     /// `ConditionRedSparkingProbability=` ([General]) — per-tick probability that
     /// the `AI_Update` damage-Spark particle system spawns while health is below
     /// ConditionRed. Default **0.02** (verified `RulesClass__Constructor`; stock INI
@@ -2151,6 +2154,9 @@ impl Default for GeneralRules {
             elite_flash_timer: 0,
             idle_action_frequency: f64::from_bits(0x3fb5_3f7c_ed91_6873),
             force_shield_color: 0,
+            laser_target_color: 0,
+            airstrike_attack_voice: None,
+            airstrike_abort_sound: None,
             condition_red_sparking_probability: 0.02,
             condition_yellow_sparking_probability: 0.01,
             condition_red_spark_threshold: damage_spark_spawn_threshold(0.02),
@@ -2722,6 +2728,10 @@ impl GeneralRules {
         // ReadAudioVisual too (`0x0066B877..0x0066B891`).
         let force_shield_color =
             audio_visual.read_int("ForceShieldColor", defaults.force_shield_color);
+        let laser_target_color =
+            audio_visual.read_int("LaserTargetColor", defaults.laser_target_color);
+        let airstrike_attack_voice = audio_visual_sound("AirstrikeAttackVoice");
+        let airstrike_abort_sound = audio_visual_sound("AirstrikeAbortSound");
         let ally_reveal = audio_visual.read_bool("AllyReveal", defaults.ally_reveal);
         let psychic_reveal_activate_sound = audio_visual
             .read_name("PsychicRevealActivateSound", 0x80)
@@ -2761,6 +2771,9 @@ impl GeneralRules {
                 bomb_ticking_sound,
                 bomb_attach_sound,
                 force_shield_color,
+                laser_target_color,
+                airstrike_attack_voice,
+                airstrike_abort_sound,
                 ally_reveal,
                 psychic_reveal_activate_sound,
                 psychic_reveal_radius,
@@ -3099,6 +3112,9 @@ impl GeneralRules {
             idle_action_frequency: audio_visual
                 .read_double("IdleActionFrequency", defaults.idle_action_frequency),
             force_shield_color,
+            laser_target_color,
+            airstrike_attack_voice,
+            airstrike_abort_sound,
             building_garrisoned_sound: audio_visual
                 .read_name("BuildingGarrisonedSound", 0x80)
                 .map(str::to_owned),

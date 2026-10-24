@@ -312,6 +312,14 @@ impl ConcreteMissionEffects for RepresentedConcreteMissionEffects<'_> {
         {
             return;
         }
+        if changes {
+            sim.airstrike_cancel(
+                prepared.receiver,
+                self.rules,
+                self.overlay_registry,
+                self.frame_effects,
+            );
+        }
         let commits = assign_target_commits(&sim.substrate.entities, requested);
         let entity = sim
             .substrate

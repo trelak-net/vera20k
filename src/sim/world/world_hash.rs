@@ -1578,6 +1578,10 @@ impl Simulation {
             entity.foot_speed.crate_multiplier().hash(hasher);
             entity.foot_occupation_enabled.hash(hasher);
             entity.foot_locomotor_swap_active.hash(hasher);
+            if entity.airstrike != Default::default() {
+                0x41d380u32.hash(hasher);
+                entity.airstrike.hash(hasher);
+            }
             if entity.magnetron != Default::default() {
                 0x710000u32.hash(hasher);
                 entity.magnetron.hash(hasher);

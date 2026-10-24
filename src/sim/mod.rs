@@ -148,6 +148,7 @@ mod spawn_manager_tests;
 pub mod transport_unload;
 
 // --- Economy, map resources ---
+mod airstrike;
 pub(crate) mod magnetron;
 pub mod ore_growth;
 pub(crate) mod ore_twinkle;

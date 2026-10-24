@@ -303,6 +303,11 @@ impl MissionLeafState {
         self.expect_aircraft_mut().action_latch = u8::from(active);
     }
 
+    /// Native Techno+294 presence drives Aircraft mission admission.
+    pub(crate) fn set_airstrike_manager_present(&mut self, present: bool) {
+        self.expect_aircraft_mut().airstrike_manager_present = present;
+    }
+
     /// Mission_ParadropApproach's `DEC byte [+0x6D3]` (`0x00415950`).
     pub(crate) fn take_paradrop_pass(&mut self) {
         let leaf = self.expect_aircraft_mut();
