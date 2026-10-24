@@ -107,22 +107,9 @@ pub(super) fn bullet_type<'r>(
 /// - `Elasticity=` (`+0x2C8`) is live in the ARM B reflection block but has
 ///   zero stock projectile users (the `[PIECE]`/`[TIRE]` hits are VoxelAnims).
 ///
-/// RESIDUAL (GSI-08.07) — the second scatter site is not ported.
-/// `BulletClass::Fire @ 0x0046874E..0x004688A9` offsets an
-/// `Inviso && FlakScatter` bullet's placement before the Inviso body
-/// ([`crate::sim::projectile::ProjectileStore::fire_inviso`]): magnitude
-/// `(RandomRanged(0, RulesClass+0x1734 << 1) * ftol(dist)) / Range`, angle
-/// `RandomRanged(0, 0x7FFFFFFE)`, then `x += cos*mag`, `y -= sin*mag`
-/// (`0x00468864..0x00468890`, the launch site's shape at
-/// `0x006FE7E5`/`0x006FE7C0`; the decompiler drops the `FIADD`). The divisor
-/// is the weapon's `Range=` in leptons: `Bullet+0x130` is the WeaponType
-/// FireAt installs through `SetWeaponType @ 0x0046B260` (`0x006FE573`), and
-/// WeaponType `+0xB4` is `Range=` (`ReadRange` at `0x00772336`). The x87
-/// distance, magnitude and angle conversion want a native oracle first.
-///
-/// Trigger: every Flak Cannon / Flak Track shot at an aircraft (`[FlakProj]`,
-/// 6 weapons). Player effect: flak never misses. Frequency: any skirmish with
-/// air units. Downstream risk: two Scenario RNG draws are missing per shot.
+/// `Inviso && FlakScatter` placement scatter runs in [`admit_fired_bullet`],
+/// separately from FireAt's arcing launch scatter. Its two Scenario draws and
+/// x87 coordinate rounding are checked against the original instructions.
 ///
 /// Ordinary `ROT < 1, Vertical = no` AI subtracts gravity every visit
 /// (467402..467429), independently of `Arcing`. Production gives all such
@@ -362,9 +349,20 @@ pub(crate) fn admit_fired_bullet(
                 .is_some_and(|target| target.on_bridge),
             _ => false,
         };
+        let placement = if delivery.collision.flak_scatter {
+            crate::sim::projectile::launch::inviso_flak_placement(
+                bullet.origin,
+                bullet.target_position,
+                rules.combat_damage.ballistic_scatter,
+                weapon.range_leptons,
+                &mut world.scenario_rng,
+            )
+        } else {
+            bullet.target_position
+        };
         world
             .projectiles
-            .fire_inviso(bullet_id, bullet.target_position, on_bridge);
+            .fire_inviso(bullet_id, placement, on_bridge);
     }
 }
 
@@ -372,6 +370,70 @@ pub(crate) fn admit_fired_bullet(
 mod tests {
     use super::*;
     use crate::rules::ini_parser::IniFile;
+
+    #[test]
+    fn inviso_flak_admission_moves_the_burst_and_advances_the_correct_rng_stream() {
+        for (inviso, flak) in [(true, true), (true, false), (false, true), (false, false)] {
+            let ini = IniFile::from_str(&format!(
+                "[VehicleTypes]\n0=T\n[T]\nStrength=100\nPrimary=GUN\n\
+                 [GUN]\nDamage=25\nRange=12\nSpeed=100\nProjectile=PROJ\nWarhead=WH\n\
+                 [PROJ]\nInviso={inviso}\nFlakScatter={flak}\nAA=yes\n\
+                 [WH]\nVerses=100%,100%,100%,100%,100%,100%,100%,100%,100%,100%,100%\n"
+            ));
+            let rules = RuleSet::from_ini(&ini).unwrap();
+            let mut world = Simulation::with_seed(91);
+            world.intern_rule_type_ids(&rules);
+            let weapon = rules.weapon("GUN").unwrap();
+            let origin = ProjectileCoord::new(10240, 12800, 128);
+            let target = ProjectileCoord::new(12032, 14080, 1024);
+            let mut expected_rng = world.scenario_rng.clone();
+            let expected = if inviso && flak {
+                let result = crate::sim::projectile::launch::inviso_flak_placement(
+                    origin,
+                    target,
+                    rules.combat_damage.ballistic_scatter,
+                    weapon.range_leptons,
+                    &mut expected_rng,
+                );
+                assert_ne!(result, target, "fixture must expose a missed aim point");
+                result
+            } else if inviso {
+                target
+            } else {
+                origin
+            };
+            let bullet = FiredBullet {
+                native_unique_id: 1,
+                source_id: 0,
+                target: ProjectileTarget::Cell { rx: 47, ry: 55 },
+                target_position: target,
+                payload: ProjectilePayload::new(
+                    25,
+                    world.interner.intern("WH"),
+                    world.interner.intern("GUN"),
+                ),
+                max_speed: 100,
+                origin,
+                velocity: crate::sim::projectile::ProjectileVelocity::new(0, 0, 0),
+                speed: 0,
+            };
+            let (_, draws) = crate::sim::rng::trace_draws(|| {
+                admit_fired_bullet(&mut world, &rules, weapon, 1, bullet)
+            });
+            let projectile = world.projectiles.get(1).unwrap();
+            assert_eq!(projectile.position, expected);
+            assert_eq!(projectile.last_target_position, target);
+            assert_eq!(projectile.target, bullet.target);
+            // RandomRanged rejection sampling may consume several raw words.
+            // Compare the complete stream below, rather than counting words
+            // as though each ranged request always used exactly one.
+            assert_eq!(draws.is_empty(), !(inviso && flak));
+            assert_eq!(
+                world.scenario_rng.logical_state(),
+                expected_rng.logical_state()
+            );
+        }
+    }
 
     /// `BulletClass::AI @ 0x004666E0` branches only on `ROT < 1` and, on the
     /// non-homing arm, on `Vertical`. `Proximity`, `SubjectToCliffs` and

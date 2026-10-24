@@ -264,6 +264,50 @@ pub(crate) fn high_arc_root(
     int(sqrt(X::add(X::mul(x, x), X::mul(y, y)))) < height
 }
 
+/// `BulletClass::Fire @ 0x0046874E..0x004688A9`: the second scatter site,
+/// used by Inviso+FlakScatter (retail anti-aircraft flak). Unlike launch
+/// scatter, the magnitude draws through twice BallisticScatter, divides by
+/// the WeaponType's raw Range, and offsets the target's absolute position.
+/// The target identity and cached target coordinate remain unchanged.
+/// A zero/overflowing divisor is invalid retail data; keep the two draws
+/// but use zero magnitude instead of reproducing the original CPU fault.
+pub(crate) fn inviso_flak_placement(
+    origin: ProjectileCoord,
+    target: ProjectileCoord,
+    ballistic_scatter: i32,
+    weapon_range: i32,
+    rng: &mut SimRng,
+) -> ProjectileCoord {
+    inviso_flak_placement_with(
+        origin,
+        target,
+        ballistic_scatter,
+        weapon_range,
+        |low, high| rng.next_range_i32_inclusive(low, high),
+    )
+}
+
+fn inviso_flak_placement_with(
+    origin: ProjectileCoord,
+    target: ProjectileCoord,
+    ballistic_scatter: i32,
+    weapon_range: i32,
+    mut random_ranged: impl FnMut(i32, i32) -> i32,
+) -> ProjectileCoord {
+    let delta = ProjectileCoord::new(
+        origin.x.wrapping_sub(target.x),
+        target.y.wrapping_sub(origin.y),
+        origin.z.wrapping_sub(target.z),
+    );
+    let distance = flak_scatter_distance(delta);
+    let magnitude = random_ranged(0, ballistic_scatter.wrapping_shl(1))
+        .wrapping_mul(distance)
+        .checked_div(weapon_range)
+        .unwrap_or(0);
+    let angle = random_ranged(0, 0x7fff_fffe);
+    scatter_delta(target, magnitude, angle, TrigTable::embedded())
+}
+
 /// `TechnoClass::FireAt`'s launch scatter (`0x006FE663..0x006FE8E7`), taken
 /// for an `Inaccurate=` `Arcing=` projectile: it moves the target delta by a
 /// drawn magnitude in a drawn direction, leaving Z. Two Scenario draws,
@@ -873,6 +917,41 @@ mod tests {
             led += 1;
         }
         assert_eq!(led, 587);
+    }
+
+    #[test]
+    fn inviso_flak_placement_matches_original_instructions() {
+        let corpus: Value = serde_json::from_str(crate::test_fixture::text(
+            "tools/projectile_oracle/inviso_flak_placement.json",
+        ))
+        .unwrap();
+        let rows = corpus["rows"].as_array().unwrap();
+        assert_eq!(rows.len(), 63);
+        for (index, row) in rows.iter().enumerate() {
+            let input = &row["input"];
+            if input["inviso"] != 1 || input["flak"] != 1 {
+                continue;
+            }
+            let mut draws = input["draws"].as_array().unwrap().iter();
+            let mut calls = Vec::new();
+            let result = inviso_flak_placement_with(
+                coord(&input["origin"]),
+                coord(&input["target"]),
+                input["scatter"].as_i64().unwrap() as i32,
+                input["range"].as_i64().unwrap() as i32,
+                |low, high| {
+                    calls.push(serde_json::json!([low, high]));
+                    draws.next().unwrap().as_i64().unwrap() as i32
+                },
+            );
+            assert!(draws.next().is_none());
+            assert_eq!(
+                serde_json::json!(calls),
+                row["calls"],
+                "row {index} draw bounds"
+            );
+            assert_eq!(result, coord(&row["result"]), "row {index}: {input}");
+        }
     }
 
     fn launch_scatter_corpus() -> Value {
