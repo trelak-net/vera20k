@@ -18,8 +18,8 @@ impl Simulation {
             .collect()
     }
     /// Shared4555D0 inputs represented by Building and House owners. Native
-    /// HasPower/EMP/overpower producers remain outside
-    /// this adapter's established domain; do not infer them from visual state.
+    /// EMP remains outside this adapter's established domain; do not infer
+    /// it from visual state. Tesla charging uses the building's live vector.
     pub(crate) fn building_operational_state(&self, id: u64, rules: &RuleSet) -> Option<bool> {
         let entity = self.substrate.entities.get(id)?;
         if entity.category != EntityCategory::Structure {
@@ -27,12 +27,10 @@ impl Simulation {
         }
         let object = rules.object(self.interner.resolve(entity.type_ref()))?;
         let facts = power_system::OperationalFacts {
-            // `0x004555DA`: an offline building (the warp's latch) is not
-            // operational. RESIDUAL: native keeps one with two or more Tesla
-            // chargers (`+0x67C >= 2`) operational; VERA has no charger
-            // vector, and no EMP.
+            // 4555DA/45563B: two chargers keep the coil operational even
+            // with insufficient grid power. EMP remains unrepresented.
             online: entity.building_online(),
-            tesla_chargers: 0,
+            tesla_chargers: entity.tesla_charging.count(),
             emp_remaining: 0,
             health: entity.health.current,
             powered: object.powered,

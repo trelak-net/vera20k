@@ -1855,7 +1855,7 @@ enum SpecialArmTarget {
 /// at `0x00469A3F`. So the caller runs neither, and runs the shared tail below
 /// `LAB_00469AA4` after this returns. `owner` is the bullet's `+0xB0`.
 ///
-/// RESIDUAL: the ElectricAssault (`0x0046937A`), IsLocomotor (`0x004694CB`),
+/// RESIDUAL: IsLocomotor (`0x004694CB`),
 /// Airstrike (`0x00469705`) and DirectRocker (`0x0046978E`) bodies are not
 /// ported; those arms claim the impact and do nothing else (see
 /// `SpecialDetonationAction`).
@@ -1930,8 +1930,8 @@ fn run_special_detonation_arm(
                 world.disguise_as(owner, object, !matches!(target, SpecialArmTarget::None));
             }
         }
-        SpecialDetonationAction::ElectricAssault
-        | SpecialDetonationAction::Locomotor
+        SpecialDetonationAction::ElectricAssault => world.tesla_charge_detonation(owner, object),
+        SpecialDetonationAction::Locomotor
         | SpecialDetonationAction::Airstrike
         | SpecialDetonationAction::DirectRocker => {
             log::debug!(

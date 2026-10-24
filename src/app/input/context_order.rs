@@ -1535,6 +1535,26 @@ pub(crate) fn try_queue_context_order_at_screen_point(
                 queued.push(CommandEnvelope::new(owner_id, execute_tick, cmd));
                 return finish_order(state, queued, speaker_id);
             }
+            if context_actions_enabled
+                && !force_move
+                && let Some(target) = hover.as_ref()
+            {
+                let orders =
+                    tesla_charge_orders(sim, &resources.rules, &selected_units, target.stable_id);
+                if !orders.is_empty()
+                    && cursor_owner(sim, &resources.rules, &selected_ids, target.stable_id)
+                        .is_some_and(|best| {
+                            sim.can_charge_tesla(best, target.stable_id, &resources.rules)
+                        })
+                {
+                    queued.extend(
+                        orders
+                            .into_iter()
+                            .map(|command| CommandEnvelope::new(owner_id, execute_tick, command)),
+                    );
+                    return finish_order(state, queued, speaker_id);
+                }
+            }
             // A Crazy Ivan bombs a friend by a plain click, when the object that
             // owns the cursor is one of the bombing Ivans.
             if clicked_friendly
@@ -2027,6 +2047,23 @@ fn friendly_bomb_ivans(
                         .object(sim.interner.resolve(e.type_ref()))
                         .is_some_and(|o| o.ivan && o.attack_cursor_on_friendlies)
                 })
+        })
+        .collect()
+}
+
+fn tesla_charge_orders(
+    sim: &crate::sim::world::Simulation,
+    rules: &crate::rules::ruleset::RuleSet,
+    selected: &[u64],
+    target_id: u64,
+) -> Vec<Command> {
+    selected
+        .iter()
+        .copied()
+        .filter(|&id| sim.can_charge_tesla(id, target_id, rules))
+        .map(|attacker_id| Command::Attack {
+            attacker_id,
+            target_id,
         })
         .collect()
 }
@@ -3643,5 +3680,48 @@ Verses=100%,100%,100%,100%,100%,100%,100%,100%,100%,100%,100%
         assert!(
             matches!(near.commands[0], Command::ForceAttackCell { attacker_id, .. } if attacker_id==stationary)
         );
+    }
+    #[test]
+    fn tesla_charging_click_and_cursor_use_the_same_friendly_admission() {
+        let (mut sim, rules, coil, chargers) = crate::sim::tesla_charging::tests::fixture();
+        let gi = sim
+            .spawn_object_at_height("GI", "Americans", 12, 15, 0, 0, &rules)
+            .unwrap();
+        let selected = [chargers[0], gi];
+        let orders = tesla_charge_orders(&sim, &rules, &selected, coil);
+        assert_eq!(
+            orders,
+            vec![Command::Attack {
+                attacker_id: chargers[0],
+                target_id: coil
+            }]
+        );
+        let cursor = super::super::cursor::capability_cursor_for_hover(
+            &sim,
+            &selected,
+            Some(chargers[0]),
+            &super::super::entity_pick::HoverTargetKindWithId {
+                kind: crate::app::types::HoverTargetKind::FriendlyStructure,
+                stable_id: coil,
+            },
+            Some(&rules),
+            None,
+        );
+        assert!(
+            matches!(
+                cursor,
+                crate::app::types::CursorFeedbackKind::EnemyStructure
+                    | crate::app::types::CursorFeedbackKind::EnemyOutOfRange
+            ),
+            "{cursor:?}"
+        );
+        assert!(!sim.apply_command(
+            "Americans",
+            &Command::Attack {
+                attacker_id: gi,
+                target_id: coil
+            },
+            Some(&rules)
+        ));
     }
 }

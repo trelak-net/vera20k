@@ -947,7 +947,8 @@ use crate::sim::world::Simulation;
 // 329 -> 330: deterministic waypoint paths, members and per-unit progress.
 // 330 -> 331: AI recovery persists war-factory ownership counts.
 // 331 -> 332: persist each house's stolen technology and factory veterancy.
-const SNAPSHOT_VERSION: u32 = 332;
+// 332 -> 333: Tesla charger vectors and overpower latches.
+const SNAPSHOT_VERSION: u32 = 333;
 
 const SNAPSHOT_PRODUCT_MAGIC: [u8; 8] = *b"VERA20K\0";
 const SNAPSHOT_ENVELOPE_VERSION: u32 = 1;
@@ -1921,6 +1922,16 @@ fn restore_object_references(
                 "mind_control.controller",
                 "EntityStore",
                 controller_id,
+            )?;
+        }
+        for target_id in entity.tesla_charging.references() {
+            require_resolved_reference(
+                entity_ids.contains(&target_id),
+                "EntityStore",
+                entity_id,
+                "tesla_charging",
+                "EntityStore",
+                target_id,
             )?;
         }
         for target_id in entity.temporal.references() {
@@ -4079,7 +4090,7 @@ mod tests {
         // LoadObject registry, and neutral Tactical view/focus metadata.
         // 327 -> 328: each house's last lost building (+0x54E0).
         // 328 -> 329: persisted TruckCrate/TrainCrate map flags.
-        assert_eq!(super::SNAPSHOT_VERSION, 332);
+        assert_eq!(super::SNAPSHOT_VERSION, 333);
     }
 
     #[test]

@@ -837,13 +837,21 @@ impl Simulation {
                 {
                     return false;
                 }
-                let Some(rules) = rules else { return false; };
-                match self.scatter_null(*entity_id,
+                let Some(rules) = rules else {
+                    return false;
+                };
+                match self.scatter_null(
+                    *entity_id,
                     crate::sim::movement::ScatterFlags::new(true, false),
-                    rules, overlay_registry, frame_effects)
-                {
+                    rules,
+                    overlay_registry,
+                    frame_effects,
+                ) {
                     Ok(_) => true,
-                    Err(cause) => { log::warn!("Scatter {entity_id}: {cause}"); false }
+                    Err(cause) => {
+                        log::warn!("Scatter {entity_id}: {cause}");
+                        false
+                    }
                 }
             }
             Command::Stop { entity_id } => {
@@ -999,7 +1007,10 @@ impl Simulation {
                 if !self.substrate.entities.contains(*target_id) {
                     return false;
                 }
-                if !self.can_attack_target_by_id(*attacker_id, *target_id) {
+                if !self.can_attack_target_by_id(*attacker_id, *target_id)
+                    && !rules
+                        .is_some_and(|rules| self.can_charge_tesla(*attacker_id, *target_id, rules))
+                {
                     return false;
                 }
                 // Native order admission: BOTH the actor and the clicked Target

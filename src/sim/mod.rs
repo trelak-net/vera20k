@@ -66,6 +66,7 @@ pub mod sensor_lifecycle;
 pub mod spy_infiltration; // BuildingClass::Infiltrate (a spy's effects on the building it enters)
 pub(crate) mod stage;
 pub mod temporal;
+pub(crate) mod tesla_charging;
 pub mod timer; // signed frame-anchored countdown primitive
 pub(crate) mod touch_log; // which stored objects were handed out mutably, per reader
 pub mod type_handle_table; // InternedId -> TypeHandle, one-hop entity->type resolution

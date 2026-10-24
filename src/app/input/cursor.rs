@@ -668,7 +668,8 @@ pub(super) fn capability_cursor_for_hover(
         // 7. AttackCursorOnFriendlies — treat friendly targets as attack targets.
         //    Not over the lone selected object itself, which takes its self
         //    action first.
-        if sel_obj.attack_cursor_on_friendlies
+        if (sel_obj.attack_cursor_on_friendlies
+            || rules.is_some_and(|rules| sim.can_charge_tesla(best_id, hover.stable_id, rules)))
             && !single_self
             && matches!(
                 hover.kind,

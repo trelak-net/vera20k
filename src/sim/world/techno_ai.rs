@@ -812,6 +812,8 @@ fn techno_ai_shell(
                     ctx,
                     &mut outcome.bridge_state_changed,
                 );
+                // 44010D..440196: after delayed fire, before repair/power.
+                sim.update_tesla_charging(id, rules);
                 // Building4401A3..4401AF: allegiance belongs to this object's
                 // AI tail, before repair/power and factory work. Earlier
                 // native returns admit only a live, nonzero-health building.

@@ -845,6 +845,9 @@ pub struct GameEntity {
     /// Authored NeedsEngineer initialization consumes it; never infer from owner.
     #[serde(default)]
     pub building_has_engineer: bool,
+    /// Building charger vector and sampled overpower latch (66C/661).
+    #[serde(default)]
+    pub(crate) tesla_charging: crate::sim::tesla_charging::TeslaCharging,
     /// Building+6E4: OnConstructionComplete's one-time allocation guard.
     #[serde(default)]
     pub building_actually_placed: bool,
@@ -1746,6 +1749,7 @@ impl GameEntity {
             building_last_operational: false,
             building_stuff_enabled: true,
             building_has_engineer: false,
+            tesla_charging: Default::default(),
             building_actually_placed: false,
             spotlight_capable: false,
             building_light: None,

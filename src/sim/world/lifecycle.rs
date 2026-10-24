@@ -3452,6 +3452,7 @@ impl Simulation {
             || listener.spawn_manager.is_some()
             || listener.capture_manager.is_some()
             || listener.temporal.has_link()
+            || listener.tesla_charging.names(expired_id)
             || listener.parasite_eating_me.is_some()
     }
 
@@ -4338,6 +4339,9 @@ impl Simulation {
                     context.rules(),
                     context.effects(),
                 );
+                // Building44EA77 removes a charger for either expiry control;
+                // the overpower latch changes at the next Building AI update.
+                self.tesla_pointer_expired(listener_id, expired_id);
                 #[cfg(test)]
                 if let Some(before) = passed_over {
                     assert_eq!(
