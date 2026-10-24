@@ -7,8 +7,8 @@
 
 use super::{
     FULL_SCREEN_HELP, FULL_SCREEN_LABEL, LauncherCheckboxId, LauncherCue, LauncherOptionsEvent,
-    LauncherParentResult, LauncherTrackbarId, OptionsDialogState, PhysicalControlFrame, ZOOM_HELP,
-    ZOOM_LABEL, Zoom,
+    LauncherParentResult, LauncherTrackbarId, OptionsDialogState, PhysicalControlFrame,
+    RESOLUTIONS, ZOOM_HELP, ZOOM_LABEL, Zoom,
 };
 use crate::ui::shell::descriptor::DialogId;
 use crate::ui::shell::geom::{RectPx, ShellScale, center_offset, child_window, dlu_rect};
@@ -78,6 +78,7 @@ pub(crate) struct LauncherOptionsLayout {
     pub(crate) status_help: RectPx,
     /// The Zoom combo, in the resolution combo's retail place.
     pub(crate) zoom: RectPx,
+    pub(crate) resolution: RectPx,
     pub(crate) trackbars: [(LauncherTrackbarId, RectPx); 6],
     pub(crate) checkboxes: [(LauncherCheckboxId, RectPx); 4],
     pub(crate) buttons: [(LauncherParentResult, RectPx); 3],
@@ -132,6 +133,7 @@ impl LauncherOptionsLayout {
             warning: page.warning_monitor,
             status_help: page.status_help,
             zoom: px(RectPx::new(351, 86, 180, COMBO_FACE_H)),
+            resolution: px(RectPx::new(351, 130, 180, COMBO_FACE_H)),
             trackbars: [
                 (LauncherTrackbarId::Detail, slider(89, 53, 120, 13)),
                 (LauncherTrackbarId::Difficulty, slider(92, 128, 120, 13)),
@@ -146,7 +148,7 @@ impl LauncherOptionsLayout {
                 (LauncherCheckboxId::ShowHidden, dlu(93, 218, 130, 10)),
                 // VERA's box sits under the Zoom combo, in the Display
                 // Options band the template leaves empty there.
-                (LauncherCheckboxId::FullScreen, dlu(234, 75, 120, 10)),
+                (LauncherCheckboxId::FullScreen, dlu(89, 75, 120, 10)),
             ],
             buttons: [
                 (LauncherParentResult::Keyboard, button(KEYBOARD_BUTTON)),
@@ -195,6 +197,7 @@ pub(crate) struct LauncherZoomPopup {
     pub(crate) row_height: i32,
     pub(crate) selected: usize,
     pub(crate) hovered: Option<usize>,
+    pub(crate) row_count: usize,
 }
 
 impl LauncherZoomPopup {
@@ -202,7 +205,7 @@ impl LauncherZoomPopup {
         self.rect
             .contains(x, y)
             .then(|| ((y - self.rect.y) / self.row_height) as usize)
-            .filter(|row| *row < Zoom::ALL.len())
+            .filter(|row| *row < self.row_count)
     }
 
     pub(crate) fn row_rect(self, row: usize) -> RectPx {
@@ -256,6 +259,7 @@ impl OptionsDialogState {
             (&labels.visual_details, 89, 38, 60, 10, Left),
             (&self.detail_caption, 149, 38, 60, 10, Right),
             (ZOOM_LABEL, 234, 38, 120, 10, Left),
+            ("Window resolution", 234, 68, 120, 10, Left),
             (&labels.difficulty, 92, 113, 60, 10, Left),
             (&self.difficulty_caption, 152, 113, 60, 10, Right),
             (&labels.scroll_rate, 238, 188, 60, 10, Left),
@@ -321,6 +325,22 @@ impl OptionsDialogState {
         }
     }
 
+    pub(crate) fn shell_resolution_is_open(&self) -> bool {
+        self.resolution_popup_open
+    }
+
+    pub(crate) fn shell_resolution_text(&self) -> String {
+        format!("{} x {}", self.resolution.0, self.resolution.1)
+    }
+
+    pub(crate) fn shell_popup_labels(&self) -> Vec<&'static str> {
+        if self.resolution_popup_open {
+            RESOLUTIONS.iter().map(|r| r.2).collect()
+        } else {
+            Zoom::ALL.iter().map(|z| z.label()).collect()
+        }
+    }
+
     pub(crate) fn shell_selected_zoom_text(&self) -> &'static str {
         self.zoom.label()
     }
@@ -332,7 +352,7 @@ impl OptionsDialogState {
     }
 
     pub(crate) fn shell_popup(&self, layout: &LauncherOptionsLayout) -> Option<LauncherZoomPopup> {
-        if !self.zoom_popup_open {
+        if !self.zoom_popup_open && !self.resolution_popup_open {
             return None;
         }
         // The list box hangs under the painted face; its rows use this
@@ -341,17 +361,32 @@ impl OptionsDialogState {
         // allocation admits (ComboDropWin `0x006180CF..0x00618205`), so the
         // list never scrolls.
         let metrics = DropdownMetrics::scaled(layout.scale);
-        let face = combo_face_rect(layout.zoom, layout.scale);
+        let rect = if self.resolution_popup_open {
+            layout.resolution
+        } else {
+            layout.zoom
+        };
+        let count = self.shell_popup_labels().len();
+        let selected = if self.resolution_popup_open {
+            RESOLUTIONS
+                .iter()
+                .position(|r| (r.0, r.1) == self.resolution)
+                .unwrap_or(usize::MAX)
+        } else {
+            self.zoom.row()
+        };
+        let face = combo_face_rect(rect, layout.scale);
         Some(LauncherZoomPopup {
             rect: RectPx::new(
-                layout.zoom.x,
+                rect.x,
                 face.y + face.h + 1,
-                layout.zoom.w,
-                Zoom::ALL.len() as i32 * metrics.row_h,
+                rect.w,
+                count as i32 * metrics.row_h,
             ),
             row_height: metrics.row_h,
-            selected: self.zoom.row(),
+            selected,
             hovered: self.shell_interaction.popup_hovered,
+            row_count: count,
         })
     }
 
@@ -415,6 +450,11 @@ impl OptionsDialogState {
                 LauncherCheckboxId::FullScreen => LauncherStatusHelp::Text(FULL_SCREEN_HELP),
             });
         }
+        if layout.resolution.contains(x, y) {
+            return Some(LauncherStatusHelp::Text(
+                "Set the window size in pixels. Selecting a size leaves full screen.",
+            ));
+        }
         layout
             .zoom
             .contains(x, y)
@@ -427,7 +467,7 @@ impl OptionsDialogState {
         if self.capture.is_some() {
             return;
         }
-        if self.zoom_popup_open {
+        if self.zoom_popup_open || self.resolution_popup_open {
             // ComboDropWin 0x0060E4E9..0x0060E500 plays Rules+0x1A8
             // (GUIComboCloseSound) before selection or outside dismissal.
             self.pending_events
@@ -436,9 +476,14 @@ impl OptionsDialogState {
                 .shell_popup(layout)
                 .and_then(|popup| popup.row_at(x, y))
             {
-                self.select_zoom(index);
+                if self.resolution_popup_open {
+                    self.select_resolution(index);
+                } else {
+                    self.select_zoom(index);
+                }
             } else {
                 self.zoom_popup_open = false;
+                self.resolution_popup_open = false;
             }
             self.shell_interaction = ShellInteraction::default();
             return;
@@ -459,6 +504,11 @@ impl OptionsDialogState {
             .find(|(_, rect)| rect.contains(x, y))
         {
             self.checkbox_mouse_down(*id, frame(*rect, x, y, scale));
+        } else if layout.resolution.contains(x, y) {
+            self.resolution_popup_open = true;
+            self.pending_events
+                .push(LauncherOptionsEvent::Cue(LauncherCue::ComboOpen));
+            self.shell_interaction.hovered_button = None;
         } else if layout.zoom.contains(x, y) {
             self.combo_mouse_down(frame(layout.zoom, x, y, scale));
             self.shell_interaction.hovered_button = None;
@@ -470,6 +520,7 @@ impl OptionsDialogState {
         if self.capture.is_none()
             && self.shell_interaction.pressed_button.is_none()
             && !self.zoom_popup_open
+            && !self.resolution_popup_open
         {
             self.shell_interaction.status_help = self.shell_status_help_key(x, y, layout);
         }
@@ -479,7 +530,7 @@ impl OptionsDialogState {
             self.shell_interaction.hovered_button = None;
             return;
         }
-        if self.zoom_popup_open {
+        if self.zoom_popup_open || self.resolution_popup_open {
             self.shell_interaction.popup_hovered = self
                 .shell_popup(layout)
                 .and_then(|popup| popup.row_at(x, y));
@@ -501,6 +552,7 @@ impl OptionsDialogState {
         if let Some(id) = self.shell_interaction.pressed_button.take()
             && self.shell_interaction.hovered_button == Some(id)
             && !self.zoom_popup_open
+            && !self.resolution_popup_open
         {
             self.request_result(id);
         }
@@ -514,6 +566,47 @@ mod tests {
         LauncherCue, LauncherOptionsEvent, LauncherOptionsLabels, LauncherOptionsValues,
     };
     use crate::ui::shell::trackbar::TrackbarHold;
+
+    #[test]
+    fn display_resolution_click_uses_the_rendered_popup_at_both_scales() {
+        for (width, height) in [(800, 600), (1600, 1200)] {
+            let mut dialog = state();
+            let layout = LauncherOptionsLayout::responsive(width, height);
+            dialog.shell_mouse_down(layout.resolution.x + 4, layout.resolution.y + 4, &layout);
+            let popup = dialog.shell_popup(&layout).expect("resolution popup");
+            assert_eq!(popup.row_count, RESOLUTIONS.len());
+            let row = popup.row_rect(4);
+            dialog.shell_mouse_down(row.x + 4, row.y + 4, &layout);
+            let output = dialog.drain_output();
+            assert_eq!(
+                output.events,
+                vec![
+                    LauncherOptionsEvent::Cue(LauncherCue::ComboOpen),
+                    LauncherOptionsEvent::Cue(LauncherCue::ComboClose),
+                    LauncherOptionsEvent::ResolutionSelected(1920, 1080),
+                ]
+            );
+            assert!(dialog.shell_popup(&layout).is_none());
+            assert_eq!(dialog.shell_resolution_text(), "1920 x 1080");
+            assert_eq!(dialog.zoom, Zoom::Auto);
+        }
+    }
+
+    #[test]
+    fn display_resolution_popup_dismissal_does_not_change_settings() {
+        let mut dialog = state();
+        let layout = LauncherOptionsLayout::new(800, 600);
+        dialog.sync_resolution(1600, 900);
+        dialog.shell_mouse_down(layout.resolution.x + 4, layout.resolution.y + 4, &layout);
+        dialog.drain_output();
+        dialog.shell_mouse_down(0, 0, &layout);
+        assert_eq!(
+            dialog.drain_output().events,
+            vec![LauncherOptionsEvent::Cue(LauncherCue::ComboClose)]
+        );
+        assert_eq!(dialog.shell_resolution_text(), "1600 x 900");
+        assert!(dialog.shell_popup(&layout).is_none());
+    }
 
     fn state() -> OptionsDialogState {
         OptionsDialogState::new(
@@ -819,7 +912,7 @@ mod tests {
         state.shell_mouse_move(row.x + 10, row.y + 5, &layout);
         assert_eq!(state.shell_popup(&layout).unwrap().hovered, Some(1));
         state.shell_mouse_down(row.x + 10, row.y + 5, &layout);
-        assert_eq!(state.shell_selected_zoom_text(), "Normal");
+        assert_eq!(state.shell_selected_zoom_text(), "100% (1x)");
         assert!(state.shell_popup(&layout).is_none());
         assert_eq!(
             state.drain_output().events,
@@ -831,12 +924,12 @@ mod tests {
     }
 
     #[test]
-    fn full_screen_box_sits_under_the_zoom_combo_and_applies_at_once() {
+    fn full_screen_box_sits_beside_resolution_and_applies_at_once() {
         let mut state = state();
         let layout = LauncherOptionsLayout::new(800, 600);
         let (id, rect) = layout.checkboxes[3];
         assert_eq!(id, LauncherCheckboxId::FullScreen);
-        assert_eq!(rect, RectPx::new(351, 122, 180, 16));
+        assert_eq!(rect, RectPx::new(134, 122, 180, 16));
         assert!(rect.y >= layout.zoom.y + layout.zoom.h);
         assert_eq!(state.shell_checkbox_label(id), FULL_SCREEN_LABEL);
         state.shell_mouse_down(rect.x + 5, rect.y + 5, &layout);

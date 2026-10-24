@@ -12,7 +12,7 @@ use crate::render::shell_text_reveal::PathAReveal;
 use crate::ui::main_menu_dialogs::options::shell::{
     LauncherLabelAlign, LauncherOptionsLayout, LauncherStatusHelp,
 };
-use crate::ui::main_menu_dialogs::options::{LauncherTrackbarId, OptionsDialogState, Zoom};
+use crate::ui::main_menu_dialogs::options::{LauncherTrackbarId, OptionsDialogState};
 use crate::ui::shell::geom::{RectPx, ShellScale};
 use std::time::Instant;
 
@@ -81,7 +81,18 @@ fn build_controls(
         ControlPaint::Combo {
             rect: layout.zoom,
             swatch: None,
-            open: dialog.shell_popup(layout).is_some(),
+            open: dialog.shell_popup(layout).is_some() && !dialog.shell_resolution_is_open(),
+            disabled: false,
+        },
+        scale,
+    );
+    paint_control(
+        &mut out,
+        &chrome,
+        ControlPaint::Combo {
+            rect: layout.resolution,
+            swatch: None,
+            open: dialog.shell_resolution_is_open(),
             disabled: false,
         },
         scale,
@@ -182,6 +193,17 @@ fn build_text(
             ));
         }
     }
+    let resolution_text = scale.derive_rect(layout.resolution, |rect| {
+        RectPx::new(rect.x + 3, rect.y, rect.w - 23, rect.h)
+    });
+    out.push(text_draw(
+        font,
+        &dialog.shell_resolution_text(),
+        resolution_text,
+        ShellAlign::V_CENTER,
+        SHELL_LABEL_TEXT_RGB,
+        glyph,
+    ));
     let zoom_text = scale.derive_rect(layout.zoom, |rect| {
         RectPx::new(rect.x + 3, rect.y, rect.w - 23, rect.h)
     });
@@ -362,7 +384,7 @@ pub(crate) fn render_launcher_options(
             SHELL_DROPDOWN_DEPTH,
         );
         let text_inset = (3.0 * scale.factor()).round() as i32;
-        for (i, zoom) in Zoom::ALL.into_iter().enumerate() {
+        for (i, label) in dialog.shell_popup_labels().into_iter().enumerate() {
             let rect = popup.row_rect(i);
             if popup.hovered.unwrap_or(popup.selected) == i {
                 push_solid_rect_px(
@@ -375,7 +397,7 @@ pub(crate) fn render_launcher_options(
             }
             popup_text.push(text_draw(
                 &state.renderer.bit_font,
-                zoom.label(),
+                label,
                 RectPx::new(rect.x + text_inset, rect.y, rect.w - 2 * text_inset, rect.h),
                 ShellAlign::V_CENTER,
                 SHELL_LABEL_TEXT_RGB,

@@ -37,6 +37,16 @@ impl crate::app::persistence::options::launcher::LauncherPreviewOperations for A
     fn play_cue(&mut self, cue: crate::ui::main_menu_dialogs::options::LauncherCue) {
         App::play_launcher_options_cue(self, cue);
     }
+    fn set_resolution(&mut self, width: u32, height: u32) {
+        App::set_full_screen(self, false);
+        self.platform.window.set_maximized(false);
+        self.persistence.options_profile.window_width = width;
+        self.persistence.options_profile.window_height = height;
+        let _ = self
+            .platform
+            .window
+            .request_inner_size(winit::dpi::PhysicalSize::new(width, height));
+    }
     fn store_zoom(&mut self, zoom: crate::ui::main_menu_dialogs::options::Zoom) {
         self.persistence.options_profile.zoom = zoom;
         App::sync_zoom_pass(self);

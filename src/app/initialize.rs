@@ -147,6 +147,8 @@ impl App {
         let capture = capture_dimensions.is_some();
         let inner_size: winit::dpi::Size = if capture {
             PhysicalSize::new(window_width, window_height).into()
+        } else if options_profile.window_width > 0 && options_profile.window_height > 0 {
+            PhysicalSize::new(options_profile.window_width, options_profile.window_height).into()
         } else {
             winit::dpi::LogicalSize::new(window_width, window_height).into()
         };

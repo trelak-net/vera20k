@@ -50,7 +50,12 @@ pub(crate) fn launcher_dialog_from_profile(
         full_screen,
         ..launcher_values_from_profile(profile)
     };
-    OptionsDialogState::new(labels, values, profile.zoom, launcher_audio_available)
+    let mut dialog =
+        OptionsDialogState::new(labels, values, profile.zoom, launcher_audio_available);
+    if profile.window_width > 0 && profile.window_height > 0 {
+        dialog.sync_resolution(profile.window_width, profile.window_height);
+    }
+    dialog
 }
 
 /// Concrete effects admitted by one launcher UI frame.
@@ -60,6 +65,7 @@ pub(crate) fn launcher_dialog_from_profile(
 pub(crate) trait LauncherPreviewOperations: AudioVolumeOperations {
     fn play_cue(&mut self, cue: LauncherCue);
     fn store_zoom(&mut self, zoom: Zoom);
+    fn set_resolution(&mut self, width: u32, height: u32);
     fn set_full_screen(&mut self, full_screen: bool);
 }
 
@@ -73,6 +79,7 @@ pub(crate) fn dispatch_launcher_preview_event(
     match event {
         LauncherOptionsEvent::Cue(cue) => operations.play_cue(cue),
         LauncherOptionsEvent::ZoomSelected(zoom) => operations.store_zoom(zoom),
+        LauncherOptionsEvent::ResolutionSelected(w, h) => operations.set_resolution(w, h),
         LauncherOptionsEvent::FullScreenChanged(full_screen) => {
             operations.set_full_screen(full_screen);
         }
@@ -318,6 +325,7 @@ mod tests {
     enum PreviewCall {
         Cue(LauncherCue),
         Zoom(Zoom),
+        Resolution(u32, u32),
         FullScreen(bool),
         StoreScore(f32),
         OutputScore(f32),
@@ -338,6 +346,10 @@ mod tests {
             self.calls.push(PreviewCall::Cue(cue));
         }
 
+        fn set_resolution(&mut self, width: u32, height: u32) {
+            self.calls.push(PreviewCall::Resolution(width, height));
+        }
+
         fn store_zoom(&mut self, zoom: Zoom) {
             self.calls.push(PreviewCall::Zoom(zoom));
         }
@@ -345,6 +357,19 @@ mod tests {
         fn set_full_screen(&mut self, full_screen: bool) {
             self.calls.push(PreviewCall::FullScreen(full_screen));
         }
+    }
+
+    #[test]
+    fn display_resolution_event_reaches_window_owner_without_changing_audio() {
+        let mut operations = PreviewRecorder {
+            available: false,
+            calls: Vec::new(),
+        };
+        dispatch_launcher_preview_event(
+            &mut operations,
+            LauncherOptionsEvent::ResolutionSelected(1920, 1080),
+        );
+        assert_eq!(operations.calls, vec![PreviewCall::Resolution(1920, 1080)]);
     }
 
     impl AudioVolumeOperations for PreviewRecorder {

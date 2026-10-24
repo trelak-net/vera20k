@@ -83,8 +83,14 @@ impl App {
         }
         let full_screen = state.platform.window.fullscreen().is_some();
         state.persistence.options_profile.full_screen = full_screen;
+        let size = state.platform.window.inner_size();
+        if !full_screen && size.width >= 640 && size.height >= 480 {
+            state.persistence.options_profile.window_width = size.width;
+            state.persistence.options_profile.window_height = size.height;
+        }
         if let Some(dialog) = state.frontend.options_dialog.as_mut() {
             dialog.sync_full_screen(full_screen);
+            dialog.sync_resolution(size.width, size.height);
         }
     }
 }

@@ -92,6 +92,8 @@ pub(crate) struct RetailOptionsProfile {
     /// itself owns this; `App::follow_window_full_screen` copies its state
     /// back every event-loop pass, so each write saves what the player sees.
     pub(crate) full_screen: bool,
+    pub(crate) window_width: u32,
+    pub(crate) window_height: u32,
     /// The Options page's battle zoom.
     pub(crate) zoom: crate::ui::main_menu_dialogs::options::Zoom,
 }
@@ -142,6 +144,8 @@ impl Default for RetailOptionsProfile {
             movie_progress: crate::ui::movies_credits_shell::MovieProgress::default(),
             wol_lobby_music: 1,
             full_screen: false,
+            window_width: 0,
+            window_height: 0,
             zoom: crate::ui::main_menu_dialogs::options::Zoom::Auto,
         }
     }
@@ -161,7 +165,7 @@ pub(crate) struct FormattedProfileSections {
     /// network fields this profile does not model; their bytes are preserved.
     pub(crate) network: [(&'static str, String); 1],
     /// VERA's own section, written after the native ones.
-    pub(crate) vera: [(&'static str, String); 2],
+    pub(crate) vera: [(&'static str, String); 4],
 }
 
 impl RetailOptionsLoad {
@@ -339,6 +343,12 @@ impl RetailOptionsProfile {
 
         if let Some(vera) = ini.section(VERA_SECTION) {
             self.full_screen = vera.read_bool("FullScreen", self.full_screen);
+            let width = vera.read_int("WindowWidth", 0);
+            let height = vera.read_int("WindowHeight", 0);
+            if (640..=7680).contains(&width) && (480..=4320).contains(&height) {
+                self.window_width = width as u32;
+                self.window_height = height as u32;
+            }
             self.zoom = crate::ui::main_menu_dialogs::options::Zoom::from_ini_value(
                 vera.read_int("Zoom", self.zoom.ini_value()),
             );
@@ -413,6 +423,8 @@ impl RetailOptionsProfile {
             vera: [
                 ("FullScreen", format_bool(self.full_screen).to_string()),
                 ("Zoom", self.zoom.ini_value().to_string()),
+                ("WindowWidth", self.window_width.to_string()),
+                ("WindowHeight", self.window_height.to_string()),
             ],
         }
     }
@@ -942,6 +954,34 @@ mod tests {
         };
         profile.resolve_screen_size();
         assert_eq!((profile.screen_width, profile.screen_height), (0, -20));
+    }
+
+    #[test]
+    fn display_window_size_round_trips_and_rejects_invalid_pairs() {
+        let profile = RetailOptionsProfile {
+            window_width: 1920,
+            window_height: 1080,
+            zoom: crate::ui::main_menu_dialogs::options::Zoom::Large,
+            ..RetailOptionsProfile::default()
+        };
+        let output = profile.transform_ra2md(b"[Other]\nKeep=yes\n");
+        let reread = load_snapshot(&RetailStartupOptions::default(), &output).retained_profile;
+        assert_eq!((reread.window_width, reread.window_height), (1920, 1080));
+        assert_eq!(
+            reread.zoom,
+            crate::ui::main_menu_dialogs::options::Zoom::Large
+        );
+        assert!(String::from_utf8(output).unwrap().contains("Keep=yes"));
+        for pair in [
+            "WindowWidth=-1\nWindowHeight=1080",
+            "WindowWidth=1920\nWindowHeight=0",
+            "WindowWidth=999999\nWindowHeight=1080",
+        ] {
+            let bytes = format!("[VERA]\n{pair}\n");
+            let read =
+                load_snapshot(&RetailStartupOptions::default(), bytes.as_bytes()).retained_profile;
+            assert_eq!((read.window_width, read.window_height), (0, 0));
+        }
     }
 
     #[test]

@@ -53,6 +53,15 @@ pub(crate) const LAUNCHER_LABEL_SPECS: [(&str, &str); 30] = [
 
 /// VERA's own captions and status help on this page. The retail string table
 /// has nothing for full screen or zoom, so these are English everywhere.
+pub(crate) const RESOLUTIONS: [(u32, u32, &str); 7] = [
+    (800, 600, "800 x 600"),
+    (1024, 768, "1024 x 768"),
+    (1280, 960, "1280 x 960"),
+    (1600, 900, "1600 x 900"),
+    (1920, 1080, "1920 x 1080"),
+    (1920, 1200, "1920 x 1200"),
+    (2560, 1440, "2560 x 1440"),
+];
 pub(crate) const ZOOM_LABEL: &str = "Zoom";
 pub(crate) const ZOOM_HELP: &str =
     "How big battles look. Auto picks the best size for your screen.";
@@ -82,9 +91,9 @@ impl Zoom {
     pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::Auto => "Auto",
-            Self::Normal => "Normal",
-            Self::Large => "Large",
-            Self::Huge => "Huge",
+            Self::Normal => "100% (1x)",
+            Self::Large => "200% (2x)",
+            Self::Huge => "300% (3x)",
         }
     }
 
@@ -256,6 +265,7 @@ pub(crate) enum LauncherCue {
 pub(crate) enum LauncherOptionsEvent {
     Cue(LauncherCue),
     ZoomSelected(Zoom),
+    ResolutionSelected(u32, u32),
     FullScreenChanged(bool),
     ScorePreview(f32),
     SoundPreview(f32),
@@ -380,6 +390,8 @@ pub(crate) struct OptionsDialogState {
     values: LauncherOptionsValues,
     zoom: Zoom,
     zoom_popup_open: bool,
+    resolution_popup_open: bool,
+    resolution: (u32, u32),
     launcher_audio_available: bool,
     detail_caption: String,
     difficulty_caption: String,
@@ -431,6 +443,8 @@ impl OptionsDialogState {
             values,
             zoom,
             zoom_popup_open: false,
+            resolution_popup_open: false,
+            resolution: (800, 600),
             launcher_audio_available,
             capture: None,
             pending_events: Vec::new(),
@@ -630,6 +644,19 @@ impl OptionsDialogState {
     /// Like gamemd's resolution row (primary-proc slice
     /// `0x0055FDB0..0x0056047A`), a valid zoom row is published at once; the
     /// accepted projection `0x0055FAA0` never owns it.
+    pub(crate) fn sync_resolution(&mut self, width: u32, height: u32) {
+        self.resolution = (width, height);
+    }
+
+    pub(crate) fn select_resolution(&mut self, index: usize) {
+        if let Some(&(width, height, _)) = RESOLUTIONS.get(index) {
+            self.resolution = (width, height);
+            self.resolution_popup_open = false;
+            self.pending_events
+                .push(LauncherOptionsEvent::ResolutionSelected(width, height));
+        }
+    }
+
     pub(crate) fn select_zoom(&mut self, index: usize) {
         let Some(zoom) = Zoom::ALL.get(index).copied() else {
             return;
