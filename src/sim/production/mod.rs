@@ -14,6 +14,9 @@
 //! - `production_tech`: the player's build options, factory matching, spawn cells
 
 mod can_build;
+mod cloning;
+#[cfg(test)]
+mod cloning_tests;
 mod factory;
 mod factory_ai;
 mod factory_lifecycle;

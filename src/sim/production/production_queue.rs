@@ -303,6 +303,11 @@ pub(in crate::sim) fn exit_produced_object(
     ) else {
         return BuildingExit::Failed;
     };
+    // Native4449D9..444A53: after the barracks GetDock admission, before
+    // its own Unlimbo. Each vat uses the same independent exit owner.
+    super::cloning::clone_produced_infantry(
+        sim, rules, selection.producer_id, stable_id, overlay_registry, effects,
+    );
     let (rx, ry) = selection.cell;
     let is_unit = product_type.category == crate::rules::object_type::ObjectCategory::Vehicle;
     let land_factory = is_unit
