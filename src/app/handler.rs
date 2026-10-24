@@ -170,6 +170,10 @@ impl ApplicationHandler for App {
                     session.record_focus_violation();
                     event_loop.exit();
                 }
+                // X11 reports IME enable/disable lifecycle notifications even
+                // for a hidden, unfocused window. They contain no user input.
+                // Preedit/Commit and all actual input remain rejected below.
+                WindowEvent::Ime(winit::event::Ime::Enabled | winit::event::Ime::Disabled) => {}
                 WindowEvent::KeyboardInput { .. }
                 | WindowEvent::ModifiersChanged(_)
                 | WindowEvent::Ime(_)
@@ -188,6 +192,7 @@ impl ApplicationHandler for App {
                 | WindowEvent::DroppedFile(_)
                 | WindowEvent::HoveredFile(_)
                 | WindowEvent::HoveredFileCancelled => {
+                    log::warn!("Capture input rejected: {event:?}");
                     session.record_input_violation("window");
                     event_loop.exit();
                 }
@@ -223,6 +228,10 @@ impl ApplicationHandler for App {
                     session.fail("shell-capture window unexpectedly received focus");
                     event_loop.exit();
                 }
+                // X11 reports IME enable/disable lifecycle notifications even
+                // for a hidden, unfocused window. They contain no user input.
+                // Preedit/Commit and all actual input remain rejected below.
+                WindowEvent::Ime(winit::event::Ime::Enabled | winit::event::Ime::Disabled) => {}
                 WindowEvent::KeyboardInput { .. }
                 | WindowEvent::ModifiersChanged(_)
                 | WindowEvent::Ime(_)
