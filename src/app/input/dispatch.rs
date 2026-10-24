@@ -1622,6 +1622,9 @@ fn dispatch_retail_hotkey(state: &mut AppState, command: HotkeyCommand) {
         HotkeyCommand::TeamCreate(slot) => {
             handle_control_group_command(state, slot, Some(GroupPressAction::Assign))
         }
+        HotkeyCommand::TeamAppend(slot) => {
+            handle_control_group_command(state, slot, Some(GroupPressAction::AddToGroup))
+        }
         HotkeyCommand::TeamCenter(slot) => {
             handle_control_group_command(state, slot, Some(GroupPressAction::Center))
         }
@@ -2666,6 +2669,8 @@ const GROUP_DOUBLE_TAP_MS: u128 = 800;
 pub(crate) enum GroupPressAction {
     /// Ctrl+digit — replace the slot's membership with the current selection.
     Assign,
+    /// Ctrl+Shift+digit — add the current selection to the slot.
+    AddToGroup,
     /// Shift+digit — add the slot's members to the current selection.
     AddToSelection,
     /// Alt+digit, or a bare double-tap — put the camera on the group.
@@ -2678,7 +2683,8 @@ pub(crate) enum GroupPressAction {
 ///
 /// The four team commands are separate bindings — bare digit, Shift+digit,
 /// Ctrl+digit, Alt+digit — and the dispatcher matches the modifier bits
-/// exactly, so a two-modifier chord matches no binding and does nothing.
+/// exactly. The local Ctrl+Shift extension appends selection to the group;
+/// other two-modifier combinations retain their existing behavior.
 ///
 /// The double-tap arm is the subtle one: the recall routine only centres when
 /// the current selection is *exactly* the group. It bails out on the first
@@ -2694,6 +2700,9 @@ fn control_group_press_action(
     selected: &[u64],
     last_press: Option<(usize, std::time::Duration)>,
 ) -> Option<GroupPressAction> {
+    if modifiers.ctrl && modifiers.shift && !modifiers.alt {
+        return Some(GroupPressAction::AddToGroup);
+    }
     if modifiers.only_ctrl() {
         return Some(GroupPressAction::Assign);
     }
@@ -2704,7 +2713,7 @@ fn control_group_press_action(
         return Some(GroupPressAction::Center);
     }
     if modifiers.any() {
-        // Two modifiers at once: no binding carries that key value.
+        // Other modifier combinations have no derived group action.
         return None;
     }
     let within_window = last_press.is_some_and(|(last_slot, elapsed)| {
@@ -2731,6 +2740,20 @@ fn assign_control_group(groups: &mut [Vec<u64>], slot: usize, ids: Vec<u64>) {
         }
     }
     groups[slot] = ids;
+}
+
+/// Append without duplicates, preserving member order and single-group ownership.
+fn append_control_group(groups: &mut [Vec<u64>], slot: usize, ids: Vec<u64>) {
+    if ids.is_empty() {
+        return;
+    }
+    let mut merged = groups[slot].clone();
+    for id in ids {
+        if !merged.contains(&id) {
+            merged.push(id);
+        }
+    }
+    assign_control_group(groups, slot, merged);
 }
 
 /// Centre of a set of world points in leptons, with the single worst outlier
@@ -2858,7 +2881,17 @@ fn handle_control_group_command(
         .expect("a bare team-select binding always resolves")
     });
 
+    log::debug!(
+        "Control group {group_idx}: action={action:?} selected={selected:?} members={live_group:?}"
+    );
     match action {
+        GroupPressAction::AddToGroup => {
+            append_control_group(
+                &mut state.match_state.input.control_groups,
+                group_idx,
+                selected,
+            );
+        }
         GroupPressAction::Assign => {
             assign_control_group(
                 &mut state.match_state.input.control_groups,
@@ -3163,14 +3196,12 @@ mod control_group_tests {
         );
     }
 
-    /// Two modifiers at once produce a key value no binding carries, so the
-    /// press does nothing at all — Ctrl+Shift+digit must not assign.
     #[test]
-    fn two_modifiers_match_no_binding() {
+    fn ctrl_shift_appends_but_ctrl_alt_stays_unbound() {
         let group = [1u64];
         assert_eq!(
             control_group_press_action(mods(true, true, false), 0, &group, &group, None),
-            None
+            Some(GroupPressAction::AddToGroup)
         );
         assert_eq!(
             control_group_press_action(mods(false, true, true), 0, &group, &group, None),
@@ -3351,5 +3382,27 @@ mod modifier_tests {
         assert!(!ctrl_shift.only_shift());
         assert!(!ctrl_shift.only_alt());
         assert!(ctrl_shift.dev_chord());
+    }
+}
+
+#[cfg(test)]
+mod append_group_tests {
+    use super::{append_control_group, assign_control_group};
+
+    #[test]
+    fn append_preserves_members_deduplicates_and_moves_new_members_between_groups() {
+        let mut groups = vec![Vec::new(); 10];
+        assign_control_group(&mut groups, 0, vec![10, 20]);
+        assign_control_group(&mut groups, 9, vec![30, 40]);
+        append_control_group(&mut groups, 0, vec![20, 30, 30]);
+        assert_eq!(groups[0], [10, 20, 30]);
+        assert_eq!(groups[9], [40]);
+        append_control_group(&mut groups, 0, Vec::new());
+        assert_eq!(groups[0], [10, 20, 30]);
+        append_control_group(&mut groups, 8, vec![40]);
+        assert_eq!(groups[8], [40]);
+        assert!(groups[9].is_empty());
+        assign_control_group(&mut groups, 0, vec![50]);
+        assert_eq!(groups[0], [50], "Ctrl alone still replaces the group");
     }
 }

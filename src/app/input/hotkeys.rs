@@ -28,6 +28,8 @@ pub(crate) enum HotkeyCommand {
     TeamSelect(usize),
     TeamAddSelect(usize),
     TeamCreate(usize),
+    /// Derived Ctrl+Shift version of a create binding; never stored in the INI.
+    TeamAppend(usize),
     TeamCenter(usize),
     ToggleAlliance,
     PlaceBeacon,
@@ -310,6 +312,15 @@ impl HotkeyBindings {
             .copied()
         {
             return HotkeyResolution::Command(command);
+        }
+        // Local control-group extension: adding Shift to a Ctrl-create chord
+        // appends the current selection. Explicit bindings above retain priority,
+        // and following TeamCreate preserves remaps and deliberate unbinding.
+        if modifier_bits(modifiers) == (CTRL_BIT | SHIFT_BIT)
+            && let Some(HotkeyCommand::TeamCreate(slot)) =
+                self.by_key.get(&(virtual_key | CTRL_BIT)).copied()
+        {
+            return HotkeyResolution::Command(HotkeyCommand::TeamAppend(slot));
         }
         fallback_for_virtual_key(virtual_key)
             .map(HotkeyResolution::Fallback)
@@ -988,7 +999,7 @@ mod tests {
     }
 
     #[test]
-    fn exact_modifiers_resolve_group_commands_and_reject_two_modifier_chords() {
+    fn exact_modifiers_resolve_group_commands_including_append() {
         let bindings = HotkeyBindings::from_ini_bytes(Some(
             b"[Hotkey]\nTeamSelect_1=49\nTeamAddSelect_1=305\nTeamCreate_1=561\nTeamCenter_1=1073\n",
         ));
@@ -1011,7 +1022,7 @@ mod tests {
         );
         assert_eq!(
             bindings.resolve(&key, KeyLocation::Standard, modifiers(true, true, false)),
-            None
+            Some(HotkeyCommand::TeamAppend(1))
         );
     }
 
@@ -1399,5 +1410,86 @@ mod modifier_owner_tests {
         assert_eq!(views.gameplay, ModifiersState::CONTROL);
         assert!(views.edge(KeyCode::ControlRight, false, false));
         assert!(views.gameplay.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod group_chord_tests {
+    use super::*;
+
+    fn character(value: &str) -> Key {
+        Key::Character(value.into())
+    }
+
+    #[test]
+    fn all_ten_group_chords_resolve_with_shifted_linux_digits() {
+        let mut ini = String::from("[Hotkey]\n");
+        for digit in 0..10 {
+            let name = if digit == 0 { 10 } else { digit };
+            let key = 48 + digit;
+            ini.push_str(&format!(
+                "TeamSelect_{name}={key}\nTeamCreate_{name}={}\nTeamAddSelect_{name}={}\n",
+                key | CTRL_BIT,
+                key | SHIFT_BIT
+            ));
+        }
+        let bindings = HotkeyBindings::from_ini_bytes(Some(ini.as_bytes()));
+        for (digit, shifted) in ")!@#$%^&*(".chars().enumerate() {
+            let plain = character(&digit.to_string());
+            let raw_shifted = character(&shifted.to_string());
+            let key = binding_logical_key(&raw_shifted, &plain, KeyLocation::Standard);
+            for (modifiers, command) in [
+                (ModifiersState::empty(), HotkeyCommand::TeamSelect(digit)),
+                (ModifiersState::CONTROL, HotkeyCommand::TeamCreate(digit)),
+                (ModifiersState::SHIFT, HotkeyCommand::TeamAddSelect(digit)),
+                (
+                    ModifiersState::CONTROL | ModifiersState::SHIFT,
+                    HotkeyCommand::TeamAppend(digit),
+                ),
+            ] {
+                assert_eq!(
+                    bindings.resolve_event(key, KeyLocation::Standard, modifiers),
+                    HotkeyResolution::Command(command),
+                    "digit {digit}, modifiers {modifiers:?}"
+                );
+            }
+            assert_eq!(
+                bindings.resolve_event(
+                    &plain,
+                    KeyLocation::Standard,
+                    ModifiersState::CONTROL | ModifiersState::ALT
+                ),
+                HotkeyResolution::Unhandled
+            );
+        }
+    }
+
+    #[test]
+    fn append_follows_create_remapping_and_respects_explicit_chords() {
+        let mut bindings = HotkeyBindings::from_ini_bytes(Some(
+            b"[Hotkey]\nTeamCreate_1=562\nTeamSelect_1=49\nTeamCreate_2=0\n",
+        ));
+        let chord = ModifiersState::CONTROL | ModifiersState::SHIFT;
+        assert_eq!(
+            bindings.resolve_event(&character("1"), KeyLocation::Standard, chord),
+            HotkeyResolution::Unhandled
+        );
+        assert_eq!(
+            bindings.resolve_event(&character("2"), KeyLocation::Standard, chord),
+            HotkeyResolution::Command(HotkeyCommand::TeamAppend(1))
+        );
+        bindings
+            .assign(HotkeyCommand::StopObject, 50 | CTRL_BIT | SHIFT_BIT)
+            .unwrap();
+        assert_eq!(
+            bindings.resolve_event(&character("2"), KeyLocation::Standard, chord),
+            HotkeyResolution::Command(HotkeyCommand::StopObject)
+        );
+        let reloaded =
+            HotkeyBindings::reload_from_ini_bytes(Some(bindings.to_ini_string().as_bytes()));
+        assert_eq!(
+            reloaded.resolve_event(&character("2"), KeyLocation::Standard, chord),
+            HotkeyResolution::Command(HotkeyCommand::StopObject)
+        );
     }
 }
