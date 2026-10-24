@@ -945,7 +945,8 @@ use crate::sim::world::Simulation;
 // 328 -> 329: persist map TruckCrate/TrainCrate. Earlier sessions lack
 // these bytes and cannot be decoded as the new positional bincode layout.
 // 329 -> 330: deterministic waypoint paths, members and per-unit progress.
-const SNAPSHOT_VERSION: u32 = 330;
+// 330 -> 331: AI recovery persists war-factory ownership counts.
+const SNAPSHOT_VERSION: u32 = 331;
 
 const SNAPSHOT_PRODUCT_MAGIC: [u8; 8] = *b"VERA20K\0";
 const SNAPSHOT_ENVELOPE_VERSION: u32 = 1;
@@ -4077,7 +4078,7 @@ mod tests {
         // LoadObject registry, and neutral Tactical view/focus metadata.
         // 327 -> 328: each house's last lost building (+0x54E0).
         // 328 -> 329: persisted TruckCrate/TrainCrate map flags.
-        assert_eq!(super::SNAPSHOT_VERSION, 330);
+        assert_eq!(super::SNAPSHOT_VERSION, 331);
     }
 
     #[test]
