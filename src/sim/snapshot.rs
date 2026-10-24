@@ -954,7 +954,8 @@ use crate::sim::world::Simulation;
 // 336 -> 337: Squid grapple phase, animation and roll.
 // 337 -> 338: Magnetron lift and drop relationships.
 // 338 -> 339: Boris airstrike managers, member links and target tint.
-const SNAPSHOT_VERSION: u32 = 339;
+// 339 -> 340: saved launch diplomacy policy and FixedAlliance flag.
+const SNAPSHOT_VERSION: u32 = 340;
 
 const SNAPSHOT_PRODUCT_MAGIC: [u8; 8] = *b"VERA20K\0";
 const SNAPSHOT_ENVELOPE_VERSION: u32 = 1;
@@ -4148,7 +4149,7 @@ mod tests {
         // LoadObject registry, and neutral Tactical view/focus metadata.
         // 327 -> 328: each house's last lost building (+0x54E0).
         // 328 -> 329: persisted TruckCrate/TrainCrate map flags.
-        assert_eq!(super::SNAPSHOT_VERSION, 339);
+        assert_eq!(super::SNAPSHOT_VERSION, 340);
     }
 
     #[test]

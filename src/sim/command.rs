@@ -741,7 +741,13 @@ pub enum Command {
         node: usize,
     },
     /// Player Scatter (native event 7). Appended to preserve saved indices.
-    Scatter { entity_id: u64 },
+    Scatter {
+        entity_id: u64,
+    },
+    /// Player alliance event3, appended to preserve earlier command indices.
+    ToggleAlliance {
+        target: InternedId,
+    },
 }
 
 /// Command with deterministic execution metadata.

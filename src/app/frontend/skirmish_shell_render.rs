@@ -17,6 +17,8 @@ mod in_game_shell;
 pub(crate) use in_game_shell::{
     current_in_game_shell_layout, native_in_game_shell_active, render_in_game_options_shell,
 };
+mod diplomacy;
+pub(crate) use diplomacy::render_diplomacy_shell;
 mod pause_menu;
 pub(crate) use pause_menu::render_pause_menu_shell;
 mod saved_games;

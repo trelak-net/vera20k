@@ -45,6 +45,7 @@ pub(crate) fn native_in_game_shell_active(state: &AppState) -> bool {
         && matches!(
             state.match_state.match_presentation.in_game_menu,
             crate::ui::pause_menu::InGameMenuState::Menu
+                | crate::ui::pause_menu::InGameMenuState::Diplomacy
                 | crate::ui::pause_menu::InGameMenuState::AbortConfirm
                 | crate::ui::pause_menu::InGameMenuState::Sound
                 | crate::ui::pause_menu::InGameMenuState::Keyboard
@@ -54,6 +55,7 @@ pub(crate) fn native_in_game_shell_active(state: &AppState) -> bool {
         && (matches!(
             state.match_state.match_presentation.in_game_menu,
             crate::ui::pause_menu::InGameMenuState::Menu
+                | crate::ui::pause_menu::InGameMenuState::Diplomacy
                 | crate::ui::pause_menu::InGameMenuState::AbortConfirm
         ) || state.frontend.skirmish_shell_chrome.is_some())
         && crate::app::presentation::sidebar_render::current_sidebar_chrome(state).is_some_and(

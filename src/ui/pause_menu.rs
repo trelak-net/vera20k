@@ -62,6 +62,8 @@ pub enum InGameMenuState {
     /// No modal is open — the mission runs. (gamemd: 0)
     #[default]
     Closed,
+    /// Player diplomacy, opened by Tab or the sidebar diplomacy control.
+    Diplomacy,
     /// The in-game menu. (gamemd: 1)
     Menu,
     /// The abort-mission confirmation. (gamemd: 3)
@@ -104,6 +106,7 @@ impl InGameMenuState {
             Self::Options => Self::Menu,
             Self::SavedGame(_) | Self::Sound => self,
             Self::Keyboard => Self::Options,
+            Self::Diplomacy => Self::Closed,
         }
     }
 }

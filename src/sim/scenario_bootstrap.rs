@@ -1151,6 +1151,7 @@ pub(crate) fn initialize_skirmish_launch_houses(
     sim.session.game_options = session
         .options
         .to_game_options(session.opponents.len() as i32);
+    sim.session.diplomacy.allies_allowed = session.mode.allies_allowed;
     populate_launch_houses(sim, &slots, rules);
     // 688109 installs the original participant-array index0. These normalized
     // slots retain that launch identity; later MCV placement/viewer choice
@@ -1714,6 +1715,12 @@ pub(crate) fn launch_alliance_map(
             .or_default();
     }
     for left in slots {
+        // Free For All disables alliances in the mode rules. Saved or external
+        // launch slots may still carry an old team number; do not admit it into
+        // the live graph merely because the setup controls were disabled.
+        if !mode.allies_allowed {
+            continue;
+        }
         let LaunchTeam::Team(team) = left.team else {
             continue;
         };

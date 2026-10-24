@@ -412,6 +412,7 @@ pub struct ScenarioDescriptor {
     /// Native `ScenarioClass` flags bit `0x20`. The shared direct and area
     /// damage entries return before any receiver or terrain mutation while set.
     pub no_damage: bool,
+    pub diplomacy: crate::sim::diplomacy::DiplomacyPolicy,
     /// Map `[Basic] FreeRadar`, native Scenario+34A4. Fresh reset at 0068383C
     /// is false; House 00508DF0 bypasses ordinary power/providers when set.
     pub free_radar: bool,
@@ -461,6 +462,10 @@ impl ScenarioDescriptor {
             seed: header.seed,
             map_name: header.scenario_name(),
             no_damage: header.special_flags & 0x20 != 0,
+            diplomacy: crate::sim::diplomacy::DiplomacyPolicy {
+                fixed_alliance: header.special_flags & 0x400 != 0,
+                ..Default::default()
+            },
             tiberium_grows_flag: header.special_flags & 0x40 != 0,
             tiberium_spreads_flag: header.special_flags & 0x80 != 0,
             ..Self::default()
@@ -522,6 +527,7 @@ pub struct ScenarioSession {
     /// Persisted native `ScenarioClass` flags bit `0x20`.
     #[serde(default)]
     pub no_damage: bool,
+    pub diplomacy: crate::sim::diplomacy::DiplomacyPolicy,
     /// Persistent native Scenario+34A4, included by original CRC at 0068BC16.
     #[serde(default)]
     pub free_radar: bool,
@@ -594,10 +600,11 @@ impl ScenarioSession {
         waypoints: &std::collections::HashMap<u32, crate::map::waypoints::Waypoint>,
     ) {
         self.waypoints.clear();
-        self.waypoints.extend(waypoints.iter().filter_map(|(&index, waypoint)| {
-            (index < crate::map::waypoints::WAYPOINT_SLOT_COUNT)
-                .then_some((index, (waypoint.rx as i16, waypoint.ry as i16)))
-        }));
+        self.waypoints
+            .extend(waypoints.iter().filter_map(|(&index, waypoint)| {
+                (index < crate::map::waypoints::WAYPOINT_SLOT_COUNT)
+                    .then_some((index, (waypoint.rx as i16, waypoint.ry as i16)))
+            }));
     }
 
     /// Scenario::GetWaypointCoords68BCC0 copies the packed signed words. An
@@ -712,6 +719,10 @@ impl ScenarioSession {
         // This is not a claim that Rust's stronger hash equals native's CRC.
         // Preserve the legacy default-false hash stream while still making
         // the native ScenarioFlags 0x20 state lockstep-visible.
+        if s.diplomacy != Default::default() {
+            b"diplomacy-policy-v1".hash(hasher);
+            s.diplomacy.hash(hasher);
+        }
         if s.no_damage {
             b"scenario-no-damage-v1".hash(hasher);
         }
@@ -833,6 +844,7 @@ impl ScenarioSession {
             input_locked: false,
             started: false,
             no_damage: desc.no_damage,
+            diplomacy: desc.diplomacy,
             free_radar: desc.free_radar,
             truck_crate: desc.truck_crate,
             train_crate: desc.train_crate,
@@ -1055,7 +1067,9 @@ mod tests {
                     } else {
                         Vec::new()
                     };
-                    sim.advance_tick(&cmds, None, None, None, 67).state_hash.unwrap()
+                    sim.advance_tick(&cmds, None, None, None, 67)
+                        .state_hash
+                        .unwrap()
                 })
                 .collect()
         }

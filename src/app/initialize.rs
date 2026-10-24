@@ -513,6 +513,8 @@ impl App {
                     message_clock: crate::ui::messages::PauseAwareClock::default(),
                     in_game_menu: crate::ui::pause_menu::InGameMenuState::default(),
                     pause_menu_has_saves: false,
+                    diplomacy_page: 0,
+                    diplomacy_interaction: Default::default(),
                     pause_menu_interaction: Default::default(),
                     sound_dialog: None,
                     abort_buttons: Default::default(),
@@ -679,7 +681,8 @@ impl App {
                         None
                     }
                 },
-            ).with_replay_recording(capture || std::env::var_os("VERA_RECORD_REPLAYS").is_some()),
+            )
+            .with_replay_recording(capture || std::env::var_os("VERA_RECORD_REPLAYS").is_some()),
         };
 
         // Project all three retained profile gains before any player can start

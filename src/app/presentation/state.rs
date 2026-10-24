@@ -152,6 +152,10 @@ pub(crate) struct MatchPresentationState {
     /// parent/child relationship with the `0xBBB` Options dialog.
     pub(crate) in_game_menu: crate::ui::pause_menu::InGameMenuState,
     pub(crate) pause_menu_has_saves: bool,
+    pub(crate) diplomacy_page: usize,
+    pub(crate) diplomacy_interaction: crate::ui::shell::button::ShellButtonInteraction<
+        crate::ui::shell::diplomacy::DiplomacyButton,
+    >,
     pub(crate) pause_menu_interaction: crate::ui::shell::pause_menu::PauseMenuInteraction,
     pub(crate) sound_dialog: Option<crate::ui::shell::sound::SoundState>,
     pub(crate) abort_buttons:

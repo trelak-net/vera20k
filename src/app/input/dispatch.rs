@@ -81,6 +81,12 @@ pub(crate) fn handle_mouse_input(
             state.match_state.input.tactical_mouse.release();
         }
         if state.match_state.match_presentation.in_game_menu
+            == crate::ui::pause_menu::InGameMenuState::Diplomacy
+        {
+            crate::app::input::diplomacy::mouse(state, button, pressed);
+            return;
+        }
+        if state.match_state.match_presentation.in_game_menu
             == crate::ui::pause_menu::InGameMenuState::Sound
         {
             crate::app::input::sound::mouse(state, button, pressed);
@@ -704,6 +710,12 @@ pub(crate) fn handle_cursor_moved_in_game(state: &mut AppState) {
     // cadence applies on close, KD-8) and swallow the move so it can't begin a
     // selection drag or camera pan behind the overlay.
     if state.match_state.paused() {
+        if state.match_state.match_presentation.in_game_menu
+            == crate::ui::pause_menu::InGameMenuState::Diplomacy
+        {
+            crate::app::input::diplomacy::cursor_moved(state);
+            return;
+        }
         if state.match_state.match_presentation.in_game_menu
             == crate::ui::pause_menu::InGameMenuState::Sound
         {
@@ -1643,6 +1655,7 @@ fn dispatch_retail_hotkey(state: &mut AppState, command: HotkeyCommand) {
             state,
             crate::app::types::CategoryNavigationKind::Veterancy,
         ),
+        HotkeyCommand::ToggleAlliance => crate::app::input::diplomacy::toggle_selected(state),
         // UNCHECKED residual, all still no-ops. Three of them are audio
         // triggers whose rules keys VERA already parses or could:
         // `PlaceBeacon` should place the beacon and play `[AudioVisual]
@@ -1655,8 +1668,7 @@ fn dispatch_retail_hotkey(state: &mut AppState, command: HotkeyCommand) {
         // nothing. Frequency: rare in skirmish — all three are multiplayer
         // social commands. Downstream risk: beacons and taunts are network
         // messages, so they belong with `net/`, not with this row.
-        HotkeyCommand::ToggleAlliance
-        | HotkeyCommand::PlaceBeacon
+        HotkeyCommand::PlaceBeacon
         | HotkeyCommand::AllToCheer
         | HotkeyCommand::PageUser
         | HotkeyCommand::Taunt(_) => {}
@@ -1708,10 +1720,22 @@ fn open_pause_menu(state: &mut AppState) {
     log::info!("Game paused");
 }
 
-fn open_diplomacy_menu(_state: &mut AppState) {
-    // 6538FE -> GameState8 (diplomacy), or9 (mission briefing in mode0).
-    // Existing diplomacy hotkey boundary: the actual modal is not implemented.
-    // Keep this residual explicit; this increment establishes its gadget only.
+fn open_diplomacy_menu(state: &mut AppState) {
+    // Sidebar6538FE and the Diplomacy hotkey enter GameState8 in nonzero modes.
+    if !state
+        .match_state
+        .sim_runtime
+        .as_ref()
+        .is_some_and(|runtime| runtime.simulation.session.game_mode_nonzero)
+    {
+        return;
+    }
+    crate::app::input::planning::finish(state);
+    crate::app::App::enter_in_game_menu_state(
+        state,
+        crate::ui::pause_menu::InGameMenuState::Diplomacy,
+    );
+    log::info!("Diplomacy opened");
 }
 
 fn handle_options_hotkey(state: &mut AppState) {
@@ -2425,14 +2449,22 @@ fn queue_selection_snapshot_command(state: &mut AppState, selected_ids: Vec<u64>
 
 fn queue_scatter_for_selected(state: &mut AppState) {
     let selected = selected_stable_ids_in_order(
-        state.match_state.sim_runtime.as_ref().map(|rt| &rt.simulation),
-        state.rules(), &state.match_state.input.selection_order,
+        state
+            .match_state
+            .sim_runtime
+            .as_ref()
+            .map(|rt| &rt.simulation),
+        state.rules(),
+        &state.match_state.input.selection_order,
         state.match_state.input.selection_order_pending,
     );
-    let Some(owner) = preferred_local_owner(state) else { return; };
+    let Some(owner) = preferred_local_owner(state) else {
+        return;
+    };
     for entity_id in selected {
         let admitted = state.match_state.sim_runtime.as_ref().is_some_and(|rt| {
-            rt.simulation.techno_player_controllable(entity_id, &rt.resources.rules)
+            rt.simulation
+                .techno_player_controllable(entity_id, &rt.resources.rules)
         });
         if admitted {
             schedule_command(state, &owner, Command::Scatter { entity_id });

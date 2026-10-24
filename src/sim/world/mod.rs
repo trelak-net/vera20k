@@ -3098,6 +3098,7 @@ impl Simulation {
     pub(crate) fn retained_campaign_special_flags(&self) -> crate::map::basic::SpecialFlagsSection {
         crate::map::basic::SpecialFlagsSection {
             inert: Some(self.session.no_damage),
+            fixed_alliance: Some(self.session.diplomacy.fixed_alliance),
             tiberium_grows: Some(self.session.tiberium_grows_flag),
             tiberium_spreads: Some(self.session.tiberium_spreads_flag),
             destroyable_bridges: Some(
@@ -5955,6 +5956,14 @@ impl Simulation {
                 );
             }
         }
+    }
+
+    /// An infrequent diplomacy event changes sight audiences immediately.
+    /// The ordinary vision owner releases old allied admissions, replays live
+    /// sources, and keeps explored terrain; no persistent audience cache is added.
+    pub(crate) fn refresh_diplomacy_sight(&mut self, rules: &RuleSet) {
+        let config = self.sight_reveal_config(Some(rules));
+        self.refresh_fog(&config, Some(rules));
     }
 
     fn refresh_fog(&mut self, config: &vision::VisionConfig, rules: Option<&RuleSet>) {

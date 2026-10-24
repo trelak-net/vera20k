@@ -2011,6 +2011,7 @@ impl MapLoadInitial {
             theater: map_data.header.theater.clone(),
             game_mode_nonzero: true,
             no_damage: false,
+            diplomacy: Default::default(),
             free_radar: map_data.basic.free_radar.unwrap_or(false),
             truck_crate: map_data.basic.truck_crate.unwrap_or(false),
             train_crate: map_data.basic.train_crate.unwrap_or(false),
@@ -2749,6 +2750,11 @@ pub(crate) fn load_map_from_initial(
         // Campaign/editor reads `[SpecialFlags] Inert=`. Nonzero game modes
         // replace active SpecialFlags from session staging.
         no_damage: !game_mode_nonzero && map_data.special_flags.inert.unwrap_or(false),
+        diplomacy: crate::sim::diplomacy::DiplomacyPolicy {
+            fixed_alliance: !game_mode_nonzero
+                && map_data.special_flags.fixed_alliance.unwrap_or(false),
+            ..Default::default()
+        },
         free_radar: map_data.basic.free_radar.unwrap_or(false),
         truck_crate: map_data.basic.truck_crate.unwrap_or(false),
         train_crate: map_data.basic.train_crate.unwrap_or(false),

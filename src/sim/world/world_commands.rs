@@ -824,6 +824,12 @@ impl Simulation {
                     )
                 }
             }
+            Command::ToggleAlliance { target } => {
+                let (Some(owner), Some(rules)) = (self.interner.get(command_owner), rules) else {
+                    return false;
+                };
+                self.toggle_player_alliance(owner, *target, rules, overlay_registry, frame_effects)
+            }
             Command::Scatter { entity_id } => {
                 // ScatterObject 536D80 -> 730FE0 -> event 7 at 4C7859.
                 // Native passes (null, forced=true, no_kidding=false): an

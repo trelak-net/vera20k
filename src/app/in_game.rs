@@ -42,6 +42,8 @@ impl App {
             crate::ui::pause_menu::InGameMenuState::Closed;
         state.match_state.match_presentation.in_game_options_anchor = None;
         state.match_state.match_presentation.pause_menu_interaction = Default::default();
+        state.match_state.match_presentation.diplomacy_interaction = Default::default();
+        state.match_state.match_presentation.diplomacy_page = 0;
         state.match_state.match_presentation.abort_buttons = Default::default();
         state.match_state.match_presentation.sound_dialog = None;
         state.match_state.match_presentation.saved_game_browser = None;
@@ -211,6 +213,8 @@ impl App {
         }
         state.match_state.match_presentation.in_game_menu = next;
         state.match_state.match_presentation.pause_menu_interaction = Default::default();
+        state.match_state.match_presentation.diplomacy_interaction = Default::default();
+        state.match_state.match_presentation.diplomacy_page = 0;
         state.match_state.match_presentation.abort_buttons = Default::default();
         state.match_state.match_presentation.sound_dialog = None;
         if next == InGameMenuState::Menu {

@@ -68,6 +68,8 @@ pub struct SpecialFlagsSection {
     /// Campaign/editor `ScenarioFlags` bit 0x20. While set, direct and area
     /// damage return before mutating world state (`Inert=`).
     pub inert: Option<bool>,
+    /// ScenarioFlags0x400, read by6B8E47 and alliance input731960.
+    pub fixed_alliance: Option<bool>,
 }
 
 impl SpecialFlagsSection {
@@ -76,6 +78,11 @@ impl SpecialFlagsSection {
     /// initializes0x8088: Inert/grows false, spreads/destroyable bridges true.
     /// The passed snapshot is a projection of the existing live authorities.
     pub(crate) fn resolve_campaign_defaults(&mut self, prior: Option<&Self>) {
+        self.fixed_alliance.get_or_insert(
+            prior
+                .and_then(|flags| flags.fixed_alliance)
+                .unwrap_or(false),
+        );
         self.inert
             .get_or_insert(prior.and_then(|flags| flags.inert).unwrap_or(false));
         self.tiberium_grows.get_or_insert(
@@ -163,6 +170,7 @@ pub fn parse_special_flags_section(ini: &IniFile) -> SpecialFlagsSection {
         tiberium_spreads: section.read_bool_value("TiberiumSpreads"),
         destroyable_bridges: section.read_bool_value("DestroyableBridges"),
         inert: section.read_bool_value("Inert"),
+        fixed_alliance: section.read_bool_value("FixedAlliance"),
     }
 }
 

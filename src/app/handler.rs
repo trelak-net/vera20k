@@ -650,6 +650,28 @@ impl ApplicationHandler for App {
                         state.platform.window.request_redraw();
                         return;
                     }
+                    if in_game
+                        && state.match_state.match_presentation.in_game_menu
+                            == crate::ui::pause_menu::InGameMenuState::Diplomacy
+                    {
+                        if event.state.is_pressed()
+                            && !event.repeat
+                            && matches!(
+                                code,
+                                KeyCode::Escape
+                                    | KeyCode::Tab
+                                    | KeyCode::Enter
+                                    | KeyCode::NumpadEnter
+                            )
+                        {
+                            Self::enter_in_game_menu_state(
+                                state,
+                                crate::ui::pause_menu::InGameMenuState::Closed,
+                            );
+                        }
+                        state.platform.window.request_redraw();
+                        return;
+                    }
                     if !crate::app::input::hotkeys::input_admitted_while_paused(
                         paused_at_event,
                         &event.logical_key,

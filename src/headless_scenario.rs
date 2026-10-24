@@ -189,6 +189,7 @@ pub(crate) fn load_with_launch(
         theater: map.header.theater.clone(),
         game_mode_nonzero: true,
         no_damage: false,
+        diplomacy: Default::default(),
         free_radar: map.basic.free_radar.unwrap_or(false),
         truck_crate: map.basic.truck_crate.unwrap_or(false),
         train_crate: map.basic.train_crate.unwrap_or(false),
