@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::audio::arbiter::{
-    ArbiterAction, EntryFacts, HandleOwner, PlayRequest, SoundArbiter, TestPlayback,
+    ArbiterAction, EntryFacts, HandleOwner, PlayRequest, PlayoutEnd, SoundArbiter, TestPlayback,
 };
 use crate::rules::{
     art_data::ArtRegistry, retail_ini_fixture::retail_ini, sound_ini::SoundRegistry,
@@ -183,7 +183,8 @@ fn retail_landing_child_reports_release_instead_of_cutting_samples() {
         );
         assert_eq!(arbiter.live_event_count(), 1);
         assert_eq!(arbiter.busy_channel_count(), 1);
-        arbiter.notify_playout_ended(arbiter.event_token(playing).unwrap());
+        let token = arbiter.event_token(playing).unwrap();
+        arbiter.notify_playout_ended(token, PlayoutEnd::default(), 200);
         arbiter.update_tick(240, &mut TestPlayback::default());
         assert_eq!(arbiter.live_event_count(), 0);
         assert_eq!(arbiter.busy_channel_count(), 0);

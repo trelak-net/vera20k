@@ -90,7 +90,7 @@ fn natural_state_four_still_occupies_full_pool_until_stopped() {
     let token = arbiter.event_token(ended).unwrap();
     // Rust's existing endpoint owner is invoked explicitly. Native's state4
     // golden comes from its original PCM worker, not a supplied endpoint.
-    arbiter.notify_playout_ended(token);
+    arbiter.notify_playout_ended(token, PlayoutEnd::default(), 1000);
     let state = &control("state4_plus299_pool_full")["state"];
     let native_ended = state["events"]
         .as_array()

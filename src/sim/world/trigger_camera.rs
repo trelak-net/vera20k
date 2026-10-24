@@ -14,6 +14,10 @@ impl Simulation {
     /// invalid coordinates stamp the same process CellClass Dummy in order.
     /// Native executable controls for the downstream FocusOn/TacticalAI:
     /// tools/input_oracle/fast_scroll.{py,json,meta.json}.
+    /// Case99's GetWaypointLocation68BD00 (Map5657A0, CellGetCoords486840,
+    /// then the bridge height under flags500) reaches the same point: the
+    /// cell's own coordinate is its stamped centre and 486840's height is
+    /// 578080's.
     pub(crate) fn trigger_waypoint_coord(&self, index: i32) -> Option<[i32; 3]> {
         let cell = self.session.waypoint_cell(index)?;
         let terrain = self.resolved_terrain.as_ref()?;
@@ -23,9 +27,7 @@ impl Simulation {
         let mut z = query_ground_height(&cells, DriveCoord { x, y, z: 0 })
             .expect("authored camera ground query requires a valid native slope");
         let first = cells.lookup(cell);
-        if cells.flags(first) & 0x100 != 0
-            || cells.flags(cells.lookup(cell)) & 0x400 != 0
-        {
+        if cells.flags(first) & 0x100 != 0 || cells.flags(cells.lookup(cell)) & 0x400 != 0 {
             z = z.wrapping_add(BRIDGE_DECK_HEIGHT_LEPTONS);
         }
         Some([x, y, z])

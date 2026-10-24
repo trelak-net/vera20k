@@ -587,6 +587,15 @@ pub struct ObjectType {
     /// Stock authors: `[GTGCAN]` `GrandCannonRotate`, `[CAEAST02]`
     /// `YuriBustRotate` (both `Turret=yes`); no other type names it.
     pub turret_rotate_sound: Option<String>,
+    /// `AmbientSound=`: `ObjectTypeClass+0x1F4`, which the constructor sets to
+    /// `-1` (`0x005F7140`). `ObjectTypeClass::ReadINI` reads it at
+    /// `0x005F93C1..0x005F9403` (ReadString 0x80, then `VocClass::FindIndex @
+    /// 0x007514D0`) and keeps the old value for an absent, empty or
+    /// unregistered name, so it has `turret_rotate_sound`'s layering. `None`
+    /// is `-1`. The fixed SOUNDMD binder owns the resolution.
+    ///
+    /// Consumer: `crate::sim::world::object_sound`.
+    pub ambient_sound: Option<String>,
     /// `ImpactWaterSound=` / `ImpactLandSound=` — `+0x53C` / `+0x540`, read at
     /// `0x00712EFC` / `0x00712F38`: the crash impact's cue by the impact cell's
     /// LandType (`FlyLocomotionClass::Process 0x004CD818..0x004CD891`), each
@@ -2379,6 +2388,9 @@ impl ObjectType {
             // TechnoTypeClass+0x560 starts at -1. RuleSet's fixed SOUNDMD
             // binder later resolves the layered ReadINI7133BA reference.
             turret_rotate_sound: None,
+            // ObjectTypeClass+0x1F4 starts at -1 (5F7140); the binder resolves
+            // the layered ReadINI5F93C1 reference.
+            ambient_sound: None,
             impact_water_sound: section
                 .read_name("ImpactWaterSound", 0x80)
                 .map(str::to_owned),

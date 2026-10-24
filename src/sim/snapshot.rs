@@ -950,7 +950,8 @@ use crate::sim::world::Simulation;
 // 332 -> 333: Tesla charger vectors and overpower latches.
 // 333 -> 334: distributed-fire candidate scores and firing history.
 // 334 -> 335: per-building Secret Lab fallback reward.
-const SNAPSHOT_VERSION: u32 = 335;
+// 335 -> 336: resolved trigger sounds, object ambient overrides and one-time superweapons.
+const SNAPSHOT_VERSION: u32 = 336;
 
 const SNAPSHOT_PRODUCT_MAGIC: [u8; 8] = *b"VERA20K\0";
 const SNAPSHOT_ENVELOPE_VERSION: u32 = 1;
@@ -2196,6 +2197,18 @@ fn restore_object_references(
             "wave",
             "WaveStore",
             wave_id,
+        )?;
+    }
+
+    for &object_id in sim.object_custom_sounds.keys() {
+        require_resolved_reference(
+            entity_ids.contains(&object_id)
+                || sim.production.terrain_objects.contains_key(&object_id),
+            "ObjectCustomSounds",
+            object_id,
+            "object",
+            "EntityStore or TerrainObjectStore",
+            object_id,
         )?;
     }
 
@@ -4102,7 +4115,7 @@ mod tests {
         // LoadObject registry, and neutral Tactical view/focus metadata.
         // 327 -> 328: each house's last lost building (+0x54E0).
         // 328 -> 329: persisted TruckCrate/TrainCrate map flags.
-        assert_eq!(super::SNAPSHOT_VERSION, 335);
+        assert_eq!(super::SNAPSHOT_VERSION, 336);
     }
 
     #[test]

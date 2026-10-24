@@ -34,13 +34,6 @@
 //! ordering read from the disassembly.
 //!
 //! RESIDUALS:
-//! - Between the gate and the strategy tick, every eighth frame, native
-//!   springs event 8 ("any event") on each of the house's tags, last to
-//!   first (`0x004F8F87..0x004F8FBC`: the list at House+0x3C, its count at
-//!   +0x48, `0x006E53A0`); VERA's trigger runtime keeps no tags on houses.
-//!   Trigger: a map trigger attached to a house, mostly in campaigns.
-//!   Effect: that trigger's "any event" never springs. Later owner: the
-//!   trigger subsystem.
 //! - TechnoClass::Array order stands on stable-id order (construction order),
 //!   which matches for every source VERA constructs in native order.
 //! - Slave release: a Slave Miner killed with no attacker hands its slaves on
@@ -91,8 +84,8 @@ impl Simulation {
 
     /// The house rung's per-house steps in HouseClass::Array order: each
     /// house's team creation (`0x004F8A00..0x004F8B08`,
-    /// `sim::ai_team_creation`), its defeat gate (see the module doc), then
-    /// its strategy tick (`0x004F8FBE..0x004F9032`, `sim::house_strategy`) and
+    /// `sim::ai_team_creation`), its defeat gate (see the module doc), its
+    /// Tags' event-8 raise (`sim::trigger_runtime`), then its strategy tick (`0x004F8FBE..0x004F9032`, `sim::house_strategy`) and
     /// production choices (`0x004F9038..0x004F9265`, `sim::ai_base_building`);
     /// then the game-over scan and the result timers. Without `defeat_pass`
     /// (VERA's first tick) the defeat gates and the game-over scan are
@@ -157,6 +150,7 @@ impl Simulation {
                 }
                 self.mplayer_defeated(owner, outcome_tick, savour_frames);
             }
+            self.raise_house_tags(owner, rules, registry, frame_effects);
             if let Some(rules) = rules {
                 crate::sim::house_strategy::update_strategy(
                     self,

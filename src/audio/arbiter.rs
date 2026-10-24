@@ -136,117 +136,36 @@ pub const RAMP_SPAN_MS: u32 = 1000;
 /// Pre-delay floor and the `Control=ambient` minimum, in milliseconds.
 /// `SoundEvent::UpdateState @ 0x004055C0` draws
 /// `RandomRanged(AMBIENT ? 0x21 : Delay.min, Delay.max)` and discards any
-/// result below `0x21` (`if (iVar5 < 0x21) return;`).
+/// result below `0x21` (signed, `0x0040574F`).
 ///
-/// **Deferred DRIFT — the whole `Delay.min >= 0x21` playout path is a second
-/// native mechanism VERA does not implement (gamemd read, VERA behaviour
-/// UNCHECKED against it).** This value is not only a pre-delay floor: it
-/// selects between two different sample loaders, and VERA implements only
-/// the low side.
-///
-/// - Below the floor (what VERA models): `SoundEvent::PreparePlayout @
-///   0x00404700` resets the eligible body indices at `event+0x160` and
-///   returns one attack/body buffer. `AdvancePlaylist @ 0x004047B0`
-///   selects each later buffer; all three of that function's
-///   arms — chain, LOOP restart, DECAY tail — sit inside its opening
-///   `if (Voc+0x58 < 0x21 || (flags & 0x20))`.
-/// - At or above it: `SoundEvent::LoadSamples @ 0x004048B0` takes a wholly
-///   separate branch that loads **one** body sample per service pass, chosen
-///   by `SoundEvent::SelectNextSample @ 0x00404BB0` (plus the decay sample
-///   when `Control=decay`). `SelectNextSample` keeps its own playlist at
-///   `event+0x1E8` with its own cursor `+0x270`, remaining count `+0x268`
-///   and pass counter `+0x26C`, and returns `-1` to end the cue: after pass 1
-///   without `Control=loop`, or when `Loop != 0 && Loop <= pass`. So the
-///   `Loop=` budget and the `Control=all` set are honoured there, one sample
-///   per `SoundSystem::UpdateTick @ 0x004041D0` pass, with the pre-delay
-///   between them. `LoadSamples` is called only from `UpdateTick`, and
-///   `SelectNextSample` only from `LoadSamples` (`get_function_callers`).
-///
-/// VERA instead resolves every entry through the low-side cursor and PCM
-/// ring regardless of `Delay`. Trigger: submitting an entry
-/// whose `Delay=` low bound is >= 33 ms. Player effect, both halves: VERA
-/// plays the loaded chained set back-to-back where gamemd plays a
-/// single sample, waits out the re-drawn pre-delay, then plays the next; and
-/// because the low-delay playlist cursor correctly refuses the
-/// `AdvancePlaylist` restart above the floor while VERA models no substitute,
-/// VERA then *stops*, where gamemd sustains the cue under
-/// `SelectNextSample`'s own `Loop=` budget. So an ambient authored to run
-/// forever would play once and fall silent.
-///
-/// Trigger set, stated precisely because the obvious reading is wrong: the
-/// loader split at `0x004048B0` tests `Voc+0x58` alone, with **no `Control=`
-/// term**, so it is not the 24 `Control=loop` entries that qualify but every
-/// entry above the floor — **30** in `ini/soundmd.ini`. Six of those carry no
-/// `Control=loop`, and two of the six, `UpgradeVeteran`/`UpgradeElite`
-/// (`Delay=400`), are produced on **every unit promotion**
-/// (`rules/ruleset.rs` → `sim/world/techno_ai.rs` → `audio/events.rs`). They
-/// are nonetheless inaudibly identical, because a single-sample entry with no
-/// `Control=loop` yields that same one sample from either loader and then
-/// ends.
-///
-/// The two halves diverge over **different sets, and neither contains the
-/// other** — state each with its own criterion rather than adding them up.
-/// Both are counted off `ini/soundmd.ini` with the native tokenizer (`strtok`
-/// on `" \t\n"`, the delimiter string at `0x00846570`), so `Delay=` min is the
-/// first token and `Delay=10000 20000` is above the floor.
-///
-/// - **Chaining set — 22 entries**: above the floor, `Control=all`, and more
-///   than one `Sounds=` name. All three terms are load-bearing. Dropping the
-///   `Control=` term would give 24, but wrongly: without `all`,
-///   `LoadedSampleIndices::load` (`src/audio/sfx.rs`) keeps one body too, so
-///   `CowAmbient` (`random interrupt ambient`) and `MIGMove`
-///   (`random predelay`) yield one sample from either loader and cannot
-///   chain. `Control=attack`/`decay` would qualify as well, but that arm is
-///   vacuous on stock data — no above-floor entry writes `Attack=` or
-///   `Decay=`.
-/// - **Sustain set — 24 entries**: above the floor and `Control=loop`,
-///   single-sample ones included. `SelectNextSample` ends a cue only on
-///   `((flags & 1) == 0 && pass == 1)` or
-///   `((flags & 1) != 0 && Voc+0x4C != 0 && Voc+0x4C <= pass)`, and `Voc+0x4C`
-///   is `Loop=` read with **default 0**: `VocClass::ReadINI @ 0x00750834`
-///   calls `CCINIClass::ReadInt(section, "Loop", 0)` (key string at
-///   `0x00824238`) into `AudioEventClass::SetLoop @ 0x00406640`
-///   (`MOV [ECX+0x4C],EDX`). The file's one `Loop=` is
-///   `[TestEnvelopeFShift] Loop=3`, which is out of scope twice over — its
-///   `Delay=` is commented out so it sits below the floor, and its
-///   `Control= random` carries no loop bit. So all 24 leave `Voc+0x4C == 0`,
-///   the second disjunct can never fire, and every one sustains forever
-///   natively while the low-delay playlist cursor refuses it.
-///
-/// The two sets share **21** entries, so their union is 22 + 24 − 21 = **25**.
-/// Four entries break a naive reading of one criterion or the other, and they
-/// are why the union is not the larger set: `CruiseShipAmbience` (`gship1a`)
-/// and `_Amb_DesertHawk` sustain but carry a single `Sounds=` name and no
-/// `all`, so they never chain; `ChimpAmbient` (`random all ambient`) chains
-/// but carries no `loop`, so it is the one chaining entry outside the sustain
-/// set; and `PropagandaTruck` is above-floor `Control=loop` carrying **zero**
-/// `Sounds=` names — its list is commented out at `ini/soundmd.ini:2012` — so
-/// it is in the sustain set yet silent under either engine. Audibly
-/// divergent is therefore 25 − 1 = **24**, every one `Control=ambient` except
-/// the debug `TestRandomLoopDelayAll` (`random loop all`, `Priority=HIGH`).
-/// Beware that this 24 and the sustain set's 24 are equal-sized *different*
-/// sets: the sustain set holds `PropagandaTruck` and not `ChimpAmbient`, the
-/// audible union the reverse.
-///
-/// Frequency: **zero today**. `rulesmd.ini` points `AmbientSound=` at six of
-/// the 25, but `AmbientSound=` has no producer anywhere in the crate — the
-/// token appears in `src/` only in this comment. All 41 distinct `MoveSound=`
-/// values in `ini/rulesmd.ini` resolve to entries with `Delay` min 0. It goes
-/// live the day ambients get a producer. Downstream risk:
-/// closing it needs the per-buffer playlist that residuals R4 and R9 also
-/// wait on, plus a port of `SelectNextSample`'s separate cursor state — it
-/// is a mechanism port, not a gate on the existing one, which is why the
-/// half-fix (truncating the chain to one sample here) is deliberately not
-/// applied: it would pick the wrong sample and still not loop correctly.
-///
-/// VERA-internal, gamemd equivalent UNCHECKED: native's floor test reads
-/// `*(uint *)(Voc+0x58)` and compares UNSIGNED, so a negative `Delay=` low
-/// bound (which `crt_atoi` will happily parse from a leading `-`) lands above
-/// the floor there and below it here, where the comparison is signed `i32`.
-/// No stock `Delay=` is negative, so this cannot fire on retail data; it is
-/// labelled only because the rest of this module labels its unreachable
-/// divergences.
+/// The same value splits the playout. From a `Delay=` low bound of `0x21` up
+/// ([`delay_below_floor`]) every start pass loads one sample that
+/// `SoundEvent::SelectNextSample @ 0x00404BB0` picks (`sfx/sample_queue.rs`)
+/// and plays it alone. Whenever the high bound reaches the floor,
+/// `OnChannelSampleEnd @ 0x00405AC0` may draw a gap after the buffer, which
+/// [`SoundArbiter::notify_playout_ended`] waits out in state 2 before the next
+/// pass ([`PlayoutEnd`]).
 pub const PREDELAY_FLOOR_MS: i32 = 0x21;
+
+/// `Delay.min < 0x21` as `SoundEvent::LoadSamples @ 0x004048B0`,
+/// `PreparePlayout @ 0x00404700` and `AdvancePlaylist @ 0x004047B0` test it:
+/// unsigned (`JC`/`JNC`), so a negative low bound counts as above the floor.
+/// `OnChannelSampleEnd @ 0x00405AC0` tests `Delay.max` and its gap draw the
+/// same way.
+pub const fn delay_below_floor(delay_ms: i32) -> bool {
+    (delay_ms as u32) < PREDELAY_FLOOR_MS as u32
+}
+
+/// What `SoundEvent::OnChannelDone @ 0x00405A00` reads when a channel runs out
+/// of buffers: the gap `OnChannelSampleEnd @ 0x00405AC0` drew (`+0x13C`, 0 for
+/// none), whether it held a next buffer back for after that gap (`+0x148`),
+/// and SelectNextSample's remaining queue (`+0x268`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct PlayoutEnd {
+    pub gap_ms: u32,
+    pub next: bool,
+    pub queue_count: i32,
+}
 
 /// Threshold above which the many-sounds limiter engages, and the numerator
 /// it holds the total at. `SoundSystem::UpdateTick @ 0x00404565..0x0040457B`:
@@ -417,8 +336,10 @@ pub trait PlaybackService {
     /// UpdateState4055C0, immediately after acquiring a channel: draw the
     /// frequency, volume and optional pre-delay shifts, returning the delay.
     fn channel_acquired(&mut self, event: EventId) -> i32;
-    /// LoadSamples4048B0, before PreparePlayout's NO_REPLAY test.
-    fn load_samples(&mut self, event: EventId) -> bool;
+    /// LoadSamples4048B0, before PreparePlayout's NO_REPLAY test, again
+    /// after each eviction. SelectNextSample404BB0 reads `plays_attack`
+    /// (flags8 clear) for an above-floor entry's attack slot.
+    fn load_samples(&mut self, event: EventId, plays_attack: bool) -> bool;
     /// PreparePlayout404700 in the final start pass. A failed preparation
     /// enters the existing lower-priority retry path.
     fn prepare_playout(&mut self, event: EventId, plays_attack: bool) -> bool;
@@ -462,6 +383,9 @@ pub struct EntryFacts {
     /// The entry's authored `Volume=` as the native linear value (`+0x1C`
     /// integral part). Feeds the `Limit=` sort band and the many-sounds sum.
     pub entry_volume_linear: i32,
+    /// The entry holds samples (`+0x134` non-zero, `+0x0C` set). Without
+    /// them `UpdateState` state 0 kills its events before they take a channel.
+    pub samples_ok: bool,
 }
 
 impl EntryFacts {
@@ -1105,11 +1029,62 @@ impl SoundArbiter {
         }
     }
 
-    /// The device reporting that a buffer chain ran dry with nothing left to
-    /// play — endpoint405A00..405AB0 clears PLAYING and sets state4. It does
-    /// not invalidate the serial or release the channel. Techno6F9EBB can
-    /// still validate this handle before the next service reaches405974.
-    pub(crate) fn notify_playout_ended(&mut self, token: EventToken) {
+    /// The device reporting that a channel ran out of buffers:
+    /// `SoundEvent::OnChannelDone @ 0x00405A00`. It clears PLAYING, and an
+    /// event already in state 4 stays there. An event with a held-back next
+    /// buffer, a remaining queue or a gap goes back to state 1, through state
+    /// 2 for the gap (resume 1, `+0x140 = now + gap`, or the gap alone while
+    /// suspended). Any other event reaches state 4. Neither path releases
+    /// the channel or invalidates the serial, so Techno6F9EBB can still
+    /// validate the handle before the next service reaches 405974.
+    ///
+    /// Returns whether the event plays again.
+    pub(crate) fn notify_playout_ended(
+        &mut self,
+        token: EventToken,
+        end: PlayoutEnd,
+        now_ms: u64,
+    ) -> bool {
+        if !self.is_live_token(token) {
+            return false;
+        }
+        let id = token.event;
+        let Some(event) = self.event_mut(id) else {
+            return false;
+        };
+        event.flags &= !event_flags::PLAYING;
+        let channel = event.channel;
+        let continues = event.state != EventState::Finished
+            && (end.next || end.queue_count != 0 || end.gap_ms != 0);
+        if event.state != EventState::Finished {
+            let next = if continues {
+                EventState::Ready
+            } else {
+                EventState::Finished
+            };
+            if end.gap_ms == 0 {
+                event.state = next;
+            } else {
+                event.resume_state = next;
+                if event.suspend_depth == 0 {
+                    event.predelay_deadline_ms = now_ms.saturating_add(u64::from(end.gap_ms));
+                } else {
+                    event.predelay_remaining_ms = u64::from(end.gap_ms);
+                }
+                event.state = EventState::PreDelay;
+            }
+        }
+        if let Some(channel) = channel
+            && self.channels[channel].event == Some(id)
+        {
+            self.channels[channel].playing = false;
+        }
+        continues
+    }
+
+    /// DriverStop4025B0's stop callback (`0x004059F0`) sets state 4: a
+    /// released event that starts no decay ends with its channel's buffer.
+    pub(crate) fn notify_playout_stopped(&mut self, token: EventToken) {
         if !self.is_live_token(token) {
             return;
         }
@@ -1152,6 +1127,7 @@ impl SoundArbiter {
                 loop_count: 0,
                 delay_ms: (0, 0),
                 entry_volume_linear: 0,
+                samples_ok: true,
             })
     }
 
@@ -1409,7 +1385,14 @@ impl SoundArbiter {
             EventState::NeedsChannel => {
                 let priority = self.effective_priority(event);
                 let facts = self.facts_of(event);
-                match self.allocate_channel(id, priority, playback) {
+                // `0x0040563C..0x0040564B`: an entry without samples takes the
+                // `0x004057A3` kill before any channel or draw.
+                let channel = if facts.samples_ok {
+                    self.allocate_channel(id, priority, playback)
+                } else {
+                    None
+                };
+                match channel {
                     Some(index) => {
                         let predelay_ms = playback.channel_acquired(id);
                         let Some(event) = self.event_mut(id) else {
@@ -1437,8 +1420,8 @@ impl SoundArbiter {
                         event.state = EventState::PreDelay;
                     }
                     None => {
-                        // Allocation refused: `0x004057A3` — release, mark
-                        // dead, never audible.
+                        // No samples or allocation refused: `0x004057A3` —
+                        // release, mark dead, never audible.
                         if self.event(id).is_some_and(|event| !event.is_dead()) {
                             self.release_channel(id);
                             self.kill(id);
@@ -1451,6 +1434,21 @@ impl SoundArbiter {
             // Case `0x004055EB`: the pre-delay wait, serviced by the same
             // > 33 ms pass, so pre-delays quantise to the pump period.
             EventState::PreDelay => {
+                // A release consumed in state 2 takes `0x0040589E`: DriverStop
+                // ends the channel's buffer and its stop callback (`0x004059F0`)
+                // sets state 4.
+                //
+                // RESIDUAL: with `Control=decay` and flags0x10 clear,
+                // `0x004058DC` instead restarts the event on its decay buffer.
+                // No retail entry that waits in state 2 authors decay.
+                if event.flags & event_flags::RELEASED != 0 {
+                    let event = self.event_mut(id).expect("current event");
+                    event.flags &= !event_flags::RELEASED;
+                    if event.channel.is_some() {
+                        event.state = EventState::Finished;
+                    }
+                    return;
+                }
                 if event.suspend_depth != 0 {
                     return;
                 }
@@ -1680,7 +1678,7 @@ impl SoundArbiter {
             }
             // Native LoadSamples precedes PreparePlayout's NO_REPLAY gate.
             // A loaded set is retained by the sample owner on retry.
-            let mut prepared = playback.load_samples(id)
+            let mut prepared = playback.load_samples(id, plays_attack)
                 && !no_replay
                 && playback.prepare_playout(id, plays_attack);
             while !prepared {
@@ -1693,7 +1691,7 @@ impl SoundArbiter {
                         .into_iter()
                         .map(|event| ArbiterAction::Stop { event }),
                 );
-                prepared = playback.load_samples(id)
+                prepared = playback.load_samples(id, plays_attack)
                     && !no_replay
                     && playback.prepare_playout(id, plays_attack);
             }
@@ -1784,7 +1782,7 @@ impl PlaybackService for TestPlayback {
     fn channel_acquired(&mut self, _: EventId) -> i32 {
         self.predelay_ms
     }
-    fn load_samples(&mut self, _: EventId) -> bool {
+    fn load_samples(&mut self, _: EventId, _: bool) -> bool {
         true
     }
     fn prepare_playout(&mut self, _: EventId, _: bool) -> bool {
@@ -1818,6 +1816,7 @@ mod tests {
             loop_count: 0,
             delay_ms: (0, 0),
             entry_volume_linear: VOLUME_SCALE,
+            samples_ok: true,
         }
     }
 
@@ -1858,7 +1857,7 @@ mod tests {
                 self.0.push(("admission", event));
                 0
             }
-            fn load_samples(&mut self, _: EventId) -> bool {
+            fn load_samples(&mut self, _: EventId, _: bool) -> bool {
                 true
             }
             fn prepare_playout(&mut self, _: EventId, _: bool) -> bool {
@@ -2475,7 +2474,8 @@ mod tests {
         arbiter.update_tick(1034, &mut TestPlayback::default());
         let serial = arbiter.event(event).unwrap().serial;
         let channel = arbiter.event(event).unwrap().channel;
-        arbiter.notify_playout_ended(arbiter.event_token(event).unwrap());
+        let token = arbiter.event_token(event).unwrap();
+        assert!(!arbiter.notify_playout_ended(token, PlayoutEnd::default(), 1100));
         assert_eq!(arbiter.validate_loop_handle(owner), Some(event));
         let ended = arbiter.event(event).unwrap();
         assert_eq!(ended.state, EventState::Finished);
@@ -2539,5 +2539,124 @@ mod tests {
             arbiter.preempt_for_playout(4, &mut TestPlayback::default()),
             vec![loud]
         );
+    }
+
+    /// `SoundEvent::OnChannelDone @ 0x00405A00` on the rows executed by
+    /// tools/spatial_oracle/ambient_playout (`channel_done`).
+    #[test]
+    fn channel_done_matches_the_original_rows() {
+        let native: serde_json::Value = serde_json::from_str(crate::test_fixture::text(
+            "tools/spatial_oracle/ambient_playout.json",
+        ))
+        .unwrap();
+        let now = native["now"].as_u64().unwrap();
+        for row in native["channel_done"].as_array().unwrap() {
+            let input = &row["input"];
+            let mut arbiter = SoundArbiter::new(0);
+            let event = arbiter
+                .submit(&request("CUE", facts(2, 0), VOLUME_SCALE), 0)
+                .unwrap();
+            arbiter.update_tick(40, &mut TestPlayback::default());
+            let paused = input["paused"] == 1;
+            if paused {
+                arbiter.suspend_all(now);
+            }
+            if input["state"] == 4 {
+                arbiter.event_mut(event).unwrap().state = EventState::Finished;
+            }
+            let token = arbiter.event_token(event).unwrap();
+            let end = PlayoutEnd {
+                gap_ms: input["gap"].as_u64().unwrap() as u32,
+                next: input["next"] == 1,
+                queue_count: input["queue"].as_i64().unwrap() as i32,
+            };
+            let continues = arbiter.notify_playout_ended(token, end, now);
+            let snapshot = arbiter.native_event_snapshot(event).unwrap();
+            assert_eq!(snapshot["state"], row["state"], "{input}");
+            assert_eq!(
+                snapshot["flags"].as_u64().unwrap() & u64::from(event_flags::PLAYING),
+                row["flags"].as_u64().unwrap() & 2,
+                "{input}"
+            );
+            assert_eq!(continues, row["state"] == 1 || row["state"] == 2, "{input}");
+            if row["state"] == 2 {
+                let event = arbiter.event(event).unwrap();
+                assert_eq!(row["resume"], 1, "{input}");
+                assert_eq!(event.resume_state, EventState::Ready, "{input}");
+                let time = if paused {
+                    event.predelay_remaining_ms
+                } else {
+                    event.predelay_deadline_ms
+                };
+                assert_eq!(time, row["qwtime"].as_u64().unwrap(), "{input}");
+            }
+        }
+    }
+
+    /// A gap waits in state 2 and the next start pass plays again; a release
+    /// consumed there ends the event (`0x0040589E`, stop callback
+    /// `0x004059F0`) instead of a later start pass refusing NO_REPLAY.
+    #[test]
+    fn a_gap_restarts_the_event_and_a_release_in_it_ends_the_event() {
+        let mut arbiter = SoundArbiter::new(0);
+        let owner = HandleOwner::Positional(9);
+        let event = arbiter
+            .submit(&request("AMB", facts(2, 0), VOLUME_SCALE), 0)
+            .unwrap();
+        arbiter.set_loop_handle(owner, Some(event), "AMB");
+        assert!(started(&arbiter.update_tick(40, &mut TestPlayback::default())).contains(&event));
+        let token = arbiter.event_token(event).unwrap();
+        let gap = PlayoutEnd {
+            gap_ms: 5000,
+            next: false,
+            queue_count: 2,
+        };
+        assert!(arbiter.notify_playout_ended(token, gap, 100));
+        assert!(started(&arbiter.update_tick(5100, &mut TestPlayback::default())).is_empty());
+        assert!(started(&arbiter.update_tick(5140, &mut TestPlayback::default())).contains(&event));
+
+        assert!(arbiter.notify_playout_ended(token, gap, 6000));
+        arbiter.detach_owner(owner);
+        let actions = arbiter.update_tick(6040, &mut TestPlayback::default());
+        assert!(started(&actions).is_empty() && stopped(&actions).is_empty());
+        assert_eq!(arbiter.event(event).unwrap().state, EventState::Finished);
+        let actions = arbiter.update_tick(12_000, &mut TestPlayback::default());
+        assert_eq!(stopped(&actions), [event]);
+        assert!(started(&actions).is_empty());
+    }
+
+    /// `UpdateState` state 0 (`0x0040563C..0x0040564B`) kills an event whose
+    /// entry has no samples before it takes a channel or draws its shifts.
+    #[test]
+    fn an_entry_without_samples_dies_before_taking_a_channel() {
+        struct Admissions(u32);
+        impl PlaybackService for Admissions {
+            fn channel_acquired(&mut self, _: EventId) -> i32 {
+                self.0 += 1;
+                0
+            }
+            fn load_samples(&mut self, _: EventId, _: bool) -> bool {
+                true
+            }
+            fn prepare_playout(&mut self, _: EventId, _: bool) -> bool {
+                true
+            }
+            fn start_playout(&mut self, _: EventId, _: i32) -> bool {
+                true
+            }
+            fn stop_playout(&mut self, _: EventId) {}
+        }
+        let mut arbiter = SoundArbiter::new(0);
+        let mut empty = facts(3, 0);
+        empty.samples_ok = false;
+        let event = arbiter
+            .submit(&request("CAMPFIRELOOP", empty, VOLUME_SCALE), 0)
+            .unwrap();
+        let mut playback = Admissions(0);
+        let actions = arbiter.update_tick(40, &mut playback);
+        assert_eq!(stopped(&actions), [event]);
+        assert!(started(&actions).is_empty());
+        assert_eq!(playback.0, 0);
+        assert_eq!(arbiter.busy_channel_count(), 0);
     }
 }

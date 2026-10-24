@@ -3967,6 +3967,10 @@ impl RuleSet {
             // category-gated even though only buildings consume it.
             object.turret_rotate_sound = section
                 .and_then(|section| sounds.read_rules_reference(section, "TurretRotateSound"));
+            // ObjectType5F93C1 reads AmbientSound (+0x1F4) the same way, for
+            // every object type.
+            object.ambient_sound =
+                section.and_then(|section| sounds.read_rules_reference(section, "AmbientSound"));
             if object.category == crate::rules::object_type::ObjectCategory::Infantry {
                 // Infantry52440B then524447: missing/empty/unregistered names
                 // keep the prior signed ID across the existing processed passes.

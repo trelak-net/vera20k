@@ -2518,7 +2518,7 @@ pub(crate) fn load_map_from_initial(
     theater_cache_mismatch: bool,
     runtime_color_scheme_count: usize,
     native_rules_owner: &mut crate::rules::process_owner::NativeRulesProcessOwner,
-    eva: Option<&crate::rules::sound_ini::EvaRegistry>,
+    audio: Option<&crate::app::process_assets::ProcessAudioCatalog>,
     shared_cell_dummy: crate::map::resolved_terrain::SharedCellDummy,
     tile_variant_selector_cache: &mut crate::map::tile_variant_selector::TileVariantSelectorCache,
     progress: &mut dyn crate::app::loading::pump::LoadingProgressSink,
@@ -2781,7 +2781,12 @@ pub(crate) fn load_map_from_initial(
     staged_simulation
         .session
         .install_waypoints(&map_data.waypoints);
-    staged_simulation.initialize_trigger_definitions(&map_data, &team_ai_registry, eva);
+    staged_simulation.initialize_trigger_definitions(
+        &map_data,
+        &team_ai_registry,
+        audio.map(crate::app::process_assets::ProcessAudioCatalog::eva),
+        audio.map(crate::app::process_assets::ProcessAudioCatalog::sounds),
+    );
     let (mut scenario_fill_rng, variant_main_rng) = staged_simulation.terrain_load_draws();
     let mut scenario_fill_ranged =
         |low, high| scenario_fill_rng.next_range_u32_inclusive(low, high);

@@ -290,6 +290,7 @@ mod tests {
                         loop_count: 0,
                         delay_ms: (0, 0),
                         entry_volume_linear: VOLUME_SCALE,
+                        samples_ok: true,
                     },
                     volume_linear: VOLUME_SCALE,
                     pan: VOLUME_SCALE / 2,
@@ -454,7 +455,7 @@ mod tests {
             })
         })
         .unwrap();
-        let mut cursor = PlaylistCursor::new(loaded.selected.clone(), entry.control, 0, 1);
+        let mut cursor = PlaylistCursor::new(loaded.selected.clone(), entry.control, (0, 0), 1);
         let initial = cursor.prepare(&mut draws, true).unwrap();
         let (source, control) = RingSource::new(
             loaded,

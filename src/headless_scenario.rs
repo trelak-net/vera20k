@@ -218,7 +218,12 @@ pub(crate) fn load_with_launch(
     shared_cell_dummy.reconstruct_for_map_resize();
     sim.bind_shared_cell_dummy(shared_cell_dummy.clone());
     sim.session.install_waypoints(&map.waypoints);
-    sim.initialize_trigger_definitions(&map, &team_ai_registry, Some(audio_definitions.eva()));
+    sim.initialize_trigger_definitions(
+        &map,
+        &team_ai_registry,
+        Some(audio_definitions.eva()),
+        Some(audio_definitions.sounds().as_ref()),
+    );
     let (mut scenario_fill_rng, variant_main_rng) = sim.terrain_load_draws();
     let mut scenario_fill_ranged =
         |low, high| scenario_fill_rng.next_range_u32_inclusive(low, high);

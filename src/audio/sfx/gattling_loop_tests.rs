@@ -558,7 +558,7 @@ fn replay(name: &str) {
                     let mut cursor = PlaylistCursor::new(
                         loaded.selected.clone(),
                         entry.control,
-                        entry.delay_ms.0,
+                        entry.delay_ms,
                         entry.loop_count,
                     );
                     let mut initial = None;
@@ -840,7 +840,7 @@ fn start_sim_ring(
     let mut cursor = PlaylistCursor::new(
         loaded.selected.clone(),
         entry.control,
-        entry.delay_ms.0,
+        entry.delay_ms,
         entry.loop_count,
     );
     cursor.prepare(&mut draws, true).unwrap();
@@ -1264,26 +1264,17 @@ impl PlaybackService for OneShotService<'_> {
         shifts.predelay_ms
     }
 
-    fn load_samples(&mut self, event: EventId) -> bool {
+    fn load_samples(&mut self, event: EventId, plays_attack: bool) -> bool {
         let pending = self.pending.as_mut().unwrap();
         assert_eq!(event, pending.token.event);
-        pending.loaded = LoadedPlayback::load(self.entry, &mut self.draws, fixture_clip);
-        pending.loaded.is_some()
+        pending.load_entry_samples(self.entry, plays_attack, &mut self.draws, fixture_clip)
     }
 
     fn prepare_playout(&mut self, event: EventId, plays_attack: bool) -> bool {
         let pending = self.pending.as_mut().unwrap();
         assert_eq!(event, pending.token.event);
+        let prepared = pending.prepare_entry_playout(self.entry, plays_attack, &mut self.draws);
         let loaded = pending.loaded.as_ref().unwrap();
-        let cursor = pending.cursor.get_or_insert_with(|| {
-            PlaylistCursor::new(
-                loaded.selected.clone(),
-                self.entry.control,
-                self.entry.delay_ms.0,
-                self.entry.loop_count,
-            )
-        });
-        pending.initial = cursor.prepare(&mut self.draws, plays_attack);
         self.compact_slots = loaded
             .clips
             .keys()
@@ -1296,7 +1287,7 @@ impl PlaybackService for OneShotService<'_> {
             "loaded": loaded.clips.keys().map(|&index| &self.entry.sounds[index]).collect::<Vec<_>>(),
             "main": self.main.native_state_hex(),
         }));
-        pending.initial.is_some()
+        prepared
     }
 
     fn start_playout(&mut self, event: EventId, pan: i32) -> bool {
@@ -1408,17 +1399,11 @@ fn replay_shared_one_shot(name: &str) {
                 arbiter.set_loop_handle(owner, Some(event), &entry.id);
                 let submitted = arbiter.event_token(event).unwrap();
                 token = Some(submitted);
-                playback.pending = Some(PendingPlayback {
-                    token: submitted,
-                    key: entry.id.clone(),
-                    channel: SfxChannel::Sound,
-                    shifts: None,
-                    loaded: None,
-                    prepared: None,
-                    cursor: None,
-                    initial: None,
-                    source: None,
-                });
+                playback.pending = Some(PendingPlayback::new(
+                    submitted,
+                    entry.id.clone(),
+                    SfxChannel::Sound,
+                ));
             } else if label.starts_with("audio_pump_") || label == "empty_audio_pump_1000" {
                 let now_ms = label.rsplit('_').next().unwrap().parse().unwrap();
                 assert!(
@@ -1488,7 +1473,7 @@ fn replay_shared_one_shot(name: &str) {
                                 !playback.output.as_ref().unwrap().control.release_to_decay(),
                                 "one-shot has no decay payload"
                             );
-                            arbiter.notify_playout_ended(token.unwrap());
+                            arbiter.notify_playout_stopped(token.unwrap());
                             endpoint_delivered = true;
                         }
                         ArbiterAction::Stop { event } => {
@@ -1536,7 +1521,7 @@ fn replay_shared_one_shot(name: &str) {
                     .any(|site| site["phase"] == label && site["pc"] == 0x405a00_u64);
                 if endpoint {
                     assert_eq!(playback.output.as_mut().unwrap().source.next(), None);
-                    arbiter.notify_playout_ended(token.unwrap());
+                    arbiter.notify_playout_ended(token.unwrap(), PlayoutEnd::default(), 0);
                     endpoint_delivered = true;
                 }
             } else {
@@ -1684,7 +1669,7 @@ fn native_uniform_consumer_continues_across_first_ring_quarter() {
         let mut cursor = PlaylistCursor::new(
             loaded.selected.clone(),
             entry.control,
-            entry.delay_ms.0,
+            entry.delay_ms,
             entry.loop_count,
         );
         assert_eq!(
@@ -1797,8 +1782,8 @@ fn retail_gattling_registry_and_all_executed_pcm_clips_match_native() {
 
 #[test]
 fn cursor_low_delay_replay_selects_from_the_same_loaded_bodies() {
-    // Below-floor control flow from4047B0. The unsupported Delay>=33
-    // loader/advance path is outside this regression and the native corpus.
+    // Below-floor control flow from4047B0. The above-floor loader and its
+    // gaps belong to ambient_playout_tests.
     let entry = registry(&native()["retail"])
         .get("GattlingGunAttackLoop1")
         .unwrap()
@@ -1808,7 +1793,8 @@ fn cursor_low_delay_replay_selects_from_the_same_loaded_bodies() {
         let retained = main.draws();
         let mut draws = PlaybackDraws::new(move |low, high| retained.ranged(low, high));
         let loaded = LoadedPlayback::load(&entry, &mut draws, fixture_clip).unwrap();
-        let mut cursor = PlaylistCursor::new(loaded.selected.clone(), entry.control, delay, 2);
+        let mut cursor =
+            PlaylistCursor::new(loaded.selected.clone(), entry.control, (delay, delay), 2);
         assert_eq!(cursor.prepare(&mut draws, true), loaded.selected.attack);
         for _ in 0..loaded.selected.middle.len() {
             assert!(
@@ -1837,7 +1823,7 @@ fn cursor_counted_budget_and_reprepare_keep_decay_used_once() {
     let mut cursor = PlaylistCursor::new(
         loaded.selected.clone(),
         entry.control,
-        entry.delay_ms.0,
+        entry.delay_ms,
         entry.loop_count,
     );
     assert_eq!(cursor.prepare(&mut draws, true), loaded.selected.attack);

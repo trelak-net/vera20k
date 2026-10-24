@@ -557,6 +557,15 @@ fn drain_sound_events_inner(state: &mut AppState, redrive_owners: bool) {
             sfx.stop_animation_sound(owner);
             continue;
         };
+        // `ObjectClass::AI` replays an object's `+0x3C`/`+0x50` handles with
+        // `VocClass::PlayAt` on each visit (the sim's `AnimationStarted`);
+        // 750D40 never runs on them.
+        if let Some(alive) = sim.object_sound_owner_alive(owner) {
+            if !alive {
+                sfx.stop_animation_sound(owner);
+            }
+            continue;
+        }
         let Some(world) = sim.looping_sound_owner_coord(owner) else {
             // The owner object is gone. Native's `ObjectClass` uninit path
             // releases or stops its handle before the pointer can dangle.

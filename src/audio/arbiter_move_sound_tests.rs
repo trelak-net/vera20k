@@ -29,6 +29,7 @@ fn native_request(corpus: &Value, name: &str) -> PlayRequest {
                 sound["delay_max"].as_i64().unwrap() as i32,
             ),
             entry_volume_linear: (sound["volume_fixed16_raw"].as_i64().unwrap() >> 16) as i32,
+            samples_ok: true,
         },
         volume_linear: VOLUME_SCALE / 2,
         pan: VOLUME_SCALE / 2,

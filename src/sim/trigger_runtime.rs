@@ -24,6 +24,7 @@ use crate::rules::ini_value::{crt_atoi, truncate_native_bytes};
 use crate::sim::timer::CdTimer;
 use crate::sim::world::{FrameEffects, SimSoundEvent, Simulation, TriggerInputs};
 
+const ACTION_PLAY_SOUND: i32 = 19;
 const ACTION_FORCE_TRIGGER: i32 = 22;
 const ACTION_SET_GLOBAL: i32 = 28;
 const ACTION_CLEAR_GLOBAL: i32 = 29;
@@ -36,10 +37,12 @@ const ACTION_CLEAR_LOCAL: i32 = 57;
 const ACTION_ANNOUNCE_WIN: i32 = 67;
 const ACTION_ANNOUNCE_LOSE: i32 = 68;
 const ACTION_END_SCENARIO: i32 = 69;
+const ACTION_PLAY_SOUND_AT_WAYPOINT: i32 = 99;
 const ACTION_JUMP_CAMERA: i32 = 112;
 const ACTION_SET_ALTERNATE_BASE: i32 = 137;
 const ACTION_CLEAR_ALTERNATE_BASE: i32 = 138;
 
+const EVENT_ANY: i32 = 8;
 const EVENT_GLOBAL_IS_SET: i32 = 27;
 const EVENT_GLOBAL_IS_CLEAR: i32 = 28;
 const EVENT_LOCAL_IS_SET: i32 = 36;
@@ -96,6 +99,11 @@ struct RuntimeAction {
     reference: Option<DefinitionReference>,
     /// Original Read6DD5B0 materializes +90 once, including Vox753250.
     value: Option<i32>,
+    /// Parameter type 7's +90: `VocClass::FindIndex @ 0x007514D0` of the raw
+    /// token (`0x006DD7CE..0x006DD7D5`). The canonical SOUNDMD id stands for
+    /// the resolved index so no Voc ordinal enters simulation; `None` is the
+    /// -1 a missing or unknown name materializes.
+    sound: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -212,6 +220,7 @@ impl RuntimeDefinitions {
         &mut self,
         entry: ActionEntry,
         eva: Option<&crate::rules::sound_ini::EvaRegistry>,
+        sounds: Option<&crate::rules::sound_ini::SoundRegistry>,
     ) -> RuntimeAction {
         let reference = match entry.definition_reference() {
             Some(ActionDefinitionReference::Team(selector)) => match selector {
@@ -251,16 +260,24 @@ impl RuntimeDefinitions {
         } else {
             entry.literal_value()
         };
+        // FindIndex7514D0 compares the untrimmed token case-insensitively.
+        let sound = (parameter_type == 7)
+            .then(|| entry.params.get(1))
+            .flatten()
+            .and_then(|name| sounds?.get(name))
+            .map(|sound| sound.id.clone());
         RuntimeAction {
             entry,
             reference,
             value,
+            sound,
         }
     }
     fn read_map(
         map: &crate::map::map_file::MapFile,
         teams: &crate::rules::team_ai_ini::TeamAiIniRegistry,
         eva: Option<&crate::rules::sound_ini::EvaRegistry>,
+        sounds: Option<&crate::rules::sound_ini::SoundRegistry>,
     ) -> Self {
         let mut definitions = Self::default();
         // Full_Init687984/68798D: reads are transactions, not the final merged
@@ -312,7 +329,7 @@ impl RuntimeDefinitions {
                     .map_or_else(Vec::new, |record| record.entries.clone());
                 let actions = actions
                     .into_iter()
-                    .map(|entry| definitions.resolve_action(entry, eva))
+                    .map(|entry| definitions.resolve_action(entry, eva, sounds))
                     .collect();
                 definitions.trigger_types[index] = TriggerType {
                     id: definitions.trigger_types[index].id.clone(),
@@ -861,9 +878,10 @@ impl Simulation {
         map: &crate::map::map_file::MapFile,
         teams: &crate::rules::team_ai_ini::TeamAiIniRegistry,
         eva: Option<&crate::rules::sound_ini::EvaRegistry>,
+        sounds: Option<&crate::rules::sound_ini::SoundRegistry>,
     ) {
         self.trigger_runtime = TriggerRuntime {
-            definitions: RuntimeDefinitions::read_map(map, teams, eva),
+            definitions: RuntimeDefinitions::read_map(map, teams, eva, sounds),
             definitions_prepared: true,
             locals_set: map
                 .local_variables
@@ -952,7 +970,11 @@ impl Simulation {
                 .map_or_else(Vec::new, |r| r.entries.clone());
             let actions = entries
                 .into_iter()
-                .map(|entry| self.trigger_runtime.definitions.resolve_action(entry, None))
+                .map(|entry| {
+                    self.trigger_runtime
+                        .definitions
+                        .resolve_action(entry, None, None)
+                })
                 .collect();
             let typ = &mut self.trigger_runtime.definitions.trigger_types[index];
             typ.events = events;
@@ -1408,10 +1430,12 @@ impl Simulation {
         }
     }
 
-    fn register_live_trigger_event(
+    fn register_live_trigger_event_with_object(
         &mut self,
         index: usize,
         event_kind: i32,
+        object: Option<u64>,
+        rules: Option<&crate::rules::ruleset::RuleSet>,
         force: bool,
         repeat: bool,
     ) -> bool {
@@ -1445,7 +1469,26 @@ impl Simulation {
                         .unwrap()
                         .timer
                         .expired(self.session.binary_frame as i32),
-                    2 => event_kind == 2,
+                    2 | 48 | 49 | 50 => event_kind == condition.kind,
+                    1 => {
+                        event_kind == 1
+                            && object
+                                .and_then(|id| self.substrate.entities.get(id))
+                                .is_some_and(|actor| {
+                                    condition.value == -1
+                                        || self.resolve_trigger_house_parameter(
+                                            condition.value,
+                                            None,
+                                            rules,
+                                        ) == Some(actor.owner())
+                                })
+                    }
+                    // HasOccurred71E940: kind 8 skips the raised-kind gate
+                    // (table byte71F28B selects71ECAF) and every typed arm,
+                    // then returns true at71F1B4 whether or not
+                    // Find_By_Country_Index502D30 finds a House. It writes no
+                    // persistence flag, so any raise springs it.
+                    EVENT_ANY => true,
                     _ => self.trigger_runtime.evaluate_event(
                         condition,
                         self.session.binary_frame,
@@ -1462,10 +1505,11 @@ impl Simulation {
                 // repeat0/1 therefore must not retain its completion bit.
                 //71F950/71F9C0 then select the latchable event kinds. Native
                 // controls: tag_lifecycle completion_mode_0/completion_mode_2.
-                if repeat
+                if (repeat || condition.kind == 1)
                     && matches!(
                         condition.kind,
-                        2 | 3
+                        1 | 2
+                            | 3
                             | 4
                             | 7
                             | 18
@@ -1505,6 +1549,149 @@ impl Simulation {
             self.reset_trigger_timers(index);
         }
         result
+    }
+
+    #[cfg(test)]
+    fn register_live_trigger_event(
+        &mut self,
+        index: usize,
+        event: i32,
+        force: bool,
+        repeat: bool,
+    ) -> bool {
+        self.register_live_trigger_event_with_object(index, event, None, None, force, repeat)
+    }
+
+    #[cfg(test)]
+    fn apply_live_trigger_action(
+        &mut self,
+        action: &RuntimeAction,
+        typ: usize,
+        effects: &mut Vec<TriggerEffect>,
+        rules: Option<&crate::rules::ruleset::RuleSet>,
+        registry: Option<&crate::rules::overlay_types::OverlayTypeRegistry>,
+        frame: FrameEffects<'_>,
+    ) -> bool {
+        self.apply_live_trigger_action_for_instance(
+            action, typ, None, effects, rules, registry, frame,
+        )
+    }
+
+    fn resolve_trigger_house_parameter(
+        &self,
+        value: i32,
+        owner: Option<&str>,
+        rules: Option<&crate::rules::ruleset::RuleSet>,
+    ) -> Option<crate::sim::intern::InternedId> {
+        if value == 8997 {
+            return resolve_trigger_house(self, owner, rules);
+        }
+        if (4475..4483).contains(&value) {
+            return self
+                .session
+                .start_slot_houses
+                .get(&((value - 4475) as u32))
+                .copied();
+        }
+        if value < 0 {
+            return None;
+        }
+        self.session.house_order.iter().copied().find(|id| {
+            self.houses.get(id).is_some_and(|house| {
+                house
+                    .country
+                    .and_then(|country| rules?.country_index(self.interner.resolve(country)))
+                    .map(|index| i32::from(index.0))
+                    == Some(value)
+            })
+        })
+    }
+
+    /// Raise an object's attached Tag with the acting object's identity. Entry
+    /// uses the building's Tag and the entering infantryman, not the building.
+    pub(crate) fn raise_object_tag(
+        &mut self,
+        attached: u64,
+        actor: u64,
+        event: i32,
+        context: crate::sim::world::UninitContext<'_>,
+    ) {
+        let Some(&tag) = self
+            .trigger_runtime
+            .attachments
+            .get(&TagAttachment::Object(attached))
+        else {
+            return;
+        };
+        let mut effects = Vec::new();
+        self.dispatch_live_tag_event(
+            tag,
+            event,
+            Some(actor),
+            (0, 0),
+            false,
+            &mut effects,
+            context.rules(),
+            context.registry(),
+            context.effects(),
+        );
+        self.publish_trigger_effects(effects);
+    }
+
+    pub(crate) fn raise_crate_pickup(
+        &mut self,
+        actor: u64,
+        context: crate::sim::world::UninitContext<'_>,
+    ) {
+        self.raise_object_tag(actor, actor, 49, context);
+        self.trigger_runtime.dirty[3] = true;
+    }
+
+    /// HouseClass::Update's Tag raise (`0x004F8F87..0x004F8FBC`): every eighth
+    /// frame (signed `Frame % 8`), Tag6E53A0 raises event 8 with no object and
+    /// the zero Cell on each of the House's Tags (+3C), last to first. The
+    /// count (+48) is read once and the list re-read for every slot.
+    /// RESIDUAL: a raise that shrinks the list leaves slots native still reads
+    /// (the stale pointer past the count); VERA skips them. No retail
+    /// skirmish trigger reaches it: their event-8 Tags fire once.
+    pub(crate) fn raise_house_tags(
+        &mut self,
+        house: crate::sim::intern::InternedId,
+        rules: Option<&crate::rules::ruleset::RuleSet>,
+        overlay_registry: Option<&crate::rules::overlay_types::OverlayTypeRegistry>,
+        frame_effects: FrameEffects<'_>,
+    ) {
+        if (self.session.binary_frame as i32) % 8 != 0 {
+            return;
+        }
+        let count = self
+            .trigger_runtime
+            .house_tags
+            .get(&house)
+            .map_or(0, Vec::len);
+        let mut effects = Vec::new();
+        for slot in (0..count).rev() {
+            let Some(&tag) = self
+                .trigger_runtime
+                .house_tags
+                .get(&house)
+                .and_then(|tags| tags.get(slot))
+            else {
+                continue;
+            };
+            self.dispatch_live_tag_event(
+                tag,
+                EVENT_ANY,
+                None,
+                (0, 0),
+                false,
+                &mut effects,
+                rules,
+                overlay_registry,
+                frame_effects,
+            );
+        }
+        self.publish_trigger_effects(effects);
     }
 
     /// TechnoDiscovered6F4A18's synchronous Tag6E53A0 ingress. The existing
@@ -1563,9 +1750,10 @@ impl Simulation {
         for ordinal in 0..count {
             let action =
                 self.trigger_runtime.definitions.trigger_types[type_index].actions[ordinal].clone();
-            result |= self.apply_live_trigger_action(
+            result |= self.apply_live_trigger_action_for_instance(
                 &action,
                 type_index,
+                Some(index),
                 effects,
                 rules,
                 overlay_registry,
@@ -1607,7 +1795,14 @@ impl Simulation {
         let mut detach_attachment = false;
         let mut detach_all = false;
         for trigger in chain {
-            if !self.register_live_trigger_event(trigger, event_kind, force, repeat == 2) {
+            if !self.register_live_trigger_event_with_object(
+                trigger,
+                event_kind,
+                object,
+                rules,
+                force,
+                repeat == 2,
+            ) {
                 continue;
             }
             match repeat {
@@ -1821,10 +2016,11 @@ impl Simulation {
         effects
     }
 
-    fn apply_live_trigger_action(
+    fn apply_live_trigger_action_for_instance(
         &mut self,
         action: &RuntimeAction,
         type_index: usize,
+        live_trigger: Option<usize>,
         effects: &mut Vec<TriggerEffect>,
         rules: Option<&crate::rules::ruleset::RuleSet>,
         overlay_registry: Option<&crate::rules::overlay_types::OverlayTypeRegistry>,
@@ -1840,11 +2036,82 @@ impl Simulation {
             .push((action.entry.kind, action.value.unwrap_or(0)));
         let reference = action.reference;
         let value = action.value;
+        let sound = action.sound.as_deref();
         let action = &action.entry;
         let trigger_owner = self.trigger_runtime.definitions.trigger_types[type_index]
             .owner
             .clone();
         match action.kind {
+            14 => {
+                let (Some(rules), Some(live), Some(value)) = (rules, live_trigger, value) else {
+                    return false;
+                };
+                let Some(owner) = self.resolve_trigger_house_parameter(
+                    value,
+                    trigger_owner.as_deref(),
+                    Some(rules),
+                ) else {
+                    return false;
+                };
+                // ChangeHouse6E0AA0 walks Techno construction order, re-reading
+                // liveness and the Tag's live-trigger membership before SetOwner.
+                let ids: Vec<_> = self
+                    .substrate
+                    .entities
+                    .values()
+                    .map(|e| e.stable_id())
+                    .collect();
+                let mut changed = false;
+                for id in ids {
+                    let eligible = self.substrate.entities.get(id).is_some_and(|e| {
+                        e.lifecycle.object_alive && e.lifecycle.cell_marked && !e.lifecycle.in_limbo
+                    }) && self
+                        .trigger_runtime
+                        .attachments
+                        .get(&TagAttachment::Object(id))
+                        .and_then(|&tag| self.trigger_runtime.tag(tag))
+                        .is_some_and(|tag| tag.triggers.contains(&live));
+                    if eligible {
+                        self.change_owner_with_rules(
+                            id,
+                            owner,
+                            rules,
+                            overlay_registry,
+                            frame_effects,
+                        );
+                        changed = true;
+                    }
+                }
+                return changed;
+            }
+            33 => {
+                let (Some(rules), Some(value)) = (rules, value) else {
+                    return false;
+                };
+                let Some(owner) =
+                    resolve_trigger_house(self, trigger_owner.as_deref(), Some(rules))
+                else {
+                    return false;
+                };
+                return crate::sim::superweapon::grant_one_time(self, rules, owner, value);
+            }
+            108 => {
+                let (Some(rules), Some(registry), Some(waypoint), Some(powerup)) =
+                    (rules, overlay_registry, action.waypoint_index, value)
+                else {
+                    return false;
+                };
+                let Some(cell) = self.session.waypoint_cell(waypoint as i32) else {
+                    return false;
+                };
+                return crate::sim::crates::place_crate(
+                    self,
+                    rules,
+                    registry,
+                    cell,
+                    u8::try_from(powerup).ok(),
+                );
+            }
             4 | 7 => {
                 let Some(DefinitionReference::Team(team)) = reference else {
                     return false;
@@ -1893,6 +2160,17 @@ impl Simulation {
                     crate::sim::world::UninitContext::new(Some(rules), overlay_registry)
                         .with_effects(frame_effects),
                 );
+            }
+            ACTION_PLAY_SOUND => {
+                // Execute6DD8B0 case19 (6DE780..6DE791): Voc PlayAtPos750920
+                // of +90, centre pan2000, volume1.0, no handle. -1 returns at
+                //75093B.
+                if let Some(sound_id) = sound {
+                    self.sound_events.push(SimSoundEvent::VocCentered {
+                        sound_id: sound_id.to_owned(),
+                    });
+                    frame_effects.flush_sound(self, rules);
+                }
             }
             21 => {
                 let Some(index) = value else {
@@ -1997,6 +2275,14 @@ impl Simulation {
                     None
                 };
                 effects.push(TriggerEffect::CameraAtCoord { coord, velocity });
+            }
+            ACTION_PLAY_SOUND_AT_WAYPOINT => {
+                return self.trigger_play_sound_at_waypoint(
+                    sound,
+                    action.waypoint_index,
+                    rules,
+                    frame_effects,
+                );
             }
             ACTION_SET_ALTERNATE_BASE => {
                 let Some(house_id) = resolve_trigger_house(self, trigger_owner.as_deref(), rules)
@@ -2131,6 +2417,10 @@ fn count_techtype(sim: &Simulation, type_id: &str) -> usize {
         })
         .count()
 }
+
+#[cfg(test)]
+#[path = "trigger_map_actions_tests.rs"]
+mod map_actions_tests;
 
 #[cfg(test)]
 #[path = "trigger_runtime_tests.rs"]

@@ -223,12 +223,12 @@ impl ProcessAssets {
     ) -> (
         Option<&mut crate::rules::process_owner::NativeRulesProcessOwner>,
         &mut crate::map::tile_variant_selector::TileVariantSelectorCache,
-        Option<&crate::rules::sound_ini::EvaRegistry>,
+        Option<&ProcessAudioCatalog>,
     ) {
         (
             self.native_rules.as_mut(),
             &mut self.tile_variant_selector_cache,
-            self.audio_catalog.as_ref().map(ProcessAudioCatalog::eva),
+            self.audio_catalog.as_ref(),
         )
     }
 

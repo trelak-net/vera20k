@@ -188,8 +188,10 @@ pub struct SuperWeaponInstance {
     pub type_id: InternedId,
     /// Which house owns this instance.
     pub owner: InternedId,
-    /// Whether the SW is granted (owning building exists and is alive).
+    /// Whether the SW is granted by a provider or an independent map reward.
     pub is_active: bool,
+    /// SuperClass+6E: an independent grant consumed by ClickFire.
+    pub one_time: bool,
     /// Whether the SW is fully charged and ready to fire.
     pub is_ready: bool,
     /// Whether charging is paused due to low power.
@@ -278,6 +280,7 @@ impl SuperWeaponInstance {
             type_id,
             owner,
             is_active: false,
+            one_time: false,
             is_ready: false,
             is_suspended: false,
             charge_start_tick: frame,
@@ -342,6 +345,7 @@ impl SuperWeaponInstance {
     /// Activate (grant) this SW and start charging.
     pub fn activate(&mut self, recharge_frames: i32, current_frame: u32) {
         self.is_active = true;
+        self.one_time = false;
         self.is_ready = false;
         self.is_suspended = false;
         self.charge_start_tick = current_frame as i32;
@@ -361,13 +365,13 @@ impl SuperWeaponInstance {
     }
 
     /// `SuperClass::Suspend @ 0x006CB4D0` for a granted Super that is not
-    /// one-time (VERA grants none) and can hold (`+0x71`, set by the
+    /// one-time and can hold (`+0x71`, set by the
     /// constructor): holding, or anything for a `ManualControl=` type, stops
     /// a running recharge keeping the time left; releasing restarts a stopped
     /// one. A charged Super holds too, and ClickFire refuses a stopped timer.
     /// Returns whether the hold changed.
     pub(crate) fn suspend(&mut self, on: bool, manual_control: bool, current_frame: u32) -> bool {
-        if !self.is_active || on == self.is_suspended {
+        if !self.is_active || self.one_time || on == self.is_suspended {
             return false;
         }
         let mut timer = self.charge_timer();
@@ -389,7 +393,7 @@ impl SuperWeaponInstance {
     }
 
     /// ClickFire after its Launch (`0x006CBA72..0x006CBB8A`), whatever the
-    /// launch did, for a Super that is not one-time (VERA grants none):
+    /// launch did, for a Super that is not one-time:
     /// readiness ends unless the type is `PostClick=`; a `ManualControl=`
     /// type's timer starts with the recharge time and is paused at once,
     /// keeping all of it; any other type but `PreClick=`/`PostClick=`
@@ -397,6 +401,11 @@ impl SuperWeaponInstance {
     /// held, for [`Self::recharge_time`]. `CameoChargeState`, -1 on both
     /// restarts, is the sidebar's.
     fn finish_click_fire(&mut self, sw: &SuperWeaponType, current_frame: u32) {
+        if self.one_time {
+            self.one_time = false;
+            self.deactivate();
+            return;
+        }
         let frame = current_frame as i32;
         if !sw.post_click {
             self.is_ready = false;
@@ -731,7 +740,7 @@ pub fn superweapon_views_for_owner(
             display_name: type_id_str.to_string(),
             progress: inst.charge_progress(sim.session.binary_frame, inst.recharge_time(sw_type)),
             is_ready: inst.is_ready,
-            is_online: !inst.is_suspended,
+            is_online: inst.one_time || !inst.is_suspended,
             sidebar_image: sw_type.sidebar_image.clone(),
             kind: sw_type.kind,
         });
@@ -784,6 +793,10 @@ pub fn tick_superweapon_instances(sim: &mut Simulation, rules: &RuleSet) {
             .get(&owner_id)
             .is_some_and(|ps| ps.is_low_power);
 
+        let defeated = sim
+            .houses
+            .get(&owner_id)
+            .is_some_and(|house| house.is_defeated);
         let Some(weapons) = sim.super_weapons.get_mut(&owner_id) else {
             continue;
         };
@@ -794,6 +807,12 @@ pub fn tick_superweapon_instances(sim: &mut Simulation, rules: &RuleSet) {
                 faded.push((inst.type_id, coords));
             }
             if !inst.is_active {
+                continue;
+            }
+            // UpdateOwnedSupers50AF70 also removes independent grants on defeat.
+            if defeated {
+                inst.deactivate();
+                hold_changed.push((owner_id, inst.type_id));
                 continue;
             }
             let sw = rules.super_weapon(sim.interner.resolve(inst.type_id));
@@ -1020,6 +1039,66 @@ fn offline_only_supers(
     pairs
 }
 
+/// TAction33 (6E1BD0) calls Grant(1,0,0). Grant6CB560 then
+/// SetReadiness6CC080: one-time grants are immediately READY, independent of
+/// power and providers. An already granted weapon is left untouched.
+pub(crate) fn grant_one_time(
+    sim: &mut Simulation,
+    rules: &RuleSet,
+    owner: InternedId,
+    index: i32,
+) -> bool {
+    let Some(id) = usize::try_from(index)
+        .ok()
+        .and_then(|index| rules.super_weapon_order.get(index))
+    else {
+        return false;
+    };
+    let Some(sw) = rules.super_weapon(id) else {
+        return false;
+    };
+    let type_id = sim.interner.intern(id);
+    if sim
+        .super_weapons
+        .get(&owner)
+        .and_then(|weapons| weapons.get(&type_id))
+        .is_some_and(|inst| inst.is_active)
+    {
+        return true;
+    }
+    let place = next_timer_place(sim);
+    let passive = sim
+        .houses
+        .get(&owner)
+        .is_some_and(|house| house.multiplay_passive);
+    let inst = sim
+        .super_weapons
+        .entry(owner)
+        .or_default()
+        .entry(type_id)
+        .or_insert_with(|| {
+            SuperWeaponInstance::new(type_id, owner, sim.session.binary_frame as i32)
+        });
+    inst.is_active = true;
+    inst.charge_start_tick = sim.session.binary_frame as i32;
+    inst.charge_duration = 0;
+    if sw.use_charge_drain && !sw.manual_control {
+        inst.charge_drain_state = 0;
+    }
+    inst.one_time = true;
+    inst.is_ready = true;
+    inst.ready_tick = sim.session.binary_frame as i32;
+    inst.timer_place = (sw.show_timer && !passive).then_some(place);
+    if !sw.manual_control {
+        sim.release_super_anim(owner, type_id);
+    }
+    sim.sound_events.push(SimSoundEvent::SuperWeaponReady {
+        owner,
+        sw_type: type_id,
+    });
+    true
+}
+
 /// Refresh superweapon grants for a specific owner by scanning their buildings.
 ///
 /// Call when a building is completed, sold, destroyed, captured or erased.
@@ -1047,10 +1126,7 @@ fn offline_only_supers(
 /// `ShowTimer=` grants in one frame, by two houses or two buildings of one
 /// house. Effect: their timer lines stack in event order, not in house and
 /// `[SuperWeaponTypes]` order; rare, and only the lines' order. The revoke
-/// pass also deactivates every Super of a defeated house (`+0x1F5`,
-/// `0x0050AF70`, `0x0050B0F4`) whatever buildings it keeps; VERA revokes by
-/// building only. Trigger: a defeated house that still owns a superweapon
-/// building, not seen in retail play. The MCV's deploy
+/// pass deactivates defeated owners in tick_superweapon_instances. The MCV's deploy
 /// ([`Simulation::deploy_mcv`]) and a construction yard's undeploy
 /// ([`Simulation::finish_undeploy`]) unlimbo and limbo a building without
 /// a refresh, where native Unlimbo and Limbo set `+0x1FC` (`0x00440D1E`,
@@ -1129,15 +1205,10 @@ pub fn refresh_super_weapons_for_owner(sim: &mut Simulation, rules: &RuleSet, ow
         log::info!("SuperWeapon '{}' granted to '{}'", sw_str, owner_str);
     }
 
-    // Deactivate revoked (building destroyed, no other provides it, or the
-    // option withholds it). The hold pass revokes only a Super that can hold
-    // (`+0x60`) and is not one-time (`+0x6E`), or any Super of a defeated
-    // house (`0x0050AF5B..0x0050AF78`); VERA's all can hold and none is
-    // one-time (the constructor sets `+0x60`, `0x006CAFC7`; only the crate
-    // and trigger grants, unported, clear it or grant one-time).
+    // UpdateOwnedSupers50AF5B excludes one-time grants from provider revocation.
     let revoke_ids: Vec<InternedId> = weapons
         .iter()
-        .filter(|(sw_iid, inst)| inst.is_active && !granted.contains(sw_iid))
+        .filter(|(sw_iid, inst)| inst.is_active && !inst.one_time && !granted.contains(sw_iid))
         .map(|(sw_iid, _)| *sw_iid)
         .collect();
     for &sw_iid in &revoke_ids {

@@ -310,10 +310,11 @@ fn ended_unit_voice_holds_a_different_request_until_native_pool_retirement() {
         for event in events {
             // Existing device endpoint and output cleanup, not a substitute
             // voice completion rule. Production capture covers actual pulls.
+            let token = playback.player.arbiter.event_token(event).unwrap();
             playback
                 .player
                 .arbiter
-                .notify_playout_ended(playback.player.arbiter.event_token(event).unwrap());
+                .notify_playout_ended(token, PlayoutEnd::default(), 0);
             playback.player.release_output(event);
         }
         playback.assert_state(&endpoint["after"]);

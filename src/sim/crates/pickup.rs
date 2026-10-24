@@ -335,14 +335,23 @@ pub(crate) fn pickup_crate(
     {
         return true;
     }
-    // `0x00481A6D..0x00481AC1`: a `CrateTrigger=` overlay (both stock crate
-    // images) springs the actor's attached TagClass with event 0x31 and
-    // latches `Scenario+0x34BE`. RESIDUAL: VERA attaches no Tags to objects
-    // and keeps no owner for that latch. Trigger: a tagged object (map
-    // scripting) picking up a crate. Effect: the map trigger's "picks up
-    // crate" event never fires and a trigger that killed the actor cannot
-    // make this return false. Frequency: authored maps only. Risk: none in
-    // skirmish.
+    // PickupCrate481A6D raises the attached event synchronously before any
+    // outcome draw, then marks the global AnyCratePicked event dirty.
+    if flags.crate_trigger {
+        sim.raise_crate_pickup(
+            actor_id,
+            crate::sim::world::UninitContext::new(Some(rules), Some(registry))
+                .with_effects(frame_effects),
+        );
+        if !sim
+            .substrate
+            .entities
+            .get(actor_id)
+            .is_some_and(|actor| actor.lifecycle.object_alive && !actor.dying)
+        {
+            return false;
+        }
+    }
     let selection = select_pickup_outcome(
         &mut sim.scenario_rng,
         rules,

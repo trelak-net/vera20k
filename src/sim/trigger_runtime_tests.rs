@@ -970,7 +970,11 @@ fn master_frame_save_load_continues_trigger_projectile_and_delete_state() {
         map_name: original.session.map_name.clone(),
         rules_hash: 0,
     });
-    replay_log.record_tick(original_tick.tick, Vec::new(), original_tick.state_hash.unwrap());
+    replay_log.record_tick(
+        original_tick.tick,
+        Vec::new(),
+        original_tick.state_hash.unwrap(),
+    );
     let restored_tick = restored
         .advance_master_frame(
             &[],
@@ -1077,7 +1081,11 @@ fn dispatch_typed_trigger_reference(kind: i32, target_enabled: bool) -> Simulati
             .map_or_else(Vec::new, |r| r.entries.clone());
         sim.trigger_runtime.definitions.trigger_types[index].actions = entries
             .into_iter()
-            .map(|a| sim.trigger_runtime.definitions.resolve_action(a, None))
+            .map(|a| {
+                sim.trigger_runtime
+                    .definitions
+                    .resolve_action(a, None, None)
+            })
             .collect();
     }
     for tag in 0..sim.trigger_runtime.definitions.tag_types.len() {
@@ -2230,4 +2238,55 @@ fn action_138_clears_only_first_country_match_without_token_or_rng_use() {
         Some(&rules),
     );
     assert_eq!(no_match.houses[&house].alternate_base_center, (105, 194));
+}
+
+/// HouseClass::Update's Tag raise against the original block executed in
+/// `tools/spatial_oracle/house_tag_raise.json`: every eighth signed frame,
+/// event 8 with no object, the zero Cell, no force and no source, last Tag
+/// first.
+#[test]
+fn house_tag_raise_matches_original_cadence_and_order() {
+    let cases: Vec<serde_json::Value> = serde_json::from_str(crate::test_fixture::text(
+        "tools/spatial_oracle/house_tag_raise.json",
+    ))
+    .unwrap();
+    assert_eq!(cases.len(), 19);
+    for case in cases {
+        let frame = case["input"]["frame"].as_i64().unwrap() as i32;
+        let count = case["input"]["tags"].as_i64().unwrap().max(0) as usize;
+        let mut sim = Simulation::new();
+        let house = sim.interner.intern("Americans");
+        sim.trigger_runtime
+            .house_tags
+            .insert(house, (0..count).collect());
+        sim.session.binary_frame = frame as u32;
+        sim.raise_house_tags(house, None, None, FrameEffects::default());
+        let expected: Vec<(usize, i32)> = case["raises"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|raise| {
+                assert_eq!(
+                    (
+                        &raise["object"],
+                        &raise["cell"],
+                        &raise["force"],
+                        &raise["source"]
+                    ),
+                    (
+                        &serde_json::json!(0),
+                        &serde_json::json!([0, 0]),
+                        &serde_json::json!(0),
+                        &serde_json::json!(0)
+                    ),
+                    "{case}"
+                );
+                (
+                    raise["tag"].as_u64().unwrap() as usize,
+                    raise["event"].as_i64().unwrap() as i32,
+                )
+            })
+            .collect();
+        assert_eq!(sim.trigger_runtime.dispatch_trace, expected, "{case}");
+    }
 }

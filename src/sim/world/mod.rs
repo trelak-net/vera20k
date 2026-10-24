@@ -64,6 +64,7 @@ mod load_object_lifecycle;
 mod logic_vector;
 mod move_cell_input;
 mod move_sound;
+mod object_sound;
 mod turret_rotate_sound;
 pub(crate) use move_sound::MoveSoundState;
 #[cfg(test)]
@@ -1141,6 +1142,12 @@ pub struct Simulation {
     /// is cleared only by exact pointer-expiry cleanup.
     #[serde(default)]
     pub(crate) active_wave_links: BTreeMap<u64, u64>,
+    /// `ObjectClass+0x64`: the custom sound trigger action 99 gave an object
+    /// (a Building or Terrain), keyed by stable id. Absent is the
+    /// constructor's -1. Only `object_sound` writes it; the object's
+    /// destruction removes it.
+    #[serde(default)]
+    pub(crate) object_custom_sounds: BTreeMap<u64, String>,
     /// Hookless-test adapter retained for old fixture callsites. Production
     /// combat and superweapons commit smudges inline, so this remains empty and
     /// never persists across ticks.
@@ -3257,6 +3264,7 @@ impl Simulation {
             projectiles: crate::sim::projectile::ProjectileStore::new(),
             waves: crate::sim::wave::WaveStore::new(),
             active_wave_links: BTreeMap::new(),
+            object_custom_sounds: BTreeMap::new(),
             pending_smudge_requests: Vec::new(),
             bale_events: Vec::new(),
             bunker_wall_events: Vec::new(),

@@ -2545,6 +2545,9 @@ impl Simulation {
             // (`AnimClass::PointerExpired @ 0x00425150`, `+0x17C`).
             self.expire_anim_attached_bullet(stable_id, None);
         }
+        // The same UnInit's Limbo (vt+0xD4) detaches a dying tree's custom
+        // sound (`object_sound`).
+        self.detach_custom_sound(stable_id);
         let _ = self.unregister_non_entity_object(stable_id);
         self.substrate.pending_delete.queue_object(stable_id);
         #[cfg(test)]
@@ -2679,13 +2682,11 @@ impl Simulation {
             .push(LifecycleOutput::DetachAttachedAnims { stable_id });
         #[cfg(test)]
         self.trace_lifecycle_for_test(LifecycleTestEvent::ConcealAnimBoundary);
-        // RESIDUAL: ObjectConceal5F4D81 stops Object+3C and5F4D89
-        // detaches Object+50. Those ambient handles have no Rust owner yet.
-        // They are separate from Foot+544/Anim+1A0/Building+6A0; aliasing
-        // this boundary to their object ID wrongly cuts off those sounds.
-        // Trigger: ObjectType ambient cues; effect: missing conceal teardown
-        // once their upstream playback is implemented; no such handle exists
-        // for this ordinary SQD chain.
+        // ObjectConceal5F4D81 hard-stops the AmbientSound handle (+3C) and
+        //5F4D89 detaches the custom-sound handle (+50): `object_sound`.
+        // They are separate from Foot+544/Anim+1A0/Building+6A0.
+        self.object_sound_conceal(stable_id, context.rules());
+        context.effects().flush_sound(self, context.rules());
         #[cfg(test)]
         self.trace_lifecycle_for_test(LifecycleTestEvent::ConcealVocBoundary);
 
@@ -4748,6 +4749,7 @@ impl Simulation {
         let anim = self.substrate.anims.remove(stable_id);
         let particle_system = self.substrate.particle_systems.finalize_remove(stable_id);
         let terrain = self.production.terrain_objects.remove(&stable_id);
+        self.drop_object_custom_sound(stable_id);
         if let Some(terrain) = terrain.as_ref() {
             let cell = terrain.cell();
             if self.production.terrain_object_cells.get(&cell) == Some(&stable_id) {

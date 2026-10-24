@@ -1,5 +1,5 @@
 //! The nuclear missile's launch: `SuperClass::Launch @ 0x006CC390` case 0
-//! (`Type=MultiMissile`, `0x006CDA67`) for a Super that is not one-time.
+//! (`Type=MultiMissile`, `0x006CDA67`): silo launch or a one-time dropped payload.
 //! The silo's flight (`BuildingClass::Mission_Missile @ 0x0044C980`) and
 //! the falling warhead (`NukeMaker=`, `0x0046B310`) belong to the building
 //! missions and the projectile detonation.
@@ -28,8 +28,6 @@
 //! the recharge restart is ClickFire's.
 //!
 //! RESIDUALS:
-//! - The one-time arm (`0x006CDA88..0x006CDCB3`: a NukePayload bullet
-//!   dropped straight on the cell): VERA grants no one-time Super.
 //! - A charged launch that finds no silo type (`0x006CDCFA`, `0x006CDD30`)
 //!   or no silo (`0x006CDD44`) still runs the player's tail and sets
 //!   `+0x1FC` (`0x006CDE06`); VERA's launch reports nothing then. Triggers:
@@ -160,6 +158,14 @@ pub(super) fn launch(
     if !super::is_charged(sim, owner, sw_type_id) {
         return false;
     }
+    if sim
+        .super_weapons
+        .get(&owner)
+        .and_then(|weapons| weapons.get(&sw_type_id))
+        .is_some_and(|inst| inst.one_time)
+    {
+        return launch_one_time(sim, rules, owner, sw_type_id, cell);
+    }
     let Some(index) = rules.super_weapon_index(&sw.id) else {
         return false;
     };
@@ -192,6 +198,63 @@ pub(super) fn launch(
             .mission_leaf
             .set_building_firing_super_weapon(sw.kind.native_index());
     }
+    sim.sound_events.push(SimSoundEvent::SuperWeaponLaunched {
+        owner,
+        sw_type: sw_type_id,
+        rx: cell.0,
+        ry: cell.1,
+    });
+    true
+}
+
+/// Launch6CDA88 drops NukePayload on the ground/bridge plus 20,000 leptons,
+/// with no firer object. House attribution is stamped separately at43B5E0.
+fn launch_one_time(
+    sim: &mut Simulation,
+    rules: &RuleSet,
+    owner: InternedId,
+    sw_type_id: InternedId,
+    cell: (u16, u16),
+) -> bool {
+    use crate::sim::projectile::{ProjectileCoord, ProjectilePayload, ProjectileTarget};
+    let Some(weapon) = rules.weapon("NukePayload") else {
+        return false;
+    };
+    let Some(warhead) = weapon.warhead.as_deref().and_then(|id| rules.warhead(id)) else {
+        return false;
+    };
+    let ground =
+        crate::sim::projectile::cell_target_coord(sim.resolved_terrain.as_ref(), cell.0, cell.1);
+    let origin = ProjectileCoord::new(ground.x, ground.y, ground.z.wrapping_add(20000));
+    let payload = ProjectilePayload::new(
+        weapon.damage,
+        sim.interner.intern(&warhead.id),
+        sim.interner.intern(&weapon.id),
+    );
+    let id = sim.allocate_stable_id();
+    let native = sim.next_native_runtime_id();
+    // Native constant7EDA88 is -100.0; the common x87 launcher supplies the
+    // tiny horizontal components of the original pi/2 trigonometry too.
+    let velocity = crate::sim::projectile::launch::missile_launch_velocity(
+        crate::util::native_x87::NativeF64Bits::from_bits((-100.0f64).to_bits()),
+    );
+    let Some(bullet) = crate::sim::combat::FiredBullet::launched(
+        sim,
+        native,
+        0,
+        ProjectileTarget::Cell {
+            rx: cell.0,
+            ry: cell.1,
+        },
+        payload,
+        weapon.speed,
+        origin,
+        velocity,
+    ) else {
+        return false;
+    };
+    crate::sim::combat::admit_fired_bullet(sim, rules, weapon, id, bullet);
+    sim.projectiles.set_firer_house(id, Some(owner));
     sim.sound_events.push(SimSoundEvent::SuperWeaponLaunched {
         owner,
         sw_type: sw_type_id,

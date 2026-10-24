@@ -1,10 +1,12 @@
-//! One low-delay LoadSamples/Prepare/AdvancePlaylist owner and its PCM ring.
+//! One Prepare/AdvancePlaylist/OnChannelSampleEnd owner and its PCM ring.
 //!
 //! gamemd404700/4047B0 select one buffer at a time. Fill409880 invokes
-//! AdvancePlaylist405AC0 while filling the initial ring and consumed quarters;
-//! this is lookahead in PCM bytes, not a queued complete playlist pass.
-//! Source: tools/input_oracle/gattling_loop.{py,json,meta.json,md}.
+//! OnChannelSampleEnd405AC0 while filling the initial ring and consumed
+//! quarters; this is lookahead in PCM bytes, not a queued complete playlist
+//! pass. Sources: tools/input_oracle/gattling_loop.{py,json,meta.json,md} and
+//! tools/spatial_oracle/ambient_playout.{py,json,meta.json}.
 
+use super::arbiter::{PlayoutEnd, delay_below_floor};
 use super::{DecodedAudio, LoadedPlayback, LoadedSampleIndices, PlaybackDraws, SampleRng};
 use crate::rules::sound_ini::control;
 use rodio::Source;
@@ -13,23 +15,30 @@ use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, AtomicUsize, Ordering}
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
-/// Owns native+AC/+160/+1E0/+1E4. Admission and handles stay in the arbiter.
+/// Owns native+AC/+160/+1E0/+1E4, flags0x10 and the gap +0x13C/+0x148 one
+/// playout leaves. Admission and handles stay in the arbiter.
+#[derive(Default)]
 pub(super) struct PlaylistCursor {
     selected: LoadedSampleIndices,
     remaining: Vec<usize>,
     control: u32,
-    delay_min: i32,
+    delay_ms: (i32, i32),
     loop_count: i32,
     iteration: i32,
     decay_used: bool,
     no_replay: bool,
+    /// SelectNextSample's `+0x268` for this playout (0 below the floor).
+    queue_count: i32,
+    /// `+0x13C` and whether `+0x148` holds a buffer, from the sample end
+    /// that drew a gap.
+    gap: Option<(u32, bool)>,
 }
 
 impl PlaylistCursor {
     pub(super) fn new(
         selected: LoadedSampleIndices,
         control: u32,
-        delay_min: i32,
+        delay_ms: (i32, i32),
         loop_count: i32,
     ) -> Self {
         let remaining = Vec::with_capacity(selected.middle.len());
@@ -37,21 +46,36 @@ impl PlaylistCursor {
             selected,
             remaining,
             control,
-            delay_min,
+            delay_ms,
             loop_count,
-            iteration: 0,
-            decay_used: false,
-            no_replay: false,
+            ..Self::default()
         }
+    }
+
+    /// An above-floor playout: the queue LoadSamples left and the event's
+    /// flags0x10, which outlives each pass's buffers.
+    pub(super) fn with_queue(mut self, queue_count: i32, decay_used: bool) -> Self {
+        self.queue_count = queue_count;
+        self.decay_used = decay_used;
+        self
+    }
+
+    pub(super) fn decay_used(&self) -> bool {
+        self.decay_used
     }
 
     /// Both4045D1 and404673 reset the same remaining list. Attack bypasses
     /// RandomRanged; SkipAttack reallocation selects one body here instead.
+    /// From the floor up (`0x00404727`) PreparePlayout returns the first
+    /// loaded buffer and builds no playlist.
     pub(super) fn prepare(
         &mut self,
         rng: &mut impl SampleRng,
         plays_attack: bool,
     ) -> Option<usize> {
+        if !delay_below_floor(self.delay_ms.0) {
+            return self.selected.middle.first().copied();
+        }
         self.remaining.clear();
         self.remaining.extend_from_slice(&self.selected.middle);
         // Prepare404700 does not clear flags0x10. Only allocation creates
@@ -67,6 +91,11 @@ impl PlaylistCursor {
     }
 
     pub(super) fn advance(&mut self, rng: &mut impl SampleRng) -> Option<usize> {
+        // Original4047BC..4047C5: every arm needs Delay.min below the floor
+        // or NO_REPLAY, which leaves only the decay arm.
+        if !delay_below_floor(self.delay_ms.0) && !self.no_replay {
+            return None;
+        }
         if !self.no_replay && !self.remaining.is_empty() {
             let pick = if self.control & control::RANDOM != 0 {
                 rng.ranged(0, self.remaining.len() as i32 - 1) as usize
@@ -78,7 +107,6 @@ impl PlaylistCursor {
         // Original40483D..404879 checks LOOP before DECAY. This counter is
         // authoritative here; the arbiter must not spend passes in advance.
         if !self.no_replay
-            && self.delay_min < super::arbiter::PREDELAY_FLOOR_MS
             && self.control & control::LOOP != 0
             && (self.loop_count == 0 || self.iteration < self.loop_count - 1)
         {
@@ -98,6 +126,40 @@ impl PlaylistCursor {
             return Some(decay);
         }
         None
+    }
+
+    /// `SoundEvent::OnChannelSampleEnd @ 0x00405AC0`: the buffer after the
+    /// one that ended. AdvancePlaylist picks it; from a `Delay=` high bound of
+    /// `0x21` up the channel stops instead, unless a gap is drawn (any
+    /// pending buffer, queue, or neither `Control=predelay` nor `ambient`)
+    /// and falls under the floor. A larger gap is kept for
+    /// `OnChannelDone`. Both floor tests are unsigned (`JNC`).
+    pub(super) fn sample_end(&mut self, rng: &mut impl SampleRng) -> Option<usize> {
+        let next = self.advance(rng);
+        if delay_below_floor(self.delay_ms.1) {
+            return next;
+        }
+        if self.control & (control::PREDELAY | control::AMBIENT) == 0
+            || next.is_some()
+            || self.queue_count != 0
+        {
+            let gap = rng.ranged(self.delay_ms.0, self.delay_ms.1);
+            if delay_below_floor(gap) {
+                return next;
+            }
+            self.gap = Some((gap as u32, next.is_some()));
+        }
+        None
+    }
+
+    /// OnChannelDone405A00's inputs; it consumes the gap (`+0x13C = 0`).
+    pub(super) fn playout_end(&mut self) -> PlayoutEnd {
+        let (gap_ms, next) = self.gap.take().unwrap_or_default();
+        PlayoutEnd {
+            gap_ms,
+            next,
+            queue_count: self.queue_count,
+        }
     }
 }
 
@@ -150,7 +212,7 @@ impl RingState {
                     self.current = None;
                     break;
                 }
-                self.current = self.cursor.advance(&mut self.rng);
+                self.current = self.cursor.sample_end(&mut self.rng);
                 self.clip_offset = 0;
                 continue;
             };
@@ -173,7 +235,7 @@ impl RingState {
                     self.current = None;
                     break;
                 }
-                self.current = self.cursor.advance(&mut self.rng);
+                self.current = self.cursor.sample_end(&mut self.rng);
                 self.clip_offset = 0;
                 continue;
             }
@@ -387,6 +449,18 @@ impl PlaybackControl {
 
     pub(super) fn set_pan(&self, pan: i32) {
         self.0.pan.store(pan, Ordering::Relaxed);
+    }
+
+    /// The channel ran dry: OnChannelDone405A00's inputs, and the loaded
+    /// buffers and cursor the sample owner keeps for the event's next start
+    /// pass. The source is spent; any later pull ends at once.
+    pub(super) fn finish(&self) -> (PlayoutEnd, LoadedPlayback, PlaylistCursor) {
+        let mut state = self.0.state.lock().expect("SFX boundary gate poisoned");
+        state.cancelled = true;
+        self.0.cancelled.store(true, Ordering::Release);
+        let mut cursor = std::mem::take(&mut state.cursor);
+        let loaded = std::mem::take(&mut state.loaded);
+        (cursor.playout_end(), loaded, cursor)
     }
 }
 

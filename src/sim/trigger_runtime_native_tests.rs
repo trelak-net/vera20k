@@ -115,7 +115,7 @@ fn native_trigger_reveal_action_matches_original_controls() {
             .unwrap()
             .entries
             .remove(0);
-        let action = definitions.resolve_action(entry, None);
+        let action = definitions.resolve_action(entry, None, None);
         assert_eq!(
             json!(action.value),
             row["read"]["value"],
@@ -482,7 +482,7 @@ fn action_11_inline_labels_and_ordered_effects_match_original_controls() {
         let mut sim = Simulation::new();
         let mut definitions = RuntimeDefinitions::default();
         let typ = definitions.trigger_type("LABEL").unwrap();
-        let action = definitions.resolve_action(entry, None);
+        let action = definitions.resolve_action(entry, None, None);
         sim.trigger_runtime.definitions = definitions;
         let preceding = TriggerEffect::InputLockChanged {
             locked: true,
@@ -648,7 +648,7 @@ fn physical_team_tag_references_match_original_retention_and_long_id_controls() 
             };
             let map = crate::map::map_file::MapFile::from_bytes(scenario.as_bytes()).unwrap();
             let teams = TeamAiIniRegistry::from_sources(&fixed, &map.ini, false);
-            let definitions = RuntimeDefinitions::read_map(&map, &teams, None);
+            let definitions = RuntimeDefinitions::read_map(&map, &teams, None, None);
             assert_eq!(definitions.team_types, ["TT"]);
             assert_eq!(
                 json!(
@@ -924,7 +924,7 @@ fn definition_factories_match_all_original_action_reference_controls() {
         let record = crate::map::actions::parse_actions(&ini)
             .remove("REFERENCE")
             .unwrap();
-        let resolved = definitions.resolve_action(record.entries[0].clone(), None);
+        let resolved = definitions.resolve_action(record.entries[0].clone(), None, None);
         let names: Vec<_> = match parameter_type {
             1 | 5 => definitions.team_types.iter().map(String::as_str).collect(),
             2 => definitions
@@ -1103,7 +1103,7 @@ fn physical_retail_sov01_registration_and_enable_timers_match_original_at_all_di
             );
             sim.session.house_order.push(house);
         }
-        sim.initialize_trigger_definitions(&map, &teams, Some(&eva));
+        sim.initialize_trigger_definitions(&map, &teams, Some(&eva), None);
         sim.trigger_runtime.fixture_difficulty = Some(integer(&row["input"]["difficulty"]));
         let runtime = &sim.trigger_runtime;
         let final_order = row["type_orders"].as_array().unwrap().last().unwrap();
@@ -1293,6 +1293,7 @@ fn supplied_definitions(input: &Value) -> RuntimeDefinitions {
                         reference: action
                             .get(2)
                             .map(|target| DefinitionReference::Trigger(integer(target) as usize)),
+                        sound: None,
                     })
                     .collect()
             });
@@ -1676,6 +1677,7 @@ fn live_instances_match_all_native_supplied_histories_and_serialization() {
                                 integer(&args[2]) as usize
                             )),
                             value: Some(0),
+                            sound: None,
                         };
                         returned = Some(i32::from(sim.apply_live_trigger_action(
                             &action,
@@ -1831,6 +1833,7 @@ fn native_trigger_reveal_initial_event48_tags_receive_neutral_discovery_dispatch
         sim.initialize_trigger_definitions(
             &map,
             &crate::rules::team_ai_ini::TeamAiIniRegistry::default(),
+            None,
             None,
         );
         let typ = sim.interner.intern("GTGCAN");

@@ -956,7 +956,7 @@ fn pump_loading_after_present(state: &mut AppState) -> LoadingPump {
             .as_mut()
             .ok_or_else(|| anyhow::anyhow!("loading job lost its process asset manager"))?;
         let shared_cell_dummy = state.process_assets.shared_cell_dummy.clone();
-        let (native_rules_owner, tile_variant_selector_cache, eva) =
+        let (native_rules_owner, tile_variant_selector_cache, audio) =
             state.process_assets.native_rules_mut_with_tile_cache();
         let native_rules_owner =
             native_rules_owner.expect("native Rules availability checked before split borrow");
@@ -1003,7 +1003,7 @@ fn pump_loading_after_present(state: &mut AppState) -> LoadingPump {
                 progress.native_theater_cache_mismatch,
                 progress.runtime_color_scheme_count,
                 native_rules_owner,
-                eva,
+                audio,
                 shared_cell_dummy,
                 tile_variant_selector_cache,
                 &mut progress.sink,

@@ -117,6 +117,7 @@ fn click_fire(
     if !instance.click_fire_admits() && !sw.post_click {
         return false;
     }
+    let one_time = instance.one_time;
     if sw.kind == SuperWeaponKind::LightningStorm && super::lightning_storm::has_deferment(sim) {
         sim.sound_events
             .push(SimSoundEvent::LightningStormRefused { owner });
@@ -148,6 +149,12 @@ fn click_fire(
         .and_then(|weapons| weapons.get_mut(&sw_type_id))
     {
         instance.finish_click_fire(sw, frame);
+    }
+    if one_time {
+        // Native Launch sets House+1FC for its next grant pass. This engine
+        // refreshes at events: a silo acquired during the one-use grant now
+        // starts an ordinary recharge, while an independent gift disappears.
+        super::refresh_super_weapons_for_owner(sim, rules, owner);
     }
     true
 }

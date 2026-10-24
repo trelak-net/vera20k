@@ -247,7 +247,9 @@ fn coordinate_real_sample_service_gate_main_and_explicit_endpoint_cleanup_match_
         // The original worker naturally wrote state4. Only Rust's existing
         // endpoint is supplied here; this is not a Rust device-completion test.
         let ended = &native()["audio_core_controls"]["natural_end"]["ended_before_main"];
-        player.arbiter.notify_playout_ended(token);
+        player
+            .arbiter
+            .notify_playout_ended(token, PlayoutEnd::default(), 0);
         player.release_output(event);
         assert_requests(player, ended, &[owner]);
         assert_eq!(main.native_state_hex(), main_hex(ended));

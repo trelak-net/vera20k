@@ -37,7 +37,7 @@ use crate::assets::asset_manager::AssetManager;
 use crate::assets::aud_file;
 use crate::audio::arbiter::{
     self, ArbiterAction, EntryFacts, EventId, EventToken, HandleOwner, PlayRequest,
-    PlaybackService, SoundArbiter, combine_linear,
+    PlaybackService, PlayoutEnd, SoundArbiter, combine_linear,
 };
 use crate::audio::events::SoundSource;
 use crate::audio::voice_queue::VoiceQueue;
@@ -49,7 +49,11 @@ use crate::util::native_x87::X87Chop53;
 
 mod observation;
 mod playback;
+mod sample_queue;
 use playback::{PlaybackControl, PlaylistCursor, RingSource};
+use sample_queue::SampleQueue;
+#[cfg(test)]
+mod ambient_playout_tests;
 #[cfg(test)]
 mod coordinate_playback_tests;
 #[cfg(test)]
@@ -528,8 +532,8 @@ impl PlayShifts {
 /// Test-only finite inspection of the production one-buffer cursor.
 ///
 /// gamemd-derived: `SoundEvent::LoadSamples @ 0x004048B0` for events whose
-/// `Delay.min < 0x21` (`0x004048FB..0x00404ACD`); the high-delay loader
-/// remains the separately recorded SelectNextSample404BB0 residual:
+/// `Delay.min < 0x21` (`0x004048FB..0x00404ACD`); the above-floor loader
+/// is `LoadedPlayback::load_delayed` (`sfx/sample_queue.rs`):
 /// 1. `Attack > 0`: load `samples[RandomRanged(0, Attack - 1)]`.
 /// 2. Without `ALL`: `RANDOM` loads `samples[RandomRanged(Attack, count -
 ///    Decay - 1)]`, otherwise `samples[Attack]` (the first body sample —
@@ -645,7 +649,7 @@ impl LoadedSampleIndices {
     ) -> Vec<usize> {
         // Test-only finite inspection uses the production one-buffer cursor.
         // No alternative eager selection implementation lives in playback.
-        let mut cursor = PlaylistCursor::new(self.clone(), control_flags, 0, 1);
+        let mut cursor = PlaylistCursor::new(self.clone(), control_flags, (0, 0), 1);
         let mut order = Vec::new();
         let mut selected = cursor.prepare(rng, plays_attack);
         while let Some(index) = selected {
@@ -853,6 +857,9 @@ struct LiveSfxOutput {
     gain: SfxOutputGain,
     token: Option<EventToken>,
     control: Option<PlaybackControl>,
+    /// The event's own sample state while this playout runs. OnChannelDone
+    /// may give the event another start pass.
+    parked: Option<PendingPlayback>,
 }
 
 impl LiveSfxOutput {
@@ -863,6 +870,7 @@ impl LiveSfxOutput {
             gain,
             token: None,
             control: None,
+            parked: None,
         }
     }
 
@@ -882,6 +890,8 @@ impl LiveSfxOutput {
 
 /// One admitted event. Submission carries identity/gain only; shifts and
 /// samples are filled at their original service phases by PendingSampleService.
+/// The record outlives each playout (parked in its live output): the shifts,
+/// buffers, cursor and queue belong to the event, not to one start pass.
 struct PendingPlayback {
     token: EventToken,
     key: String,
@@ -892,10 +902,98 @@ struct PendingPlayback {
     cursor: Option<PlaylistCursor>,
     initial: Option<usize>,
     source: Option<(RingSource, PlaybackControl)>,
+    queue: SampleQueue,
 }
 
-/// Decoded sample handles selected once by LoadSamples4048B0. A loop uses
-/// these same handles; only its playlist order may draw again.
+impl PendingPlayback {
+    fn new(token: EventToken, key: String, channel: SfxChannel) -> Self {
+        Self {
+            token,
+            key,
+            channel,
+            shifts: None,
+            loaded: None,
+            prepared: None,
+            cursor: None,
+            initial: None,
+            source: None,
+            queue: SampleQueue::default(),
+        }
+    }
+
+    /// LoadSamples4048B0 for a registered entry. Below the floor the first
+    /// buffers stay for every later pass; from the floor up each call
+    /// releases them and loads the queue's next sample (`sfx/sample_queue.rs`)
+    /// on a fresh cursor that keeps flags0x10.
+    fn load_entry_samples(
+        &mut self,
+        entry: &SoundEntry,
+        plays_attack: bool,
+        rng: &mut impl SampleRng,
+        load: impl FnMut(&str) -> Option<DecodedAudio>,
+    ) -> bool {
+        if arbiter::delay_below_floor(entry.delay_ms.0) {
+            if self.loaded.is_none() {
+                self.loaded = LoadedPlayback::load(entry, rng, load);
+            }
+            return self.loaded.is_some();
+        }
+        let mut decay_used = self.cursor.take().is_some_and(|cursor| cursor.decay_used());
+        self.loaded = LoadedPlayback::load_delayed(
+            entry,
+            &mut self.queue,
+            plays_attack,
+            &mut decay_used,
+            rng,
+            load,
+        );
+        let selected = self
+            .loaded
+            .as_ref()
+            .map(|loaded| loaded.selected.clone())
+            .unwrap_or_default();
+        self.cursor = Some(
+            PlaylistCursor::new(selected, entry.control, entry.delay_ms, entry.loop_count)
+                .with_queue(self.queue.count(), decay_used),
+        );
+        self.loaded.is_some()
+    }
+
+    /// OnChannelDone405A00 kept the event: its buffers and cursor (with
+    /// flags0x10) come back from the spent playout for the next start pass.
+    fn resume_after(&mut self, loaded: LoadedPlayback, cursor: PlaylistCursor) {
+        self.loaded = Some(loaded);
+        self.cursor = Some(cursor);
+    }
+
+    /// PreparePlayout404700 on the cursor the event keeps.
+    fn prepare_entry_playout(
+        &mut self,
+        entry: &SoundEntry,
+        plays_attack: bool,
+        rng: &mut impl SampleRng,
+    ) -> bool {
+        let Some(loaded) = &self.loaded else {
+            return false;
+        };
+        let cursor = self.cursor.get_or_insert_with(|| {
+            PlaylistCursor::new(
+                loaded.selected.clone(),
+                entry.control,
+                entry.delay_ms,
+                entry.loop_count,
+            )
+        });
+        self.initial = cursor.prepare(rng, plays_attack);
+        self.initial
+            .is_some_and(|index| loaded.clips.contains_key(&index))
+    }
+}
+
+/// Decoded sample handles selected by LoadSamples4048B0: once below the
+/// floor, where a loop reuses them and only the playlist order may draw
+/// again, and once per start pass from the floor up.
+#[derive(Default)]
 struct LoadedPlayback {
     selected: LoadedSampleIndices,
     clips: BTreeMap<usize, DecodedAudio>,
@@ -1022,11 +1120,11 @@ impl PlaybackService for PendingSampleService<'_> {
         shifts.predelay_ms
     }
 
-    fn load_samples(&mut self, event: EventId) -> bool {
+    fn load_samples(&mut self, event: EventId, plays_attack: bool) -> bool {
         let Some(pending) = self.pending.get_mut(&event) else {
             return false;
         };
-        if pending.loaded.is_some() || pending.prepared.is_some() {
+        if pending.prepared.is_some() {
             return true;
         }
         let Some(entry) = self.registry.get(&pending.key) else {
@@ -1043,10 +1141,9 @@ impl PlaybackService for PendingSampleService<'_> {
                 });
             return pending.prepared.is_some();
         };
-        pending.loaded = LoadedPlayback::load(entry, self.rng, |name| {
+        pending.load_entry_samples(entry, plays_attack, self.rng, |name| {
             load_sfx(name, self.assets, self.audio_index)
-        });
-        pending.loaded.is_some()
+        })
     }
 
     fn prepare_playout(&mut self, event: EventId, plays_attack: bool) -> bool {
@@ -1061,21 +1158,7 @@ impl PlaybackService for PendingSampleService<'_> {
         let Some(entry) = self.registry.get(&pending.key) else {
             return false;
         };
-        let Some(loaded) = &pending.loaded else {
-            return false;
-        };
-        let cursor = pending.cursor.get_or_insert_with(|| {
-            PlaylistCursor::new(
-                loaded.selected.clone(),
-                entry.control,
-                entry.delay_ms.0,
-                entry.loop_count,
-            )
-        });
-        pending.initial = cursor.prepare(self.rng, plays_attack);
-        pending
-            .initial
-            .is_some_and(|index| loaded.clips.contains_key(&index))
+        pending.prepare_entry_playout(entry, plays_attack, self.rng)
     }
 
     fn start_playout(&mut self, event: EventId, pan: i32) -> bool {
@@ -1956,20 +2039,8 @@ impl SfxPlayer {
         if let Some(observer) = &mut self.pcm_observer {
             observer.submitted(token, &key, None, 0, self.now_ms);
         }
-        self.pending.insert(
-            event,
-            PendingPlayback {
-                token,
-                key,
-                channel,
-                shifts: None,
-                loaded: None,
-                prepared: None,
-                cursor: None,
-                initial: None,
-                source: None,
-            },
-        );
+        self.pending
+            .insert(event, PendingPlayback::new(token, key, channel));
         Some(event)
     }
 
@@ -2041,7 +2112,7 @@ impl SfxPlayer {
                         && let (Some(control), Some(token)) = (&output.control, output.token)
                         && !control.release_to_decay()
                     {
-                        self.arbiter.notify_playout_ended(token);
+                        self.arbiter.notify_playout_stopped(token);
                     }
                 }
                 ArbiterAction::Stop { event } => self.release_output(event),
@@ -2063,7 +2134,7 @@ impl SfxPlayer {
     /// Attach the source prepared synchronously in StartPlayback4054A0's
     /// service phase. Subsequent quarter fills use that same source owner.
     fn start_output(&mut self, event: EventId, volume_linear: i32, pan: i32, now_ms: u64) {
-        let Some(pending) = self.pending.remove(&event) else {
+        let Some(mut pending) = self.pending.remove(&event) else {
             return;
         };
         let token = pending.token;
@@ -2089,10 +2160,10 @@ impl SfxPlayer {
         };
         let mut output = LiveSfxOutput::new(player, gain, gain.effective(self.output_scales()));
         output.token = Some(token);
-        if let Some((source, control)) = pending.source {
+        if let Some((source, control)) = pending.source.take() {
             output.control = Some(control);
             output.player.append(source);
-        } else if let Some(resolved) = pending.prepared {
+        } else if let Some(resolved) = pending.prepared.take() {
             let mut decoded = resolved.decoded;
             apply_pan(&mut decoded.samples, pan);
             let (Some(channels), Some(rate)) = (
@@ -2112,14 +2183,15 @@ impl SfxPlayer {
             self.arbiter.stop(event);
             return;
         }
+        output.parked = Some(pending);
         self.live.insert(event, output);
     }
 
-    /// The device telling the arbiter that a playout ran dry with nothing
-    /// left to play — native's `ch+0xB8` callback `LAB_00405A00`, which sets
-    /// state 4 so the next pass reaps the event. This is also the reaping
-    /// cadence native runs every pass and VERA previously only ran inside a
-    /// play call.
+    /// The device telling the arbiter that a playout ran dry — native's
+    /// `ch+0xB8` callback `SoundEvent::OnChannelDone @ 0x00405A00`. An event
+    /// it ends reaches state 4 for the next pass to reap; one it keeps (a gap
+    /// or a remaining above-floor queue) takes its sample state back into
+    /// `pending` for its next start pass.
     fn report_finished_outputs(&mut self) {
         let finished: Vec<EventId> = self
             .live
@@ -2131,10 +2203,29 @@ impl SfxPlayer {
             let Some(token) = self.output_token(event) else {
                 continue;
             };
+            let ring = self
+                .live
+                .get(&event)
+                .and_then(|output| output.control.as_ref())
+                .map(PlaybackControl::finish);
+            let end = ring
+                .as_ref()
+                .map_or_else(PlayoutEnd::default, |(end, ..)| *end);
+            if self.arbiter.notify_playout_ended(token, end, self.now_ms)
+                && let Some(output) = self.live.remove(&event)
+            {
+                output.stop();
+                if let Some(mut pending) = output.parked {
+                    if let Some((_, loaded, cursor)) = ring {
+                        pending.resume_after(loaded, cursor);
+                    }
+                    self.pending.insert(event, pending);
+                }
+                continue;
+            }
             if let Some(observer) = &mut self.pcm_observer {
                 observer.action(token, "completed", self.now_ms);
             }
-            self.arbiter.notify_playout_ended(token);
             self.release_output(event);
         }
     }
@@ -2411,6 +2502,9 @@ impl From<&SoundEntry> for EntryFacts {
             loop_count: entry.loop_count,
             delay_ms: entry.delay_ms,
             entry_volume_linear: entry.volume_linear,
+            // VERA reads `Sounds=` names without the audio index, so `+0x0C`
+            // (every name resolved, `AddSample @ 0x004064A0`) is not modelled.
+            samples_ok: !entry.sounds.is_empty(),
         }
     }
 }
@@ -2438,6 +2532,7 @@ fn entry_facts(sound_id: &str, registry: &SoundRegistry) -> EntryFacts {
         loop_count: 0,
         delay_ms: (0, 0),
         entry_volume_linear: VOLUME_SCALE,
+        samples_ok: true,
     }
 }
 
@@ -3850,6 +3945,86 @@ mod tests {
                 .write_all(&bytes)
                 .unwrap();
         }
+    }
+
+    /// An above-floor entry through the production player and device. The
+    /// first start pass parks the event's sample record in its live output.
+    /// The ring's sample-end lookahead draws OnChannelSampleEnd's gap
+    /// (`0x00405AC0`). The drained output hands it to OnChannelDone
+    /// (`0x00405A00`), which leaves the event waiting in state 2 with the
+    /// record back in `pending`. The next start pass then plays the record's
+    /// next queued sample on the same token. Retail `_Amb_OceanLight` is
+    /// RANDOM|ALL with four samples, so its first pass leaves three.
+    /// Device-backed; ordinary lib CI has no device.
+    #[test]
+    #[ignore = "requires active-retail RA2_DIR and an audio output device"]
+    fn retail_above_floor_gap_parks_the_record_until_the_next_start_pass() {
+        use std::time::{Duration, Instant};
+        let mut service = TestAudioService::default();
+        let (_root, assets) = crate::rules::retail_ini_fixture::retail_assets()
+            .expect("explicit device witness requires active-retail assets");
+        let definitions = crate::rules::audio_sources::AudioDefinitions::select(&assets);
+        let loaded_index = assets.load_audio_index().expect("retail audio index");
+        let audio_index = loaded_index.as_ref().map(|loaded| &loaded.index);
+        let sounds = definitions.sounds();
+        let entry = sounds.get("_Amb_OceanLight").unwrap();
+        assert_eq!(
+            entry.control,
+            control::RANDOM | control::LOOP | control::ALL | control::AMBIENT
+        );
+        assert_eq!((entry.delay_ms, entry.sounds.len()), ((2000, 4000), 4));
+        let mut player = SfxPlayer::new().expect("explicit witness requires an output device");
+        assert!(player.play_animation_sound_spatial(
+            7_u64,
+            "_Amb_OceanLight",
+            SpatialGain::CENTRED_FULL,
+            sounds
+        ));
+        let event = player
+            .arbiter
+            .validate_loop_handle(HandleOwner::Positional(7))
+            .unwrap();
+        let token = player.arbiter.event_token(event).unwrap();
+        let epoch = Instant::now();
+        let deadline = epoch + Duration::from_secs(40);
+        let mut pump = |player: &mut SfxPlayer| {
+            service.pump(
+                player,
+                epoch.elapsed().as_millis() as u64,
+                sounds,
+                &assets,
+                audio_index,
+            );
+            assert!(Instant::now() < deadline, "the device did not progress");
+            std::thread::sleep(Duration::from_millis(5));
+        };
+        let parked_queue = |player: &SfxPlayer| {
+            let output = &player.live[&event];
+            assert_eq!(output.token, Some(token));
+            output.parked.as_ref().unwrap().queue.count()
+        };
+
+        while !player.live.contains_key(&event) {
+            pump(&mut player);
+        }
+        assert!(!player.pending.contains_key(&event));
+        assert_eq!(parked_queue(&player), 3);
+
+        while player.live.contains_key(&event) {
+            pump(&mut player);
+        }
+        assert_eq!(
+            player.arbiter.native_event_snapshot(event).unwrap()["state"],
+            2,
+            "OnChannelDone keeps the event through its gap"
+        );
+        assert_eq!(player.pending[&event].token, token);
+
+        while !player.live.contains_key(&event) {
+            pump(&mut player);
+        }
+        assert_eq!(parked_queue(&player), 2);
+        player.stop_all();
     }
 
     /// Original AudioSystem406F70 with physical EVAMD DialogList62 and

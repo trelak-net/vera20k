@@ -779,9 +779,23 @@ impl Simulation {
         else {
             return Ok(BuildingEntryResult::default());
         };
-        //519B3E's optional hut Tag event1 precedes this type gate. The live
-        //Tag receiver remains a separate required chain; ordinary Hills has
-        //no attached hut/Engineer Tag.519B58 tests Engineer before hut type.
+        self.raise_object_tag(
+            building_id,
+            engineer_id,
+            1,
+            super::UninitContext::new(Some(rules), registry).with_effects(frame_effects),
+        );
+        let Some(engineer) = self
+            .substrate
+            .entities
+            .get(engineer_id)
+            .filter(|e| e.lifecycle.object_alive && !e.dying)
+        else {
+            return Ok(BuildingEntryResult {
+                return_before_foot: true,
+                ..Default::default()
+            });
+        };
         let Some(infantry_type) = self.object_type(engineer.type_ref(), rules) else {
             return Ok(BuildingEntryResult::default());
         };
@@ -917,13 +931,6 @@ impl Simulation {
     /// destination (vt+0x480(NULL, 1)) and scatters from the building's
     /// GetCoords (vt+0x174(coord, 1, 1); `0x0051A03E..0x0051A061`).
     ///
-    /// RESIDUAL: no Tag event is raised (`TagClass::Raise_Event`,
-    /// `0x006E53A0`). The receiver gives the building's Tag event 1 ("entered
-    /// by", `0x00519B3E..0x00519B53`) before its Engineer test, and an
-    /// `Agent=` spy's own Tag event 0x30 after the infiltration
-    /// (`0x0051A010..0x0051A025`); VERA attaches no Tags to objects. Trigger:
-    /// a map Tag on the building or on the spy. Effect: its trigger does not
-    /// spring. A building or spy a house builds has no Tag.
     fn infantry_per_cell_infiltrator_entry(
         &mut self,
         infantry_id: u64,
@@ -945,6 +952,12 @@ impl Simulation {
                 .map(|infantry| infantry.owner())
             {
                 self.infiltrate_building(building_id, owner, rules);
+                self.raise_object_tag(
+                    infantry_id,
+                    infantry_id,
+                    48,
+                    super::UninitContext::new(Some(rules), registry).with_effects(frame_effects),
+                );
             }
             self.uninit_with_context(
                 infantry_id,

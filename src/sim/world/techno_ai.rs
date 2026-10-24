@@ -326,6 +326,9 @@ impl Simulation {
             return outcome;
         }
         if self.production.terrain_objects.contains_key(&id) {
+            // TerrainClass::AI @ 0x0071C730 calls ObjectClass::AI first
+            // (`0x0071C738`).
+            self.object_ai_sounds(id, rules, ctx.effects);
             crate::sim::terrain_spawn::tick_terrain_object_ai(
                 self,
                 id,
@@ -706,7 +709,7 @@ fn techno_ai_shell(
                 return;
             }
             clear_passive_target_off_mission(sim, id, rules);
-            mission_counter_step(sim, id);
+            mission_counter_step(sim, id, rules, ctx.effects);
             if let Some(rules) = rules
                 && mission_handlers_run(sim, id)
             {
@@ -765,7 +768,7 @@ fn techno_ai_shell(
             // its targets. A building commences a queued mission only at
             // Update's ready checks, never here.
             clear_passive_target_off_mission(sim, id, rules);
-            mission_counter_step(sim, id);
+            mission_counter_step(sim, id, rules, ctx.effects);
             building_missions::dispatch(sim, id, rules, ctx, &mut outcome.bridge_state_changed);
             if sim
                 .substrate
@@ -889,7 +892,7 @@ fn techno_ai_shell(
                 return;
             }
             clear_passive_target_off_mission(sim, id, rules);
-            mission_counter_step(sim, id);
+            mission_counter_step(sim, id, rules, ctx.effects);
             // MissionClass::AI, inside this slot and before Fly Process
             // (FootClass::AI4DA530).
             if let Some(rules) = rules
@@ -1201,11 +1204,19 @@ fn drop_unsensed_cloaked_target_step(sim: &mut Simulation, id: u64) {
     }
 }
 
-/// Tick the common `+0xC4` per-mission AI counter once per object visit.
-fn mission_counter_step(sim: &mut Simulation, id: u64) {
+/// Tick the common `+0xC4` per-mission AI counter once per object visit
+/// (`0x006FA646..0x006FA64F`), then enter `MissionClass::AI @ 0x005B3060`
+/// (`0x006FA655`), whose first call is `ObjectClass::AI`'s sound block.
+fn mission_counter_step(
+    sim: &mut Simulation,
+    id: u64,
+    rules: Option<&RuleSet>,
+    effects: FrameEffects<'_>,
+) {
     if let Some(entity) = sim.substrate.entities.get_mut(id) {
         entity.mission.increment_ai_counter();
     }
+    sim.object_ai_sounds(id, rules, effects);
 }
 
 // ===== TechnoClass common-body bracket =====
@@ -1910,7 +1921,7 @@ fn unit_techno_bracket(
     }
     // The off-mission passive-target clear runs BEFORE the +0xC4 counter.
     clear_passive_target_off_mission(sim, id, rules);
-    mission_counter_step(sim, id);
+    mission_counter_step(sim, id, rules, ctx.effects);
     // Mission_Dispatch position: the absorbed handler bodies run here,
     // timer-gated, ending with the verified post-handler epilogue write
     // (start = current frame, delay = handler return). One committed-selector

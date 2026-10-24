@@ -594,6 +594,20 @@ impl Simulation {
             return Ok(false);
         }
         if crate::sim::passenger::building_can_be_occupied_by(self, rules, building, id) {
+            self.raise_object_tag(
+                building,
+                id,
+                1,
+                crate::sim::world::UninitContext::new(Some(rules), registry).with_effects(effects),
+            );
+            if !self
+                .substrate
+                .entities
+                .get(id)
+                .is_some_and(|e| e.lifecycle.object_alive && !e.dying)
+            {
+                return Ok(true);
+            }
             crate::sim::passenger::add_garrison_occupant(
                 self, rules, id, building, registry, effects,
             );
