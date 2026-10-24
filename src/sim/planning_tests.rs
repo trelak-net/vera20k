@@ -457,3 +457,228 @@ fn waypoint_special_orders_wait_for_their_queued_mission() {
         }));
     }
 }
+
+#[test]
+fn waypoint_a20_far_edge_clicks_and_routes_keep_full_coordinates() {
+    use crate::app::{
+        input::planning::node_position,
+        match_runtime::sim_tick::{screen_point_to_world_with_camera, world_point_to_cell},
+    };
+    let Ok(path) = std::env::var("VERA20K_WOJTEK_A20") else {
+        assert!(
+            std::env::var_os("VERA20K_REQUIRE_RETAIL_ASSETS").is_none(),
+            "A20 path required"
+        );
+        return;
+    };
+    let dir = std::env::var("RA2_DIR").expect("retail assets required");
+    let scenario = crate::headless_scenario::load(std::path::Path::new(&dir), &path, 6379).unwrap();
+    let source = &scenario.runtime.simulation;
+    let terrain = source.resolved_terrain.as_ref().unwrap();
+    assert!(terrain.width() >= 400 && terrain.height() >= 400);
+    let heights = terrain
+        .cells()
+        .iter()
+        .map(|c| ((c.rx, c.ry), c.level))
+        .collect();
+    // This actual A20 cell is obscured in the tactical projection: the
+    // previous radar->screen->cell roundtrip changed (143,182) into(145,184).
+    let radar_cell = (143, 182);
+    let point = node_position(source, radar_cell);
+    assert_ne!(
+        world_point_to_cell(point.0, point.1, &heights, Some(terrain)),
+        radar_cell
+    );
+    assert_eq!(
+        crate::app::input::context_order::context_order_cell(
+            point,
+            &heights,
+            Some(terrain),
+            Some(radar_cell)
+        ),
+        radar_cell
+    );
+    let mut checked = 0;
+    let mut maximum = (0, 0);
+    for c in terrain
+        .cells()
+        .iter()
+        .filter(|c| c.rx % 13 == 0 && c.ry % 13 == 0)
+    {
+        if !crate::sim::cell_rect::cell_is_in_playfield_height_aware(
+            (c.rx as i32, c.ry as i32),
+            source.playfield_bounds,
+            Some(terrain),
+        ) {
+            continue;
+        }
+        // A projected cell hidden behind a cliff/bridge is not the visible
+        // click receiver. Sample unobscured surfaces for inverse roundtrips.
+        if c.rx < 6
+            || c.ry < 6
+            || !(-6i32..=6).all(|dy| {
+                (-6i32..=6).all(|dx| {
+                    terrain
+                        .cell((c.rx as i32 + dx) as u16, (c.ry as i32 + dy) as u16)
+                        .is_some_and(|t| t.level == c.level && !t.is_elevated_bridge_cell())
+                })
+            })
+        {
+            continue;
+        }
+        let cell = (c.rx, c.ry);
+        let world = node_position(source, cell);
+        for zoom in [1.0, 1.25, 1.5, 2.0, 3.0] {
+            // Fractional camera offsets and negative world X are intentional.
+            let camera = (world.0 - 310.25, world.1 - 220.5);
+            let screen = ((world.0 - camera.0) * zoom, (world.1 - camera.1) * zoom);
+            let click = screen_point_to_world_with_camera(screen, camera, zoom);
+            assert_eq!(
+                world_point_to_cell(click.0, click.1, &heights, Some(terrain)),
+                cell,
+                "cell={cell:?} zoom={zoom}"
+            );
+            checked += 1;
+        }
+        maximum = (maximum.0.max(c.rx), maximum.1.max(c.ry));
+    }
+    assert!(
+        checked > 1000 && maximum.0 >= 377 && maximum.1 >= 377,
+        "coverage {checked} {maximum:?}"
+    );
+    // Execute short routes at the extreme X/Y ends and above255 on both axes,
+    // on actual A20 terrain. Bound the actors so unrelated authored armies/AI
+    // cannot obscure movement or make this a performance benchmark.
+    let (mut sim, rules, _, _, _) = fixture();
+    let ids = sim
+        .entities()
+        .values()
+        .map(|e| e.stable_id())
+        .collect::<Vec<_>>();
+    for id in ids {
+        sim.uninit_with_rules(id, &rules);
+    }
+    sim.flush_pending_delete();
+    sim.session.map_width = terrain.width();
+    sim.session.map_height = terrain.height();
+    sim.playfield_bounds = source.playfield_bounds;
+    sim.playfield_size_height = source.playfield_size_height;
+    sim.overlay_grid = source.overlay_grid.clone();
+    sim.bridge_state = source.bridge_state.clone();
+    sim.install_resolved_terrain_for_new_map(terrain.clone());
+    assert!(sim.rebuild_dynamic_navigation(&rules));
+    let reg = &scenario.runtime.resources.overlay_registry;
+    let oid = sim.interner.get("Americans").unwrap();
+    sim.session.current_house = Some(oid);
+    sim.fog.reveal_all_for_owner(oid);
+    let grid = sim.path_grid_snapshot().unwrap();
+    let candidates: Vec<_> = terrain
+        .cells()
+        .iter()
+        .filter(|c| {
+            let (x, y) = (c.rx, c.ry);
+            x > 10
+                && y > 10
+                && x + 7 < terrain.width()
+                && y + 7 < terrain.height()
+                && (0..7).all(|dy| {
+                    (0..7).all(|dx| {
+                        crate::sim::cell_rect::cell_is_in_playfield_height_aware(
+                            ((x + dx) as i32, (y + dy) as i32),
+                            sim.playfield_bounds,
+                            Some(terrain),
+                        ) && terrain.cell(x + dx, y + dy).is_some_and(|t| {
+                            !t.is_elevated_bridge_cell()
+                                && t.level == c.level
+                                && t.speed_costs.track.is_some_and(|v| v > 0)
+                        })
+                    })
+                })
+        })
+        .map(|c| (c.rx, c.ry))
+        .collect();
+    // Keep a live opponent: removing the original arena actors must not
+    // finish the skirmish halfway through the first route.
+    let &(enemy_x, enemy_y) = candidates.first().unwrap();
+    sim.spawn_object("TESTTANK", "Russians", enemy_x, enemy_y, 0, &rules)
+        .unwrap();
+    for axis in 0..3 {
+        let &(x, y) = candidates
+            .iter()
+            .max_by_key(|&&(x, y)| match axis {
+                0 => x,
+                1 => y,
+                _ => x.min(y),
+            })
+            .expect("clear far-edge patch");
+        assert!(
+            match axis {
+                0 => x > 330,
+                1 => y > 330,
+                _ => x > 255 && y > 255,
+            },
+            "far-edge coverage {axis} at {x},{y}"
+        );
+        let actor = sim
+            .spawn_object("TESTTANK", "Americans", x, y, 0, &rules)
+            .unwrap();
+        let cells = [(x + 3, y), (x + 3, y + 3), (x, y + 3)];
+        for cell in cells {
+            let goal = crate::app::input::commands::ordinary_cell_move_goal(
+                &sim, &rules, oid, actor, cell, true, false,
+            )
+            .unwrap_or_else(|| {
+                panic!(
+                    "click {cell:?} rejected for actor at {x},{y}, revealed={} native={:?}",
+                    sim.fog.is_cell_revealed(oid, cell.0, cell.1),
+                    sim.ordinary_ground_foot_cell_input(oid, actor, cell, &rules)
+                )
+            });
+            assert_eq!(goal.cell, cell, "high cell must not wrap or clamp");
+            let command = Command::Move {
+                entity_id: actor,
+                target_rx: goal.cell.0,
+                target_ry: goal.cell.1,
+                queue: false,
+            };
+            let order = PlannedOrder::from_command(&command, &sim).unwrap();
+            let payload = Command::PlanConnect {
+                orders: vec![order],
+            };
+            let bytes = bincode::serialize(&payload).unwrap();
+            let restored: Command = bincode::deserialize(&bytes).unwrap();
+            assert!(apply(&mut sim, &rules, reg, restored));
+        }
+        assert_eq!(
+            paths(&sim)[0]
+                .nodes
+                .iter()
+                .map(|n| n[0].cell)
+                .collect::<Vec<_>>(),
+            cells
+        );
+        apply(&mut sim, &rules, reg, Command::PlanCommit);
+        let mut visited = [false; 3];
+        for _ in 0..900 {
+            sim.advance_tick(&[], Some(&rules), Some(&grid), Some(reg), 100);
+            let e = sim.entities().get(actor).unwrap();
+            for (i, cell) in cells.iter().enumerate() {
+                visited[i] |= (e.position.rx, e.position.ry) == *cell;
+            }
+            if paths(&sim).is_empty() {
+                break;
+            }
+        }
+        assert!(
+            visited.into_iter().all(|v| v) && paths(&sim).is_empty(),
+            "route at {x},{y}, visits={visited:?}, position={:?}, outcome={:?}, paths={:?}",
+            sim.entities().get(actor).unwrap().position,
+            sim.houses[&oid].outcome_state,
+            paths(&sim)
+        );
+        sim.uninit_with_rules(actor, &rules);
+        sim.flush_pending_delete();
+        eprintln!("A20 far-edge route: {cells:?}");
+    }
+    eprintln!("A20 click projections: {checked}, maximum sampled cells {maximum:?}");
+}

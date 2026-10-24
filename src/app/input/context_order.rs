@@ -1014,6 +1014,38 @@ pub(crate) fn try_queue_context_order_at_screen_point(
     screen_y: f32,
     select_friendly_clicks: bool,
 ) -> bool {
+    try_queue_context_order(state, screen_x, screen_y, select_friendly_clicks, None)
+}
+
+/// Radar input already owns a map cell. Do not project it back through the
+/// tactical height inverse, which can select an overlapping cliff/bridge cell.
+pub(crate) fn try_queue_context_order_at_cell(state: &mut AppState, cell: (u16, u16)) -> bool {
+    let Some(runtime) = state.match_state.sim_runtime.as_ref() else { return false };
+    let (x, y) = crate::app::input::planning::node_position(&runtime.simulation, cell);
+    let zoom = state.match_state.input.zoom_level;
+    let sx = (x - state.match_state.input.camera_x) * zoom;
+    let sy = (y - state.match_state.input.camera_y) * zoom;
+    try_queue_context_order(state, sx, sy, false, Some(cell))
+}
+
+pub(crate) fn context_order_cell(
+    world: (f32, f32),
+    heights: &std::collections::BTreeMap<(u16, u16), u8>,
+    bridges: Option<&dyn crate::map::terrain::TacticalBridgeLookup>,
+    resolved_cell: Option<(u16, u16)>,
+) -> (u16, u16) {
+    resolved_cell.unwrap_or_else(|| crate::app::match_runtime::sim_tick::world_point_to_cell(
+        world.0, world.1, heights, bridges,
+    ))
+}
+
+fn try_queue_context_order(
+    state: &mut AppState,
+    screen_x: f32,
+    screen_y: f32,
+    select_friendly_clicks: bool,
+    resolved_cell: Option<(u16, u16)>,
+) -> bool {
     if state.match_state.sim_runtime.is_none() {
         return false;
     }
@@ -1022,8 +1054,12 @@ pub(crate) fn try_queue_context_order_at_screen_point(
     }
     let (world_x, world_y) =
         crate::app::match_runtime::sim_tick::screen_point_to_world(state, screen_x, screen_y);
-    let (target_rx, target_ry) =
-        crate::app::match_runtime::sim_tick::screen_point_to_world_cell(state, screen_x, screen_y);
+    let (target_rx, target_ry) = context_order_cell(
+        (world_x, world_y), state.height_map(),
+        state.match_state.sim_runtime.as_ref().and_then(|r|
+            crate::app::match_runtime::sim_tick::tactical_bridge_cells(&r.simulation)),
+        resolved_cell,
+    );
     // Retail modifier map: Ctrl = force fire, Alt = force move,
     // Ctrl+Shift = attack move, Ctrl+Alt = guard area. Shift alone has no retail
     // order semantics at all and carries VERA's order queue instead — see

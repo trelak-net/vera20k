@@ -293,11 +293,6 @@ pub(crate) fn radar_click(state: &mut AppState) -> bool {
     ) else {
         return true;
     };
-    let cell = target.cell;
-    let (x, y) = node_position(&runtime.simulation, cell);
-    let zoom = state.match_state.input.zoom_level;
-    let sx = (x - state.match_state.input.camera_x) * zoom;
-    let sy = (y - state.match_state.input.camera_y) * zoom;
-    crate::app::input::context_order::try_queue_context_order_at_screen_point(state, sx, sy, false);
+    crate::app::input::context_order::try_queue_context_order_at_cell(state, target.cell);
     true
 }

@@ -1,4 +1,4 @@
-//! Tactical waypoint overlay. Geometry is clipped before generating dashes;
+//! Tactical waypoint overlay. Geometry is clipped before rasterizing lines;
 //! only local planned actors are visited, even on large custom maps.
 use crate::app::presentation::control_group_labels::GroupLabelInstances;
 use crate::app::{
@@ -9,7 +9,7 @@ use crate::app::{
     },
 };
 use crate::render::batch::SpriteInstance;
-use crate::rules::house_colors::{NO_REMAP, house_text_rgb};
+const ROUTE_TINT: [f32; 3] = [0.88; 3];
 
 fn rect(output: &mut GroupLabelInstances, r: [f32; 4], tint: [f32; 3]) {
     output.boxes.push(SpriteInstance {
@@ -64,17 +64,22 @@ fn line(
     let Some((a, b)) = clip(a, b, view) else {
         return;
     };
-    let (dx, dy) = (b.0 - a.0, b.1 - a.1);
-    let length = dx.hypot(dy);
-    if length < 1.0 {
-        return;
-    }
-    for i in (0..length.ceil() as usize).step_by(3) {
-        if i % 12 >= 6 {
-            continue;
-        }
-        let t = i as f32 / length;
-        rect(output, [a.0 + dx * t, a.1 + dy * t, 2.0, 2.0], tint);
+    // Use the shared one-pixel rasterizer, including contiguous diagonal
+    // spans. Sampling separate 2x2 dots left holes and changed phase on pan.
+    crate::render::surface_line::solid_line(
+        [a.0.round() as i32, a.1.round() as i32],
+        [b.0.round() as i32, b.1.round() as i32],
+        |r| rect(output, r.map(|v| v as f32), tint),
+    );
+}
+fn marker(output: &mut GroupLabelInstances, (x, y): (f32, f32), tint: [f32; 3]) {
+    for r in [
+        [x - 3.0, y - 3.0, 7.0, 1.0],
+        [x - 3.0, y + 3.0, 7.0, 1.0],
+        [x - 3.0, y - 2.0, 1.0, 5.0],
+        [x + 3.0, y - 2.0, 1.0, 5.0],
+    ] {
+        rect(output, r, tint);
     }
 }
 pub(crate) fn build(state: &AppState, sw: f32, sh: f32) -> GroupLabelInstances {
@@ -93,19 +98,7 @@ pub(crate) fn build(state: &AppState, sw: f32, sh: f32) -> GroupLabelInstances {
     let x = state.match_state.input.camera_x;
     let y = state.match_state.input.camera_y;
     let view = [x - 10.0, y - 10.0, x + sw + 10.0, y + sh + 10.0];
-    let color = state
-        .match_state
-        .match_presentation
-        .house_color_map
-        .get(sim.interner.resolve(owner))
-        .copied()
-        .unwrap_or(NO_REMAP);
-    let tint = house_text_rgb(
-        state.rules().map_or(&[], |r| r.color_schemes.as_slice()),
-        color,
-    )
-    .map(|c| f32::from(c) / 255.0);
-    let font = &state.renderer.bit_font;
+    let tint = ROUTE_TINT;
     for path in paths {
         if !planning.active()
             && !path
@@ -152,33 +145,14 @@ pub(crate) fn build(state: &AppState, sw: f32, sh: f32) -> GroupLabelInstances {
             if x < view[0] || x > view[2] || y < view[1] || y > view[3] {
                 continue;
             }
-            let text = (i + 1).to_string();
-            let w = font.text_width(&text) as f32 + 6.0;
-            let h = font.cell_height() - 2.0;
-            let (bx, by) = (x - w / 2.0, y - h / 2.0);
+            // A small, unnumbered node remains clickable for patrols/Delete.
+            // Control-group digits belong on units, never on waypoint paths.
             let color = if planning.selected_node == Some((path.id, i)) {
                 [1.0; 3]
             } else {
                 tint
             };
-            rect(&mut out, [bx, by, w, h], [0.0; 3]);
-            for edge in [
-                [bx, by, w, 1.0],
-                [bx, by + h - 1.0, w, 1.0],
-                [bx, by, 1.0, h],
-                [bx + w - 1.0, by, 1.0, h],
-            ] {
-                rect(&mut out, edge, color);
-            }
-            out.text.extend(font.build_text(
-                &text,
-                bx + 3.0,
-                by - 1.0,
-                1.0,
-                0.0004,
-                color,
-                [0.0; 2],
-            ));
+            marker(&mut out, (x, y), color);
         }
     }
     out
@@ -197,5 +171,36 @@ mod tests {
             Some(((0.0, 10.0), (800.0, 10.0)))
         );
         assert!(clip((-5.0, -5.0), (-1.0, -1.0), [0.0, 0.0, 800.0, 600.0]).is_none());
+    }
+}
+
+#[cfg(test)]
+mod fidelity_tests {
+    use super::*;
+    #[test]
+    fn waypoint_route_is_neutral_unnumbered_and_continuous_at_large_coordinates() {
+        let mut out = GroupLabelInstances::default();
+        line(
+            &mut out,
+            (-20000.0, 12000.0),
+            (20000.0, 12000.0),
+            [-500.0, 11900.0, 500.0, 12500.0],
+            ROUTE_TINT,
+        );
+        marker(&mut out, (320.0, 12000.0), ROUTE_TINT);
+        assert!(out.text.is_empty());
+        assert!(!out.boxes.is_empty());
+        assert!(
+            out.boxes
+                .iter()
+                .all(|r| r.tint[0] == r.tint[1] && r.tint[1] == r.tint[2] && r.tint[0] > 0.8)
+        );
+        // Every visible line pixel covered; generation is bounded by the view.
+        for x in -500..=500 {
+            assert!(out.boxes.iter().any(|r| x as f32 >= r.position[0]
+                && (x as f32) < r.position[0] + r.size[0]
+                && r.position[1] == 12000.0));
+        }
+        assert!(out.boxes.len() < 1100);
     }
 }
