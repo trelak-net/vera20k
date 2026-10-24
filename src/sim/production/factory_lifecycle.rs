@@ -220,6 +220,15 @@ pub(super) fn start_active_production(
         .factories
         .start_rate(holder, time_to_build, frame);
     if let FactoryHolder::House(owner, category) = holder {
+        // A queued successor may start while its remaining providers are
+        // offline. Hold it before the charge sweep, just like revalidation.
+        if find_factory(sim, rules, owner, obj, true, false, true).is_some()
+            && find_factory(sim, rules, owner, obj, true, true, true).is_none()
+        {
+            sim.production
+                .factories
+                .suspend_automatically(holder, frame);
+        }
         publish_cameo_factory_link(sim, owner, category, type_id);
     }
     Some(stable_id)
@@ -737,7 +746,7 @@ pub(in crate::sim) fn revalidate_and_step_factories(
     // registry remains visible: its limbo head already counts as owned.
     let reval_plan = sim.production.factories.plan_revalidation(sim, rules);
     let mut registry = std::mem::take(&mut sim.production.factories);
-    let lifecycle = registry.apply_revalidation(&reval_plan);
+    let lifecycle = registry.apply_revalidation(&reval_plan, sim.session.binary_frame);
     for (owner, abandoned) in lifecycle.abandoned {
         // Update_Factory_Queue50921C calls FactoryAbandon4C9FF0 directly;
         // it does not pass through the HouseAbandon4FAB79 placement prefix.

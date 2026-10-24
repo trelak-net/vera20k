@@ -106,16 +106,14 @@ pub struct Factory {
     /// The last step could not be afforded (Factory `+0x5C`); the step was
     /// rewound and the next one retries at the same rate.
     pub on_hold: bool,
-    /// Complete and not yet delivered: the completing step set Factory `+0x70`
-    /// and cleared the rate (`0x004C9C06..`).
+    /// Factory `+0x70`: completed and awaiting delivery, or automatically
+    /// held because no eligible factory is online. Progress distinguishes them.
     pub suspended: bool,
     /// The user's hold: `FactoryClass::Suspend(1) @ 0x004C9E60` set Factory
     /// `+0x70` with its `+0x71` latch and cleared the rate. A PRODUCE of the
-    /// same type restarts it (`Factory::resume`). The system hold (`Suspend(0)`,
-    /// which `HouseClass::Update_Factory_Queue @ 0x00509140` takes at
-    /// `0x0050924D` when only offline factories could build the object and
-    /// lifts at `0x00509283`) is not ported: see
-    /// `FactoryRegistry::plan_revalidation`.
+    /// same type restarts it (`FactoryRegistry::resume`). Automatic holds use
+    /// `suspended` without this flag, so factory availability never resumes a
+    /// build the player paused.
     pub manual: bool,
     /// FIFO queue-of-record waiting behind the active object (Factory `+0x40`).
     pub queue: VecDeque<QueueEntry>,
@@ -180,6 +178,22 @@ impl Factory {
         self.step_rate_frames = 0;
         self.step_timer = CdTimer::started(frame as i32, 0);
         true
+    }
+
+    /// `Suspend(0)` at 0x0050924D. Keep the object, paid progress, queue and
+    /// balance. A manual hold or completed product is already suspended and
+    /// must not be converted to an automatic hold.
+    fn suspend_automatically(&mut self, frame: u32) {
+        if self.object.is_none()
+            || self.manual
+            || self.suspended
+            || self.progress >= PRODUCTION_STEPS
+        {
+            return;
+        }
+        self.suspended = true;
+        self.step_rate_frames = 0;
+        self.step_timer = CdTimer::started(frame as i32, 0);
     }
 
     /// Advance one step against the supplied economy (C2/C3/C4/C12/C15).
@@ -632,6 +646,12 @@ pub struct FactoryRegistry {
 /// (`apply_revalidation`). Split so the classify can borrow `&Simulation` (build eligibility)
 /// while the apply borrows `&mut houses` (refund) without aliasing. Fields are module-private;
 /// the caller holds the plan opaquely.
+#[derive(Clone, Copy)]
+enum FactoryAvailabilityChange {
+    Hold,
+    Resume(i32),
+}
+
 pub(crate) struct RevalAction {
     owner: InternedId,
     category: ProductionCategory,
@@ -642,6 +662,7 @@ pub(crate) struct RevalAction {
     /// Cost_Of of the first SURVIVING queued entry, when abandoning, so the apply can
     /// promote it.
     promote_cost: Option<i32>,
+    availability: Option<FactoryAvailabilityChange>,
 }
 
 impl FactoryRegistry {
@@ -1029,6 +1050,12 @@ impl FactoryRegistry {
             .is_some_and(|f| f.suspend(frame))
     }
 
+    pub(super) fn suspend_automatically(&mut self, holder: FactoryHolder, frame: u32) {
+        if let Some(factory) = self.factories.get_mut(&holder) {
+            factory.suspend_automatically(frame);
+        }
+    }
+
     /// Begin_Production's same-type branch (`0x004FA5A8..0x004FA5C4` skips
     /// StartProduction) for a user-held build: the build start `0x004C9EA0`
     /// at `0x004FA628` clears the hold and restarts the rate at `frame`.
@@ -1042,15 +1069,16 @@ impl FactoryRegistry {
         if let Some(f) = self
             .factories
             .get_mut(&FactoryHolder::House(owner, category))
-            && f.manual
+            && (f.manual || f.suspended && f.progress < PRODUCTION_STEPS)
         {
             f.manual = false;
+            f.suspended = false;
             f.start_rate(time_to_build, frame);
         }
     }
 
     /// The type and state of the category's active object: `(type, held,
-    /// finished)` where `held` is the user's hold.
+    /// finished)` where `held` includes manual and automatic holds.
     pub(super) fn active_object(
         &self,
         owner: InternedId,
@@ -1058,7 +1086,11 @@ impl FactoryRegistry {
     ) -> Option<(InternedId, bool, bool)> {
         let f = self.factories.get(&FactoryHolder::House(owner, category))?;
         let object = f.object.as_ref()?;
-        Some((object.type_id, f.manual, f.progress >= PRODUCTION_STEPS))
+        Some((
+            object.type_id,
+            f.manual || f.suspended && f.progress < PRODUCTION_STEPS,
+            f.progress >= PRODUCTION_STEPS,
+        ))
     }
 
     /// Peek the type of the next QUEUED (tail) entry for `(owner, category)` so the caller
@@ -1168,16 +1200,10 @@ impl FactoryRegistry {
     /// Effect: VERA abandons at the sale's start, gamemd once the building
     /// leaves the map. Frequency: occasional.
     ///
-    /// Residual: the pass also holds an active build that only offline
-    /// factories could build (`FindFactory(1,1,1)` fails: `Suspend(0)` at
-    /// `0x0050924D`, lifted at `0x00509283`). VERA has no such hold. Its only
-    /// offline factory is one in a temporal warp (`GameEntity::building_online`),
-    /// whose start runs no update (`0x004521C0`). GoOffline's callers are not
-    /// ported: a trigger action (`0x006DDFB9`), a map's powered-down building
-    /// (`0x0044FD23`) and the power toggle event (`0x004C6D9A`), which no
-    /// player input reaches (`superweapon::offline_only_supers`). Trigger: a
-    /// building event while every factory of the kind is offline. Effect:
-    /// VERA keeps building. Frequency: rare.
+    /// An unfinished object with only offline providers takes `Suspend(0)`
+    /// (50924D); when FindFactory(1,1,1) succeeds again, only that automatic
+    /// hold restarts (509275..509287). Completed products and manual holds
+    /// stay stopped. These fields already participate in saves and hashes.
     pub(super) fn plan_revalidation(
         &self,
         sim: &crate::sim::world::Simulation,
@@ -1201,7 +1227,29 @@ impl FactoryRegistry {
                 }
             }
             let abandon_active = f.object.as_ref().is_some_and(|o| lost(o.type_id));
-            if !abandon_active && drop_queued.is_empty() {
+            let availability = if !abandon_active && !f.manual && f.progress < PRODUCTION_STEPS {
+                f.object
+                    .as_ref()
+                    .and_then(|o| sim.object_type(o.type_id, rules))
+                    .and_then(|object| {
+                        let online = super::can_build::find_factory(
+                            sim, rules, f.owner, object, true, true, true,
+                        )
+                        .is_some();
+                        if !online && !f.suspended {
+                            Some(FactoryAvailabilityChange::Hold)
+                        } else if online && f.suspended {
+                            Some(FactoryAvailabilityChange::Resume(time_to_build(
+                                &time_to_build_inputs(sim, rules, f.owner, object),
+                            )))
+                        } else {
+                            None
+                        }
+                    })
+            } else {
+                None
+            };
+            if !abandon_active && drop_queued.is_empty() && availability.is_none() {
                 continue;
             }
             let promote_cost = if abandon_active {
@@ -1217,6 +1265,7 @@ impl FactoryRegistry {
                 abandon_active,
                 drop_queued,
                 promote_cost,
+                availability,
             });
         }
         plan
@@ -1231,7 +1280,11 @@ impl FactoryRegistry {
     /// held object. Native509140 deletes an empty factory at5092A0 when the
     /// building-state trigger runs; that trigger cadence remains the residual
     /// documented on `plan_revalidation`, not a reason to delete it every frame.
-    pub(super) fn apply_revalidation(&mut self, plan: &[RevalAction]) -> RevalidationLifecycle {
+    pub(super) fn apply_revalidation(
+        &mut self,
+        plan: &[RevalAction],
+        frame: u32,
+    ) -> RevalidationLifecycle {
         let mut lifecycle = RevalidationLifecycle {
             abandoned: Vec::new(),
             promoted: Vec::new(),
@@ -1243,6 +1296,14 @@ impl FactoryRegistry {
             else {
                 continue;
             };
+            match action.availability {
+                Some(FactoryAvailabilityChange::Hold) => f.suspend_automatically(frame),
+                Some(FactoryAvailabilityChange::Resume(time_to_build)) => {
+                    f.suspended = false;
+                    f.start_rate(time_to_build, frame);
+                }
+                None => {}
+            }
             // Remove dropped queued entries back-to-front so the ascending indices stay valid.
             for &i in action.drop_queued.iter().rev() {
                 if i < f.queue.len() {

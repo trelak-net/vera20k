@@ -780,7 +780,7 @@ fn exit_aircraft(
 /// stamp)` where stamp is the factory's construction stamp for the head (older than
 /// every entry queued behind it) or a tail entry's `enqueue_order`.
 ///
-/// `state` is DERIVED: head -> Paused if held by the user (`manual`), else Done if
+/// `state` is DERIVED: head -> Paused for a manual or unfinished system hold, else Done if
 /// complete-held (`progress >= PRODUCTION_STEPS`, the blocked-exit case that persists
 /// across ticks), else Building (a cash stall included); tail -> Queued. `progress` is
 /// the factory's step count; a queued tail item has not started.
@@ -795,7 +795,7 @@ pub fn queue_view_for_owner(sim: &Simulation, rules: &RuleSet, owner: &str) -> V
             continue;
         }
         if let Some(obj) = f.object.as_ref() {
-            let state = if f.manual {
+            let state = if f.manual || f.suspended && f.progress < PRODUCTION_STEPS {
                 BuildQueueState::Paused
             } else if f.progress >= PRODUCTION_STEPS {
                 BuildQueueState::Done

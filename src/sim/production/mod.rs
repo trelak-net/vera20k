@@ -104,6 +104,9 @@ mod tests;
 mod queue_tests;
 
 #[cfg(test)]
+mod offline_factory_tests;
+
+#[cfg(test)]
 #[path = "production_placement_tests.rs"]
 mod placement_tests;
 
