@@ -1583,10 +1583,8 @@ pub(super) fn emit_admitted_fire(
 /// `Assign_Target(NULL)`. It runs after both successful and failed launches.
 /// Native execution: `tools/projectile_oracle/fire_once.py`.
 ///
-/// RESIDUAL, pre-existing and not ported:
-/// - DistributedFire (TechnoType `+0x6B0`, `0x006FF872..0x006FF8EB`): the
-///   target is remembered at `+0x470`, then dropped. Trigger: the Aegis
-///   Cruiser. Effect: VERA's Aegis keeps its target.
+/// DistributedFire remembers and drops a passive target before FireOnce;
+/// an explicit Attack mission on a mobile unit retains its ordered target.
 fn fireat_tail(
     world: &mut Simulation,
     rules: &RuleSet,
@@ -1607,6 +1605,13 @@ fn fireat_tail(
             effects,
         );
     }
+    world.distributed_fire_tail(
+        snap.stable_id,
+        snap.target,
+        rules,
+        overlay_registry,
+        effects,
+    );
     if weapon.fire_once {
         // Native Abstract+0x14 bit 4 admits Foot receivers, not buildings.
         if snap.category != EntityCategory::Structure {

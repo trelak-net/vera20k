@@ -671,9 +671,14 @@ impl<'r> ScanHost for WorldScan<'_, 'r> {
             .is_some_and(|obj| obj.distributed_fire)
     }
 
-    /// RESIDUAL: `DistributeFire @ 0x00709550` (the Aegis Cruiser's spread
-    /// fire) is not ported; such an object takes no target from a scan.
-    fn distribute_fire(&mut self) {}
+    fn distribute_fire(&mut self) {
+        self.sim.distribute_fire(
+            self.id,
+            self.rules,
+            self.ctx.overlay_registry,
+            self.ctx.effects,
+        );
+    }
 
     fn weapon(&mut self, index: i32) -> Option<&'r WeaponType> {
         weapon_at_index(self.sim, self.rules, self.id, index)
@@ -762,7 +767,13 @@ impl Simulation {
         {
             entity.finish_foot_threat_scan(result.target().is_some());
         }
-        result.target()
+        let target = result.target();
+        if let Some(candidates) = result.distributed_candidates
+            && let Some(entity) = self.substrate.entities.get_mut(id)
+        {
+            entity.distributed_fire.replace_candidates(candidates);
+        }
+        target
     }
 }
 

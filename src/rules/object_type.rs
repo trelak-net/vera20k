@@ -705,9 +705,8 @@ pub struct ObjectType {
     /// weapon slot 0 instead of 1 (`0x0070DD70`).
     pub spray_attack: bool,
     /// `DistributedFire=` — the type spreads fire across several nearby targets
-    /// instead of committing to one. VERA parses it only to keep those types
-    /// OFF the single-target passive-acquire commit; the spread-fire mechanism
-    /// itself is not implemented. Default no.
+    /// instead of committing to one, using live candidate/history vectors.
+    /// Explicit mobile Attack missions retain their ordered target. Default no.
     pub distributed_fire: bool,
     /// `VHPScan=` estimated-health filtering/scoring; native default None.
     pub vhp_scan: VhpScan,

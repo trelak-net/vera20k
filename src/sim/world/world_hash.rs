@@ -1432,6 +1432,10 @@ impl Simulation {
             if !entity.building_stuff_enabled {
                 b"building-stuff-disabled-v1".hash(hasher);
             }
+            if entity.distributed_fire != Default::default() {
+                b"distributed-fire-v1".hash(hasher);
+                entity.distributed_fire.hash(hasher);
+            }
             if entity.tesla_charging != Default::default() {
                 b"tesla-charging-v1".hash(hasher);
                 entity.tesla_charging.hash(hasher);

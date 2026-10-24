@@ -3453,6 +3453,7 @@ impl Simulation {
             || listener.capture_manager.is_some()
             || listener.temporal.has_link()
             || listener.tesla_charging.names(expired_id)
+            || listener.distributed_fire.names(expired_id)
             || listener.parasite_eating_me.is_some()
     }
 
@@ -4331,6 +4332,8 @@ impl Simulation {
                     context.rules(),
                     context.effects(),
                 );
+                // Techno707BCE..707CA4: candidate/score and history vectors.
+                self.distributed_fire_pointer_expired(listener_id, expired_id);
                 // FootClass::PointerExpired 0x004D998C..0x004D99CD follows the
                 // Techno body: the parasite link and its forward.
                 self.foot_parasite_pointer_expired(

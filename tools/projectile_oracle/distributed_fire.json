@@ -1,0 +1,595 @@
+{
+  "native_sha256": "3e81a61775d2745d1dabe397325ef663cd994ffc194da4e998e3bf5d2d308600",
+  "rows": [
+    {
+      "input": {
+        "candidates": [],
+        "history": []
+      },
+      "assigned": [],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [],
+        "history": [
+          1
+        ]
+      },
+      "assigned": [],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [],
+        "history": [
+          2
+        ]
+      },
+      "assigned": [],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [],
+        "history": [
+          1,
+          2,
+          3
+        ]
+      },
+      "assigned": [],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [],
+        "history": [
+          9
+        ]
+      },
+      "assigned": [],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [],
+        "history": [
+          1,
+          1,
+          2
+        ]
+      },
+      "assigned": [],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ]
+        ],
+        "history": []
+      },
+      "assigned": [
+        1
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ]
+        ],
+        "history": [
+          1
+        ]
+      },
+      "assigned": [
+        1
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ]
+        ],
+        "history": [
+          2
+        ]
+      },
+      "assigned": [
+        1
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ]
+        ],
+        "history": [
+          1,
+          2,
+          3
+        ]
+      },
+      "assigned": [
+        1
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ]
+        ],
+        "history": [
+          9
+        ]
+      },
+      "assigned": [
+        1
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ]
+        ],
+        "history": [
+          1,
+          1,
+          2
+        ]
+      },
+      "assigned": [
+        1
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ],
+          [
+            2,
+            8
+          ],
+          [
+            3,
+            8
+          ]
+        ],
+        "history": []
+      },
+      "assigned": [
+        2
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ],
+          [
+            2,
+            8
+          ],
+          [
+            3,
+            8
+          ]
+        ],
+        "history": [
+          1
+        ]
+      },
+      "assigned": [
+        2
+      ],
+      "history": [
+        1
+      ]
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ],
+          [
+            2,
+            8
+          ],
+          [
+            3,
+            8
+          ]
+        ],
+        "history": [
+          2
+        ]
+      },
+      "assigned": [
+        3
+      ],
+      "history": [
+        2
+      ]
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ],
+          [
+            2,
+            8
+          ],
+          [
+            3,
+            8
+          ]
+        ],
+        "history": [
+          1,
+          2,
+          3
+        ]
+      },
+      "assigned": [
+        2
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ],
+          [
+            2,
+            8
+          ],
+          [
+            3,
+            8
+          ]
+        ],
+        "history": [
+          9
+        ]
+      },
+      "assigned": [
+        2
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            5
+          ],
+          [
+            2,
+            8
+          ],
+          [
+            3,
+            8
+          ]
+        ],
+        "history": [
+          1,
+          1,
+          2
+        ]
+      },
+      "assigned": [
+        3
+      ],
+      "history": [
+        1,
+        1,
+        2
+      ]
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            8
+          ],
+          [
+            2,
+            8
+          ]
+        ],
+        "history": []
+      },
+      "assigned": [
+        1
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            8
+          ],
+          [
+            2,
+            8
+          ]
+        ],
+        "history": [
+          1
+        ]
+      },
+      "assigned": [
+        2
+      ],
+      "history": [
+        1
+      ]
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            8
+          ],
+          [
+            2,
+            8
+          ]
+        ],
+        "history": [
+          2
+        ]
+      },
+      "assigned": [
+        1
+      ],
+      "history": [
+        2
+      ]
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            8
+          ],
+          [
+            2,
+            8
+          ]
+        ],
+        "history": [
+          1,
+          2,
+          3
+        ]
+      },
+      "assigned": [
+        1
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            8
+          ],
+          [
+            2,
+            8
+          ]
+        ],
+        "history": [
+          9
+        ]
+      },
+      "assigned": [
+        1
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            8
+          ],
+          [
+            2,
+            8
+          ]
+        ],
+        "history": [
+          1,
+          1,
+          2
+        ]
+      },
+      "assigned": [
+        1
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            -1
+          ]
+        ],
+        "history": []
+      },
+      "assigned": [
+        0
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            -1
+          ]
+        ],
+        "history": [
+          1
+        ]
+      },
+      "assigned": [
+        0
+      ],
+      "history": [
+        1
+      ]
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            -1
+          ]
+        ],
+        "history": [
+          2
+        ]
+      },
+      "assigned": [
+        0
+      ],
+      "history": [
+        2
+      ]
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            -1
+          ]
+        ],
+        "history": [
+          1,
+          2,
+          3
+        ]
+      },
+      "assigned": [
+        0
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            -1
+          ]
+        ],
+        "history": [
+          9
+        ]
+      },
+      "assigned": [
+        0
+      ],
+      "history": []
+    },
+    {
+      "input": {
+        "candidates": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            -1
+          ]
+        ],
+        "history": [
+          1,
+          1,
+          2
+        ]
+      },
+      "assigned": [
+        0
+      ],
+      "history": []
+    }
+  ]
+}

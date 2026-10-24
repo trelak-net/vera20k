@@ -873,6 +873,8 @@ pub struct GameEntity {
     /// Building charger vector and sampled overpower latch (66C/661).
     #[serde(default)]
     pub(crate) tesla_charging: crate::sim::tesla_charging::TeslaCharging,
+    #[serde(default)]
+    pub(crate) distributed_fire: crate::sim::distributed_fire::DistributedFire,
     /// Building+6E4: OnConstructionComplete's one-time allocation guard.
     #[serde(default)]
     pub building_actually_placed: bool,
@@ -1775,6 +1777,7 @@ impl GameEntity {
             building_stuff_enabled: true,
             building_has_engineer: false,
             tesla_charging: Default::default(),
+            distributed_fire: Default::default(),
             building_actually_placed: false,
             spotlight_capable: false,
             building_light: None,

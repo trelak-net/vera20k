@@ -64,9 +64,6 @@
 //!
 //! ## Other residuals
 //!
-//! - The `DistributedFire=` candidate/history assignment (`0x00709550`) is
-//!   not represented here. It is reachable for human-owned stock AEGIS;
-//!   its complete collection, firing-history and detach owners remain pending.
 //! - The ring walk's wall fallback (`0x006F8C10`, per ring cell, read not
 //!   executed) is not ported: for a computer house it can return a cell
 //!   holding a `Wall=` overlay that the scanner's `Wall=` warhead and AG
@@ -822,18 +819,20 @@ impl<'a> ScannerStanding<'a> {
 /// Result of the concrete Greatest_Threat dispatch. World callers use the
 /// entry fact to apply Foot4D9955's latch write without clearing it when an
 /// Infantry class gate returned before reaching Foot4D9920.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct ThreatScanOutcome {
     target: Option<u64>,
     foot_wrapper_entered: bool,
+    /// Some only when the native DistributedFire list-reset boundary ran.
+    pub(crate) distributed_candidates: Option<Vec<(u64, i32)>>,
 }
 
 impl ThreatScanOutcome {
-    pub(crate) const fn target(self) -> Option<u64> {
+    pub(crate) const fn target(&self) -> Option<u64> {
         self.target
     }
 
-    pub(crate) const fn foot_wrapper_entered(self) -> bool {
+    pub(crate) const fn foot_wrapper_entered(&self) -> bool {
         self.foot_wrapper_entered
     }
 }
@@ -958,12 +957,19 @@ pub(crate) fn greatest_threat(
             return ThreatScanOutcome {
                 target,
                 foot_wrapper_entered: false,
+                distributed_candidates: None,
             };
         }
     };
+    // 6F8F80..6F8FA5 resets the paired vectors. Only the radius path
+    // fills them (air pre-pass6F92C3, cell passes6F94A7..6F99ED).
+    let distributed = attacker_obj
+        .distributed_fire
+        .then(|| std::cell::RefCell::new(Vec::new()));
     let result = |target| ThreatScanOutcome {
         target,
         foot_wrapper_entered,
+        distributed_candidates: distributed.as_ref().map(|values| values.take()),
     };
     // Only a radius path without GuardRange needs the live range readers:
     // Threat_Range707ED0 or the zero-radius walk bound6F90DE. Mask0 and a
@@ -1158,6 +1164,9 @@ pub(crate) fn greatest_threat(
                 let Some(score) = evaluate_candidate(&ctx, air_walk, candidate) else {
                     continue;
                 };
+                if let Some(values) = &distributed {
+                    values.borrow_mut().push((candidate_id, score));
+                }
                 if score > best_score {
                     best_score = score;
                     best = Some(candidate_id);
@@ -1198,6 +1207,9 @@ pub(crate) fn greatest_threat(
             else {
                 continue;
             };
+            if let Some(values) = &distributed {
+                values.borrow_mut().push((candidate_id, score));
+            }
             if score > best_score {
                 best_score = score;
                 best = Some(candidate_id);
