@@ -402,8 +402,12 @@ pub(crate) fn build_unit_instances(
         // (retail IronCurtainColor=0 selects None, whose OR is zero); VERA
         // hands that blit no colour word. A Deactivated unit (`+0x1C8`,
         // `0x0070FBD0`) draws at half the intensity.
-        let (body_tint, body_light) =
-            crate::app::presentation::lighting::techno_effect_light(entity, tint, palette_light, sim);
+        let (body_tint, body_light) = crate::app::presentation::lighting::techno_effect_light(
+            entity,
+            tint,
+            palette_light,
+            sim,
+        );
         let center_x: f32 = sx;
         let center_y: f32 = sy;
 
@@ -840,6 +844,9 @@ fn body_pose(
         rocking.angle_forwards.to_num::<f32>(),
     ];
     match locomotor.kind {
+        LocomotorKind::Ship if crate::render::vxl_raster::jumpjet_tilt_applies(angles) => {
+            Some(PoseTilt::Ship(angles))
+        }
         LocomotorKind::Fly if entity.crashing && band != EntityDrawBand::Ground => {
             Some(PoseTilt::Fly(angles))
         }
@@ -1916,6 +1923,13 @@ mod tests {
         assert_eq!(
             body_draw(&entity, EntityDrawBand::Ground, 0, false, false),
             BodyDraw::Composite
+        );
+        // A grappling Squid's surface ship uses the flat-water Ship draw arm.
+        entity.locomotor = Some(LocomotorState::for_test_kind(LocomotorKind::Ship));
+        entity.crashing = false;
+        assert_eq!(
+            body_draw(&entity, EntityDrawBand::Ground, 0, false, true),
+            BodyDraw::Pose(PoseTilt::Ship([0.5, -0.25]))
         );
         // A Jumpjet tilts only for `TiltCrashJumpjet=`, then in any band.
         entity.locomotor = Some(LocomotorState::for_test_kind(LocomotorKind::Jumpjet));

@@ -799,9 +799,9 @@ fn track_move_to_and_accepted_foot_calls_match_original_warp_and_zero_semantics(
         if input["entry"] == "move" {
             counts[0] += 1;
             if input["family"] == "drive" {
-                drive_set_destination(&mut e, coord(&input["request"]), Some(&terrain));
+                drive_set_destination(&mut e, coord(&input["request"]), Some(&terrain), 0);
             } else {
-                ship_set_destination(&mut e, coord(&input["request"]), Some(&terrain));
+                ship_set_destination(&mut e, coord(&input["request"]), Some(&terrain), 0);
             }
         } else {
             counts[1] += 1;
@@ -870,9 +870,9 @@ fn refused_track_request_does_not_allocate_payload_or_stamp_dummy() {
             z: 17,
         };
         if family == "drive" {
-            assert!(!drive_set_destination(&mut e, coord, Some(&terrain)));
+            assert!(!drive_set_destination(&mut e, coord, Some(&terrain), 0));
         } else {
-            ship_set_destination(&mut e, coord, Some(&terrain));
+            ship_set_destination(&mut e, coord, Some(&terrain), 0);
         }
         assert!(
             e.locomotor
@@ -908,7 +908,8 @@ fn live_drive_target_refresh_resumes_after_owner_warp_ends() {
     assert!(!refresh_drive_destination_coord(
         &mut e,
         destination,
-        Some(&terrain)
+        Some(&terrain),
+        0
     ));
     assert_eq!(
         e.locomotor
@@ -925,7 +926,8 @@ fn live_drive_target_refresh_resumes_after_owner_warp_ends() {
     assert!(refresh_drive_destination_coord(
         &mut e,
         destination,
-        Some(&terrain)
+        Some(&terrain),
+        0
     ));
     assert_eq!(
         e.locomotor

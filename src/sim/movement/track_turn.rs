@@ -173,7 +173,12 @@ impl Simulation {
                 let speed = self.resolve_move_info(id, rules).map(|info| info.speed);
                 let terrain = self.resolved_terrain.as_ref();
                 if let Some(entity) = self.substrate.entities.get_mut(id)
-                    && super::navcom::track_move_to(entity, coord, terrain)
+                    && super::navcom::track_move_to(
+                        entity,
+                        coord,
+                        terrain,
+                        self.session.binary_frame,
+                    )
                     && entity.movement_target.is_none()
                     && let Some(speed) = speed
                 {

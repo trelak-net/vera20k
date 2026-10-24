@@ -1,4 +1,4 @@
-//! ParasiteClass: attack dogs and Terror Drones (`Parasite=` warheads).
+//! ParasiteClass: attack dogs, Terror Drones and Giant Squid (`Parasite=` warheads).
 //!
 //! Native owner: one `ParasiteClass` (vtable `0x007EF890`, size `0x58`) per
 //! non-building Techno whose weapon-0 warhead is a Parasite, allocated by
@@ -39,22 +39,14 @@
 //!   `0x0073F530`, `0x0051C259`). VERA places the owner. Trigger: a launch cell
 //!   taken during the jump, or a NearbyLocation cell only the victim can use.
 //!   Frequency: rare. Owner: the CanEnterCell consolidation (Drive/Ship port).
-//! - Paralysis in the movers: Drive/Ship Set_Destination and Process_Movement
-//!   (`0x004AFD5E`, `0x004B2759`, `0x0069F46E`, `0x006A1DA9`), Fly
-//!   `0x004CCD00`/`0x004CF96E`, Hover `0x00514DB9`/`0x00514FD2`, Teleport
-//!   `0x00718120`, `0x005B0099`, `0x00728B10`, and the player-control virtual
-//!   +0xA0 (`0x00700C90`) refuse a paralyzed Foot. Trigger: a successful
-//!   release paralyzes the owner for 3x ROF (a drone knocked off a Chrono
-//!   Miner's warp: 180 frames). Effect: VERA's released drone moves and takes
-//!   orders at once. Frequency: rare. Risk: movement timing only. Owner: the
-//!   Drive/Ship Process path port, which holds those locomotors.
+//! - Drive/Ship Move_To and Process_Movement honor parasite paralysis. Other
+//!   locomotor and player-control gates retain their separate residuals.
 //! - Grinder (UnitClass::PerCellProcess `0x0073A13E..0x0073A181`): credits the
 //!   eater's refund, then suppression 50 + ExitUnit. VERA has no grinding.
 //! - Magnetron lift (`0x00710026`): a Naval eater exits. VERA does not port the
 //!   IsLocomotor detonation arm.
-//! - Sonic weapons may target an allied infected Foot (What_Action_OnObject
-//!   `0x00700377`); the Sonic hit already ejects any eater (`0x004D7345`), but
-//!   the order needs the cursor/command legality VERA does not port yet.
+//! Sonic rescue uses the shared can_sonic_rescue click/cursor/command predicate
+//! (What_Action_OnObject700377) and existing ReceiveDamage release4D7345.
 
 use crate::map::entities::EntityCategory;
 use crate::rules::object_type::ObjectType;
@@ -88,6 +80,8 @@ pub struct ParasiteState {
     suppression: CdTimer,
     /// `+0x38` damage-delivery timer (bite cadence).
     damage: CdTimer,
+    /// Squid-only phase machine, effect identity and exact native roll.
+    grapple: grapple::GrappleState,
 }
 
 impl ParasiteState {
@@ -98,7 +92,12 @@ impl ParasiteState {
             victim: None,
             suppression: CdTimer::started(frame as i32, 0),
             damage: CdTimer::started(frame as i32, 0),
+            grapple: grapple::GrappleState::default(),
         }
+    }
+
+    pub(crate) fn grapple_anim(&self) -> Option<u64> {
+        self.grapple.anim
     }
 
     #[cfg(test)]
@@ -125,16 +124,6 @@ impl ParasiteState {
 
 /// Naval+Organic owners (retail `[SQD]`) run the grapple machine `0x006297F0`
 /// from the class AI (`0x00629FE4..0x0062A00C`).
-///
-/// RESIDUAL (Squid grapple): the grapple state machine, its SQDG anim, wakes,
-/// splashes, Culling and per-tick victim paralysis are not ported. Until they
-/// are, such owners neither LimboLaunch nor attach (both gates below). Trigger:
-/// a Giant Squid (SQD) firing SquidGrab/SquidGrabE. Effect: SQDJUMP is Inviso;
-/// VERA's instant-hit path runs the Parasite arm, whose attach this gate
-/// refuses, so the shot does nothing (no damage, the squid visible and the
-/// ship free), where native grapples, paralyzes, rocks and damages the ship
-/// every 40 frames and culls it when weak. Frequency: Yuri's Revenge naval
-/// games. Risk: naval balance.
 pub(crate) fn owner_uses_grapple(object: &ObjectType) -> bool {
     object.naval && object.organic
 }
@@ -222,17 +211,7 @@ impl Simulation {
         effects: FrameEffects<'_>,
     ) {
         let frame = self.session.binary_frame;
-        // Squid residual: a visible grapple owner must not attach while its
-        // grapple is unported (every release path would fail its reveal).
-        if self
-            .substrate
-            .entities
-            .get(owner)
-            .and_then(|o| self.object_type(o.type_ref(), rules))
-            .is_some_and(owner_uses_grapple)
-        {
-            return;
-        }
+        self.clear_squid_grapple(owner, Some(rules));
         let Some(state) = self
             .substrate
             .entities
@@ -250,8 +229,7 @@ impl Simulation {
         let victim = victim.expect("CanInfect admitted a victim");
         // 0x0062AAD9..0x0062AB24: the OWNER's locomotor Force_Track(-1, victim
         // XYZ). Drive and Ship reset their track (and return with the owner in
-        // limbo); Walk binds the base no-op 0x0055AC10. Retail's one Ship
-        // parasite, SQD, takes the grapple arm above instead.
+        // limbo); Walk binds the base no-op 0x0055AC10. SQD uses Ship here.
         let victim_coord = ground_pose::position_world_coord(
             &self.substrate.entities.get(victim).unwrap().position,
         );
@@ -384,6 +362,7 @@ impl Simulation {
             return;
         };
         if owner_uses_grapple(owner_object) {
+            self.squid_grapple_ai(owner, victim, rules, overlay_registry, effects);
             return;
         }
         let Some(weapon) = weapon_zero(rules, owner_object, owner_entity.veterancy()) else {
@@ -583,6 +562,7 @@ impl Simulation {
     /// Victim-side reset shared by every release: ParalysisTimer {Frame, 0},
     /// Foot+694 = 0, Parasite.Victim = 0 (`0x0062A862..0x0062A88F`).
     fn detach_parasite_victim(&mut self, owner: u64, victim: u64, frame: u32) {
+        self.clear_squid_grapple(owner, None);
         if let Some(entity) = self.substrate.entities.get_mut(victim) {
             entity.paralysis_timer = CdTimer::started(frame as i32, 0);
             if entity.parasite_eating_me == Some(owner) {
@@ -676,6 +656,7 @@ impl Simulation {
     }
 
     fn clear_parasite_victim(&mut self, owner: u64) {
+        self.clear_squid_grapple(owner, None);
         if let Some(state) = self
             .substrate
             .entities
@@ -1028,9 +1009,6 @@ impl Simulation {
         let Some(object) = self.object_type(entity.type_ref(), rules) else {
             return;
         };
-        if owner_uses_grapple(object) {
-            return;
-        }
         let target_id = match target {
             super::TargetKind::Entity(id) => Some(id),
             super::TargetKind::Cell(..) => None,
@@ -1124,6 +1102,7 @@ impl Simulation {
         // 0x004D998C..0x004D99A4: an expiring eater that is dead drops the
         // link (the scenario-ended arm has no represented state).
         if eater == expired && eater_health(self, eater) == 0 {
+            self.clear_squid_grapple(eater, rules);
             self.substrate
                 .entities
                 .get_mut(listener)
@@ -1223,6 +1202,9 @@ impl Simulation {
         self.parasite_exit_unit(eater, rules, effects);
     }
 }
+
+#[path = "squid_grapple.rs"]
+mod grapple;
 
 #[cfg(test)]
 #[path = "parasite_tests.rs"]

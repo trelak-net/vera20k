@@ -1677,6 +1677,7 @@ impl Simulation {
         else {
             return;
         };
+        self.squid_anim_expired(id, self.anim(id).and_then(|a| a.owner_entity));
         if self
             .anim(id)
             .is_some_and(|anim| anim.owner_entity.is_some())
@@ -1930,6 +1931,16 @@ impl Simulation {
             anim.runtime.inactive = true;
         }
         true
+    }
+
+    /// Parasite6297B8 owns the displayed stage and a 128-frame timer.
+    pub(crate) fn set_parasite_anim_stage(&mut self, id: AnimId, stage: i32) {
+        let frame = self.session.binary_frame as i32;
+        if let Some(anim) = self.anim_mut_by_id(id) {
+            anim.runtime.current_frame = stage;
+            anim.runtime.frame_timer = CdTimer::started(frame, 128);
+            anim.runtime.rate_reload = 128;
+        }
     }
 
     pub(crate) fn set_anim_frame_and_z_adjust(&mut self, id: AnimId, frame: i32, z_adjust: i32) {

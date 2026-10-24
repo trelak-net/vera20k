@@ -68,6 +68,8 @@ pub enum PoseTilt {
     /// `FlyLocomotionClass`'s crashing arm (`0x004CF610`): roll and pitch in
     /// radians (`TechnoClass+0x328`, `+0x32C`).
     Fly([f32; 2]),
+    /// Ship69F670 on flat water, using the model half sizes for hull lift.
+    Ship([f32; 2]),
     /// `JumpjetLocomotionClass`'s `TiltCrashJumpjet=` arm (`0x0054DCC0`), with
     /// the same roll and pitch.
     Jumpjet([f32; 2]),
@@ -1290,7 +1292,7 @@ impl UnitModel {
         let body = self.body.as_ref().expect("a posed body has a voxel body");
         let body_tilt = match tilt {
             PoseTilt::Fly(angles) => vxl_raster::BodyTilt::Fly(angles),
-            PoseTilt::Jumpjet(angles) => vxl_raster::BodyTilt::Jumpjet {
+            PoseTilt::Jumpjet(angles) | PoseTilt::Ship(angles) => vxl_raster::BodyTilt::Jumpjet {
                 angles,
                 half_sizes: vxl_raster::jumpjet_tilt_half_sizes(&body.vxl).unwrap_or([0.0; 2]),
             },

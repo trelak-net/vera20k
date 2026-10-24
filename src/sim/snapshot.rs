@@ -951,7 +951,8 @@ use crate::sim::world::Simulation;
 // 333 -> 334: distributed-fire candidate scores and firing history.
 // 334 -> 335: per-building Secret Lab fallback reward.
 // 335 -> 336: resolved trigger sounds, object ambient overrides and one-time superweapons.
-const SNAPSHOT_VERSION: u32 = 336;
+// 336 -> 337: Squid grapple phase, animation and roll.
+const SNAPSHOT_VERSION: u32 = 337;
 
 const SNAPSHOT_PRODUCT_MAGIC: [u8; 8] = *b"VERA20K\0";
 const SNAPSHOT_ENVELOPE_VERSION: u32 = 1;
@@ -1935,6 +1936,16 @@ fn restore_object_references(
                 "distributed_fire",
                 "EntityStore",
                 target_id,
+            )?;
+        }
+        if let Some(anim) = entity.parasite.as_deref().and_then(|p| p.grapple_anim()) {
+            require_resolved_reference(
+                sim.anim(anim).is_some(),
+                "EntityStore",
+                entity_id,
+                "parasite.grapple.anim",
+                "AnimObjects",
+                anim,
             )?;
         }
         for target_id in entity.tesla_charging.references() {
@@ -4115,7 +4126,7 @@ mod tests {
         // LoadObject registry, and neutral Tactical view/focus metadata.
         // 327 -> 328: each house's last lost building (+0x54E0).
         // 328 -> 329: persisted TruckCrate/TrainCrate map flags.
-        assert_eq!(super::SNAPSHOT_VERSION, 336);
+        assert_eq!(super::SNAPSHOT_VERSION, 337);
     }
 
     #[test]

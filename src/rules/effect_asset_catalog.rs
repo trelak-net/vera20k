@@ -349,6 +349,8 @@ pub fn anim_class_roots(rules: &RuleSet) -> Vec<String> {
     // The nuke's buildup (`sim::superweapon::nuke`): without this root the
     // falling missile waited on no anim and struck one frame after landing.
     insert(NUKE_BALL_ANIM);
+    // Parasite629874 finds SQDG by literal; no weapon Anim key names it.
+    insert("SQDG");
     roots.into_iter().collect()
 }
 

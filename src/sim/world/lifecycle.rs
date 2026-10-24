@@ -485,6 +485,10 @@ pub(crate) enum LifecycleTestEvent {
         source_id: u64,
         target: ProjectileTarget,
     },
+    WaveDamagePassStarted {
+        wave_id: u64,
+        scenario_rng_state: u64,
+    },
     WaveDamageReceiverSelected {
         wave_id: u64,
         target_id: u64,

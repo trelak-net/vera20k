@@ -144,6 +144,7 @@ pub(super) fn refresh_drive_destination_coord(
     entity: &mut GameEntity,
     coord: DriveCoord,
     terrain: Option<&ResolvedTerrainGrid>,
+    binary_frame: u32,
 ) -> bool {
     let Some(loco) = entity
         .locomotor
@@ -156,7 +157,7 @@ pub(super) fn refresh_drive_destination_coord(
     if loco.track_destination(TrackFamily::Drive) == requested {
         return false;
     }
-    drive_set_destination(entity, coord, terrain)
+    drive_set_destination(entity, coord, terrain, binary_frame)
 }
 
 /// The cell of `BuildingClass::GetDockCoord @ 0x00447B20` for `building`, as
@@ -326,9 +327,9 @@ pub(crate) fn set_destination_internal_coord(
     publish_nav_com(entity, target);
 
     if is_drive_locomotor(entity) {
-        drive_set_destination(entity, coord, resolved_terrain);
+        drive_set_destination(entity, coord, resolved_terrain, binary_frame);
     } else if is_ship_locomotor(entity) {
-        ship_set_destination(entity, coord, resolved_terrain);
+        ship_set_destination(entity, coord, resolved_terrain, binary_frame);
     } else if super::hover::hover_move_to(entity, coord, resolved_terrain, binary_frame) {
     } else {
         set_walk_destination_coord(entity, coord, resolved_terrain);
@@ -362,12 +363,13 @@ fn drive_set_destination(
     entity: &mut GameEntity,
     destination: DriveCoord,
     terrain: Option<&ResolvedTerrainGrid>,
+    binary_frame: u32,
 ) -> bool {
     // Drive4AFD40 checks owner+270/+271 before any destination or map read.
     // Track MoveTo refusal leaves Foot's accepted NavCom/timer writes intact.
-    // EMP/Unit+6D8 and Foot+6A0 producers remain separate unported gates.
+    // 4AFD5E/69F46E also refuse Foot+6A0 paralysis before map reads.
     // Original whole-call comparisons: tools/spatial_oracle/track_destination.
-    if super::locomotor_owner::owner_is_warping(entity) {
+    if super::locomotor_owner::owner_is_warping(entity) || entity.is_paralyzed(binary_frame) {
         return false;
     }
     let destination = adjusted_destination(destination, terrain);
@@ -387,14 +389,15 @@ pub(super) fn track_move_to(
     entity: &mut GameEntity,
     coord: DriveCoord,
     terrain: Option<&ResolvedTerrainGrid>,
+    binary_frame: u32,
 ) -> bool {
     if is_drive_locomotor(entity) {
-        drive_set_destination(entity, coord, terrain)
+        drive_set_destination(entity, coord, terrain, binary_frame)
     } else if is_ship_locomotor(entity) {
-        if super::locomotor_owner::owner_is_warping(entity) {
+        if super::locomotor_owner::owner_is_warping(entity) || entity.is_paralyzed(binary_frame) {
             return false;
         }
-        ship_set_destination(entity, coord, terrain);
+        ship_set_destination(entity, coord, terrain, binary_frame);
         true
     } else {
         false
@@ -447,10 +450,11 @@ fn ship_set_destination(
     entity: &mut GameEntity,
     destination: DriveCoord,
     terrain: Option<&ResolvedTerrainGrid>,
+    binary_frame: u32,
 ) {
     // Ship69F450 has the same owner warp refusal before its map lookup.
     // Use the existing warp owner, independent of power and locomotor stash.
-    if super::locomotor_owner::owner_is_warping(entity) {
+    if super::locomotor_owner::owner_is_warping(entity) || entity.is_paralyzed(binary_frame) {
         return;
     }
     let destination = adjusted_destination(destination, terrain);

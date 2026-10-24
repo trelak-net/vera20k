@@ -2225,6 +2225,11 @@ impl Simulation {
         request: &crate::sim::wave::WaveDamageRequest,
         frame_effects: FrameEffects<'_>,
     ) {
+        #[cfg(test)]
+        self.trace_lifecycle_for_test(LifecycleTestEvent::WaveDamagePassStarted {
+            wave_id: request.wave_id,
+            scenario_rng_state: self.scenario_rng.state(),
+        });
         // DamageArea reads WaveClass+0x1D4 at the call boundary. Health and
         // Rust death-animation state do not null that pointer; only the exact
         // PointerExpired callback does. Revalidate the buffered fixture path

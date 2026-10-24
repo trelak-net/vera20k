@@ -12,7 +12,8 @@
 //! integrates them, and the unit renderer draws the angles through Fly
 //! Draw_Matrix's crashing arm (`render::vxl_raster`); Jumpjet crash tilt also
 //! consumes these angles. Everything below is about the ordinary damped
-//! ground rocker, which still has no producer or Drive body-drawing consumer:
+//! ground rocker, which still has no producer or Drive body-drawing consumer.
+//! Squid separately owns a forced roll and uses the Ship pose consumer:
 //!
 //! - **No producer.** [`apply_rocker_impulse`] has no caller outside this
 //!   module's tests. gamemd reaches `TechnoClass::ApplyRocker` (vtable `+0x3D8`

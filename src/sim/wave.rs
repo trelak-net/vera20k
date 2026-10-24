@@ -150,9 +150,9 @@ pub struct Wave {
     pub wave_type: u8,
     pub owner_id: Option<u64>,
     pub target_ref: Option<TargetKind>,
-    /// Live firer-side endpoint (+0xC0).
+    /// Live firer-side endpoint (+0xB4), written at761B27.
     pub source: ProjectileCoord,
-    /// Live target-side endpoint (+0xB4), including Sonic's Z adjustment.
+    /// Live target-side endpoint (+0xC0), including Sonic's Z adjustment.
     pub target: ProjectileCoord,
     pub edge_geometry: WaveEdgeGeometry,
     pub active_geometry: bool,
@@ -369,10 +369,10 @@ impl Wave {
     fn update_cells(&mut self, terrain: Option<&ResolvedTerrainGrid>) {
         self.recorded_cells.clear();
         if self.active_geometry {
-            let mut previous = lepton_cell(self.target);
+            let mut previous = lepton_cell(self.source);
             let mut t = f32_to_f64(STEP_F32);
             while f32_le_sum(t, self.fade_in, HALF_STEP_F32) {
-                let cell = lepton_cell(interpolate(self.target, self.source, t));
+                let cell = lepton_cell(interpolate(self.source, self.target, t));
                 if cell != previous {
                     previous = cell;
                     self.lookup_and_append(terrain, cell);
@@ -384,7 +384,7 @@ impl Wave {
 
         let edges = self.edge_geometry;
         let mut previous_a = lepton_cell(edges.firer_a);
-        let mut previous_center = lepton_cell(self.source);
+        let mut previous_center = lepton_cell(self.target);
         let mut previous_b = lepton_cell(edges.firer_b);
         let mut t = self.fade_out;
         while f32_le_sum(t, self.fade_in, HALF_STEP_F32) {
@@ -395,7 +395,7 @@ impl Wave {
                     self.lookup_and_append(terrain, cell);
                 }
             }
-            let cell = lepton_cell(interpolate(self.target, self.source, t));
+            let cell = lepton_cell(interpolate(self.source, self.target, t));
             if cell != previous_center {
                 previous_center = cell;
                 self.lookup_and_append(terrain, cell);
@@ -555,7 +555,7 @@ impl WaveStore {
                 wave_id: id,
                 firer_id,
                 recorded_cells: wave.recorded_cells.clone(),
-                wave_z: wave.target.z,
+                wave_z: wave.source.z,
             })
         } else {
             None
@@ -745,8 +745,9 @@ fn type0_nonmagnetic_geometry(
     raw_target: ProjectileCoord,
 ) -> Type0NonmagneticGeometry {
     let (trig, acos) = (TrigTable::embedded(), AcosTable::retail());
-    // Type 0's endpoint factor is exactly 1.0: +C0 is the owner, +B4 is the
-    // target with its post-ftol Sonic Z adjustment.
+    // Type 0's endpoint factor is exactly 1.0: +B4 is the owner, +C0 is the
+    // target with its post-ftol Sonic Z adjustment. See sonic_cells.py, which
+    // executes the geometry prefix and records both actual native fields.
     let target = ProjectileCoord::new(
         raw_target.x,
         raw_target.y,
@@ -1280,7 +1281,7 @@ mod tests {
         wave.update_cells(Some(&terrain));
         assert_eq!(
             wave.recorded_cells,
-            vec![WaveRecordedCell::real(1, 0), WaveRecordedCell::real(1, 1)]
+            vec![WaveRecordedCell::real(1, 0), WaveRecordedCell::real(3, 3)]
         );
 
         // direction>=4 traces the centerline before +0x120 -> +0x108.
@@ -1288,7 +1289,7 @@ mod tests {
         wave.update_cells(Some(&terrain));
         assert_eq!(
             wave.recorded_cells,
-            vec![WaveRecordedCell::real(1, 1), WaveRecordedCell::real(0, 1)]
+            vec![WaveRecordedCell::real(3, 3), WaveRecordedCell::real(0, 1)]
         );
     }
 
@@ -1325,17 +1326,82 @@ mod tests {
         wave.fade_in = NativeF64Bits::ONE;
         wave.update_cells(Some(&terrain));
         assert_eq!(wave.recorded_cells, vec![WaveRecordedCell::shared_dummy()]);
-        assert_eq!(terrain.shared_cell_dummy().snapshot().coord, (-4, -4));
+        // Native float step crosses t=1 by a few ulps, then integer truncation
+        // turns -255 into cell0. The executed negative control pins this edge.
+        let receipt: serde_json::Value =
+            serde_json::from_str(include_str!("../../tools/spatial_oracle/sonic_cells.json"))
+                .unwrap();
+        assert_eq!(
+            receipt["negative"]["cells"]
+                .as_array()
+                .unwrap()
+                .last()
+                .unwrap(),
+            &serde_json::json!([0, 0])
+        );
+        assert_eq!(terrain.shared_cell_dummy().snapshot().coord, (0, 0));
     }
 
     #[test]
-    fn active_sampling_excludes_the_target_seed_cell() {
+    fn sonic_endpoint_and_cell_controls_match_the_original() {
+        let rows: serde_json::Value =
+            serde_json::from_str(include_str!("../../tools/spatial_oracle/sonic_cells.json"))
+                .unwrap();
+        let terrain = flat_terrain(32, 32);
+        let point = |v: &serde_json::Value| {
+            ProjectileCoord::new(
+                v[0].as_i64().unwrap() as i32,
+                v[1].as_i64().unwrap() as i32,
+                v[2].as_i64().unwrap() as i32,
+            )
+        };
+        assert_eq!(rows["rows"].as_array().unwrap().len(), 26);
+        for row in rows["rows"].as_array().unwrap() {
+            let geometry = type0_nonmagnetic_geometry(point(&row["source"]), point(&row["target"]));
+            assert_eq!(geometry.source, point(&row["endpoints"][0]));
+            assert_eq!(geometry.target, point(&row["endpoints"][1]));
+            let mut wave = Wave::new(0, geometry.source, geometry.target);
+            wave.edge_geometry = WaveEdgeGeometry {
+                firer_a: point(&row["edges"][0]),
+                firer_b: point(&row["edges"][1]),
+                target_a: point(&row["edges"][2]),
+                target_b: point(&row["edges"][3]),
+            };
+            wave.active_geometry = row["active"].as_bool().unwrap();
+            wave.direction_octant = row["octant"].as_i64().unwrap() as i32;
+            wave.fade_in = NativeF64Bits::from_bits(row["fade"].as_f64().unwrap().to_bits());
+            wave.fade_out = NativeF64Bits::from_bits(row["fade_out"].as_f64().unwrap().to_bits());
+            wave.update_cells(Some(&terrain));
+            let expected = row["cells"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| {
+                    WaveRecordedCell::real(
+                        c[0].as_u64().unwrap() as u16,
+                        c[1].as_u64().unwrap() as u16,
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(wave.recorded_cells, expected, "{row}");
+        }
+    }
+
+    #[test]
+    fn active_sampling_excludes_the_firer_and_reaches_the_target() {
         let terrain = flat_terrain(8, 1);
         let mut wave = Wave::new(0, point(0, 0, 0), point(4 * 256, 0, 50));
         wave.fade_in = f32_to_f64(STEP_F32);
         wave.update_cells(Some(&terrain));
-        assert_eq!(wave.recorded_cells, vec![WaveRecordedCell::real(3, 0)]);
-        assert!(!wave.recorded_cells.contains(&WaveRecordedCell::real(4, 0)));
+        assert!(wave.recorded_cells.is_empty());
+        wave.fade_in = NativeF64Bits::ONE;
+        wave.update_cells(Some(&terrain));
+        assert_eq!(
+            wave.recorded_cells,
+            (1..=4)
+                .map(|x| WaveRecordedCell::real(x, 0))
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]

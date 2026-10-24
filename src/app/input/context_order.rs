@@ -1706,12 +1706,17 @@ pub(crate) fn try_queue_context_order_at_screen_point(
                 && !force_move
                 && let Some(target) = hover.as_ref()
             {
-                let orders =
-                    tesla_charge_orders(sim, &resources.rules, &selected_units, target.stable_id);
+                let orders = friendly_special_attack_orders(
+                    sim,
+                    &resources.rules,
+                    &selected_units,
+                    target.stable_id,
+                );
                 if !orders.is_empty()
                     && cursor_owner(sim, &resources.rules, &selected_ids, target.stable_id)
                         .is_some_and(|best| {
                             sim.can_charge_tesla(best, target.stable_id, &resources.rules)
+                                || sim.can_sonic_rescue(best, target.stable_id, &resources.rules)
                         })
                 {
                     queued.extend(
@@ -2218,7 +2223,7 @@ fn friendly_bomb_ivans(
         .collect()
 }
 
-fn tesla_charge_orders(
+fn friendly_special_attack_orders(
     sim: &crate::sim::world::Simulation,
     rules: &crate::rules::ruleset::RuleSet,
     selected: &[u64],
@@ -2227,7 +2232,9 @@ fn tesla_charge_orders(
     selected
         .iter()
         .copied()
-        .filter(|&id| sim.can_charge_tesla(id, target_id, rules))
+        .filter(|&id| {
+            sim.can_charge_tesla(id, target_id, rules) || sim.can_sonic_rescue(id, target_id, rules)
+        })
         .map(|attacker_id| Command::Attack {
             attacker_id,
             target_id,
@@ -3858,7 +3865,7 @@ Verses=100%,100%,100%,100%,100%,100%,100%,100%,100%,100%,100%
             .spawn_object_at_height("GI", "Americans", 12, 15, 0, 0, &rules)
             .unwrap();
         let selected = [chargers[0], gi];
-        let orders = tesla_charge_orders(&sim, &rules, &selected, coil);
+        let orders = friendly_special_attack_orders(&sim, &rules, &selected, coil);
         assert_eq!(
             orders,
             vec![Command::Attack {

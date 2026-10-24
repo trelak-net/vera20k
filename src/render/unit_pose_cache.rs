@@ -38,6 +38,9 @@ pub struct VxlPoseFrameCache {
     vpl: Option<Option<VplFile>>,
     /// Each posed type's voxel model, parsed on its first pose.
     models: BTreeMap<String, Option<UnitModel>>,
+    // Squid roll repeats a small set of stages. Retain bounded CPU results so
+    // an attached ship does not rasterize the same voxel on every video frame.
+    ship_poses: std::collections::HashMap<(UnitSpriteKey, [u32; 2]), (VxlSprite, Option<[i32; 4]>)>,
 }
 
 impl VxlPoseFrameCache {
@@ -81,7 +84,17 @@ impl VxlPoseFrameCache {
             .entry(key.type_id.clone())
             .or_insert_with(|| UnitModel::load(asset_manager, &key.type_id, rules))
             .as_ref()?;
-        let (sprite, native_draw_bounds) = model.render_pose(key, vpl, tilt);
+        let (sprite, native_draw_bounds) = if let PoseTilt::Ship(angles) = tilt {
+            if self.ship_poses.len() >= 128 {
+                self.ship_poses.clear();
+            }
+            self.ship_poses
+                .entry((key.clone(), angles.map(f32::to_bits)))
+                .or_insert_with(|| model.render_pose(key, vpl, tilt))
+                .clone()
+        } else {
+            model.render_pose(key, vpl, tilt)
+        };
         let (px, py) = self.try_place(&sprite)?;
         self.blit(&sprite, px, py);
         self.dirty = true;

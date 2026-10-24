@@ -264,7 +264,9 @@ fn voxel_rocket_locomotor_matrix(step: u8, pitch: f32) -> Mat4 {
 }
 
 /// `JumpjetLocomotionClass` Draw_Matrix's `TiltCrashJumpjet=` arm
-/// (`0x0054DD19..0x0054DF06`): the facing matrix of
+/// (`0x0054DD19..0x0054DF06`), also Ship69F670's flat-water tilt product:
+/// Ship69F713..69F88B forms the same hull offsets, roll and pitch before
+/// its plain facing/slope0 product. The facing matrix of
 /// `LocomotionClass::Draw_Matrix @ 0x0055A730` between a lift and a shifted,
 /// rolled and pitched frame, `T_z * F * (T_xy * R_x(roll) * R_y(pitch))`, each
 /// product `MatrixMultiply @ 0x005AF980` in the native order. The offsets are
@@ -2655,8 +2657,14 @@ mod tests {
         .unwrap();
         let rows = corpus["draw_matrix"].as_array().unwrap();
         assert_eq!(rows.len(), 86);
+        let ships: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tools/spatial_oracle/squid_ship_matrix.json"
+        ))
+        .unwrap();
+        let ships = ships["rows"].as_array().unwrap();
+        assert_eq!(ships.len(), 46);
         let mut tilted = 0;
-        for row in rows {
+        for row in rows.iter().chain(ships.iter()) {
             let input = &row["input"];
             let name = row["name"].as_str().unwrap();
             let pair = |key: &str| {
@@ -2691,7 +2699,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(tilted, 34);
+        assert_eq!(tilted, 68);
     }
 
     /// Fly Draw_Matrix's crashing arm against the executable

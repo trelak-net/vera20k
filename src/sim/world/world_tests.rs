@@ -3430,8 +3430,8 @@ fn sonic_cell_target_uses_persistent_dummy_gettargetcoords_on_create_and_refresh
     assert_eq!(wave.target.z, 674);
     assert_eq!(
         process_dummy.snapshot().coord,
-        (0, 6),
-        "UpdateCells keeps the shared identity but leaves the final miss restamp live",
+        (-1, 7),
+        "the first outward step stays in the source cell, so the target query owns the last dummy stamp",
     );
 }
 
@@ -3661,8 +3661,8 @@ fn sonic_fire_registers_immediately_but_later_techno_fires_before_wave_tail_ai()
             .expect("Wave receiver survives")
             .health
             .current,
-        90,
-        "the appended Wave still damages its first recorded cell this frame",
+        100,
+        "the first outward wave step has not yet reached the distant receiver",
     );
     let wave_id = *sim
         .active_wave_links
@@ -3701,20 +3701,19 @@ fn sonic_fire_registers_immediately_but_later_techno_fires_before_wave_tail_ai()
         .iter()
         .enumerate()
         .find_map(|(index, event)| match event {
-            LifecycleTestEvent::WaveDamageReceiverSelected {
+            LifecycleTestEvent::WaveDamagePassStarted {
                 wave_id: selected_wave,
-                target_id,
                 scenario_rng_state,
-            } if *selected_wave == wave_id && *target_id == wave_receiver_id => {
+            } if *selected_wave == wave_id => {
                 Some((index, *scenario_rng_state))
             }
             _ => None,
         })
-        .expect("Wave receiver boundary traced");
+        .expect("Wave AI damage-pass boundary traced");
     assert!(dolphin_boundary.0 < later_boundary.0);
     assert!(
         later_boundary.0 < wave_receiver.0,
-        "later FireAt/effects must finish before the appended Wave receiver walk",
+        "later FireAt/effects must finish before the appended Wave damage pass",
     );
     assert_ne!(
         dolphin_boundary.1, later_boundary.1,
@@ -3722,7 +3721,7 @@ fn sonic_fire_registers_immediately_but_later_techno_fires_before_wave_tail_ai()
     );
     assert_eq!(
         later_boundary.1, wave_receiver.1,
-        "the Wave receiver begins from the RNG state left by the later Techno",
+        "the Wave damage pass begins from the RNG state left by the later Techno",
     );
 }
 
@@ -3759,8 +3758,15 @@ fn sonic_cell_fire_wave_damage_selects_level_two_bridge_plane() {
         .spawn_object("DLPH", "Americans", 1, 0, 64, &rules)
         .expect("bridge Dolphin");
     let receiver_id = sim
-        .spawn_object("TARGET", "Russians", 5, 0, 0, &rules)
+        .spawn_object("TARGET", "Russians", 2, 0, 0, &rules)
         .expect("bridge receiver");
+    // Cross into the adjacent receiver cell on the first Wave AI.
+    sim.substrate
+        .entities
+        .get_mut(dolphin_id)
+        .unwrap()
+        .position
+        .sub_x = SimFixed::from_num(224);
     for id in [dolphin_id, receiver_id] {
         sim.remove_entity_occupancy(id);
         let entity = sim.substrate.entities.get_mut(id).expect("live entity");
@@ -3847,6 +3853,7 @@ fn sonic_cell_fire_wave_damage_selects_level_two_bridge_plane() {
     let sim = &runtime.simulation;
     let wave = sim.waves.get(wave_id).expect("Wave survives its first AI");
     assert_eq!(wave.lifetime, 99);
+    assert_eq!(wave.source.z, 624, "DamageArea reads firer Z at Wave+BC");
     assert_eq!(
         wave.target.z, 674,
         "level 2 CellClass target is 2*104 + structural 416 + Sonic 50",
@@ -3859,7 +3866,7 @@ fn sonic_cell_fire_wave_damage_selects_level_two_bridge_plane() {
             .health
             .current,
         90,
-        "Wave Z 674 meets the level-2 equality threshold 624 and walks AltObject",
+        "firer Wave Z 624 meets the level-2 equality threshold 624 and walks AltObject",
     );
 }
 
@@ -11427,10 +11434,28 @@ fn optional_frame_hashing_preserves_simulation_across_unobserved_frames() {
     let (mut checked, rules) = animation_boundary_fixture();
     let (mut unchecked, _) = animation_boundary_fixture();
     for _ in 0..300 {
-        let a = checked.advance_app_frame(&[], Some(&rules), None, 67,
-            TickLane::Ordinary, None, FrameEffects::default()).unwrap();
-        let b = unchecked.advance_app_frame(&[], Some(&rules), None, 67,
-            TickLane::Ordinary, None, FrameEffects::default().with_state_hash(false)).unwrap();
+        let a = checked
+            .advance_app_frame(
+                &[],
+                Some(&rules),
+                None,
+                67,
+                TickLane::Ordinary,
+                None,
+                FrameEffects::default(),
+            )
+            .unwrap();
+        let b = unchecked
+            .advance_app_frame(
+                &[],
+                Some(&rules),
+                None,
+                67,
+                TickLane::Ordinary,
+                None,
+                FrameEffects::default().with_state_hash(false),
+            )
+            .unwrap();
         assert!(a.tick.state_hash.is_some());
         assert_eq!(b.tick.state_hash, None);
         assert_eq!(a.tick.tick, b.tick.tick);
@@ -11440,7 +11465,16 @@ fn optional_frame_hashing_preserves_simulation_across_unobserved_frames() {
     // Do not hash the unchecked branch during the run: a hash with an
     // accidental side effect must not be able to hide behind the assertion.
     assert_eq!(checked.state_hash(), unchecked.state_hash());
-    let result = unchecked.advance_app_frame(&[], Some(&rules), None, 67,
-        TickLane::Ordinary, None, FrameEffects::default()).unwrap();
+    let result = unchecked
+        .advance_app_frame(
+            &[],
+            Some(&rules),
+            None,
+            67,
+            TickLane::Ordinary,
+            None,
+            FrameEffects::default(),
+        )
+        .unwrap();
     assert_eq!(result.tick.state_hash, Some(unchecked.state_hash()));
 }

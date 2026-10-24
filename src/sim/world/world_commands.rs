@@ -1013,8 +1013,10 @@ impl Simulation {
                 }
                 if matches!(cmd, Command::Attack { .. })
                     && !self.can_attack_target_by_id(*attacker_id, *target_id)
-                    && !rules
-                        .is_some_and(|rules| self.can_charge_tesla(*attacker_id, *target_id, rules))
+                    && !rules.is_some_and(|rules| {
+                        self.can_charge_tesla(*attacker_id, *target_id, rules)
+                            || self.can_sonic_rescue(*attacker_id, *target_id, rules)
+                    })
                 {
                     return false;
                 }
