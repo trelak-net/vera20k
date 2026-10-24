@@ -740,6 +740,8 @@ pub enum Command {
         path_id: u32,
         node: usize,
     },
+    /// Player Scatter (native event 7). Appended to preserve saved indices.
+    Scatter { entity_id: u64 },
 }
 
 /// Command with deterministic execution metadata.

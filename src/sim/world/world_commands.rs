@@ -813,6 +813,28 @@ impl Simulation {
                     )
                 }
             }
+            Command::Scatter { entity_id } => {
+                // ScatterObject 536D80 -> 730FE0 -> event 7 at 4C7859.
+                // Native passes (null, forced=true, no_kidding=false): an
+                // already moving Unit keeps its destination. Never synthesize
+                // a Move, which would bypass the class-specific receivers.
+                if !self.entity_owned_by_id(command_owner, *entity_id)
+                    || !self.order_actor_admits(*entity_id)
+                    || self.substrate.entities.get(*entity_id).is_none_or(|e| {
+                        e.category == EntityCategory::Structure || e.dock_entered_with.is_some()
+                    })
+                {
+                    return false;
+                }
+                let Some(rules) = rules else { return false; };
+                match self.scatter_null(*entity_id,
+                    crate::sim::movement::ScatterFlags::new(true, false),
+                    rules, overlay_registry, frame_effects)
+                {
+                    Ok(_) => true,
+                    Err(cause) => { log::warn!("Scatter {entity_id}: {cause}"); false }
+                }
+            }
             Command::Stop { entity_id } => {
                 if !self.entity_owned_by_id(command_owner, *entity_id) {
                     return false;

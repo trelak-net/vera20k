@@ -1577,6 +1577,7 @@ fn dispatch_retail_hotkey(state: &mut AppState, command: HotkeyCommand) {
                 !state.match_state.input.cursor_coordinates;
         }
         HotkeyCommand::StopObject => queue_stop_for_selected(state),
+        HotkeyCommand::ScatterObject => queue_scatter_for_selected(state),
         HotkeyCommand::DeployObject => queue_deploy_undeploy_for_selected(state),
         HotkeyCommand::GuardObject => queue_guard_for_selected(state),
         HotkeyCommand::StructureTab => {
@@ -1658,7 +1659,6 @@ fn dispatch_retail_hotkey(state: &mut AppState, command: HotkeyCommand) {
         | HotkeyCommand::PlaceBeacon
         | HotkeyCommand::AllToCheer
         | HotkeyCommand::PageUser
-        | HotkeyCommand::ScatterObject
         | HotkeyCommand::Taunt(_) => {}
     }
 }
@@ -2421,6 +2421,23 @@ fn queue_selection_snapshot_command(state: &mut AppState, selected_ids: Vec<u64>
         true,
         ORDINARY_SELECTION_VOICE_POLICY,
     );
+}
+
+fn queue_scatter_for_selected(state: &mut AppState) {
+    let selected = selected_stable_ids_in_order(
+        state.match_state.sim_runtime.as_ref().map(|rt| &rt.simulation),
+        state.rules(), &state.match_state.input.selection_order,
+        state.match_state.input.selection_order_pending,
+    );
+    let Some(owner) = preferred_local_owner(state) else { return; };
+    for entity_id in selected {
+        let admitted = state.match_state.sim_runtime.as_ref().is_some_and(|rt| {
+            rt.simulation.techno_player_controllable(entity_id, &rt.resources.rules)
+        });
+        if admitted {
+            schedule_command(state, &owner, Command::Scatter { entity_id });
+        }
+    }
 }
 
 fn queue_stop_for_selected(state: &mut AppState) {

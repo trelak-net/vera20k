@@ -742,3 +742,32 @@ fn receive_damage_scatter_gates_match_original_execution() {
     }
     assert_eq!(checked, 263);
 }
+
+/// Exercise the player command through the real receiver, including native
+/// no-kidding=false, rejected ownership/limbo and serialization/replay input.
+#[test]
+fn scatter_player_command_uses_class_receiver_and_admission() {
+    use crate::sim::command::Command;
+    let (mut sim, rules, _) = crate::sim::world::entry_test_fixture::fixture_with_rules(
+        "[VehicleTypes]\n0=TANK\n[TANK]\nStrength=200\nSpeed=6\nSpeedType=Track\nMovementZone=Normal\nLocomotor={4A582741-9839-11d1-B709-00A024DDAFD1}\n"
+    );
+    let id = sim.spawn_object("TANK", "Americans", 16, 15, 0, &rules).unwrap();
+    let command = Command::Scatter { entity_id: id };
+    let bytes = bincode::serialize(&command).unwrap();
+    assert_eq!(bincode::deserialize::<Command>(&bytes).unwrap(), command);
+    assert!(!sim.apply_command("Russians", &command, Some(&rules)));
+    assert!(sim.substrate.entities.get(id).unwrap().movement_target.is_none());
+    assert!(sim.apply_command("Americans", &command, Some(&rules)));
+    let nav = sim.substrate.entities.get(id).unwrap().navigation.nav_com;
+    assert!(nav.is_some(), "idle tank receives a scatter destination");
+    assert!(sim.apply_command("Americans", &command, Some(&rules)));
+    assert_eq!(sim.substrate.entities.get(id).unwrap().navigation.nav_com, nav,
+        "a moving tank retains the original destination");
+    sim.substrate.entities.get_mut(id).unwrap().lifecycle.in_limbo = true;
+    assert!(!sim.apply_command("Americans", &command, Some(&rules)));
+    sim.substrate.entities.get_mut(id).unwrap().lifecycle.in_limbo = false;
+    sim.substrate.entities.get_mut(id).unwrap().dock_entered_with = Some(999);
+    assert!(!sim.apply_command("Americans", &command, Some(&rules)));
+    let building = sim.spawn_object("CABHUT", "Americans", 17, 16, 0, &rules).unwrap();
+    assert!(!sim.apply_command("Americans", &Command::Scatter { entity_id: building }, Some(&rules)));
+}

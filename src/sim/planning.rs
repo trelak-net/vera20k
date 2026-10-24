@@ -230,6 +230,7 @@ pub(crate) fn command_actor(command: &Command) -> Option<u64> {
     match *command {
         Command::Move { entity_id, .. }
         | Command::Stop { entity_id }
+        | Command::Scatter { entity_id }
         | Command::AttackMove { entity_id, .. }
         | Command::Guard { entity_id, .. }
         | Command::DeployMcv { entity_id }
