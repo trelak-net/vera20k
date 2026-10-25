@@ -1,3 +1,7 @@
+> **Inherited upstream documentation:** this translation describes the original
+> VERA20k snapshot. For Wojciech Trelak’s Codex-developed fork, its current status
+> and priorities, see the [English README](README.md) and [roadmap](ROADMAP.md).
+
 <img src="docs/images/new-conscirpt-hero-image.png" alt="VERA20k Titelbild" width="100%">
 
 <p align="center" dir="ltr">

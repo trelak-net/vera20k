@@ -6,6 +6,8 @@ based on [YuriPlanet/vera20k](https://github.com/YuriPlanet/vera20k) at commit
 `64bac4056a7ac81b04ec2ae9a3ca96271e0dc6c5`, also tagged here as `cncyr-base`.
 The original upstream history, credits and [GPLv3 license](../LICENSE-GPL) are
 retained. Each of the 24 downstream patches is a separate commit on `main`.
+Wojciech Trelak maintains and uses this fork, with development carried out using
+OpenAI Codex. See the [roadmap](../ROADMAP.md) for current priorities.
 
 The client runs without Wine or Proton and needs your own Red Alert 2: Yuri's
 Revenge installation. The engine is still under development. This branch focuses
@@ -14,7 +16,7 @@ campaign, multiplayer, or original Windows save/replay compatibility.
 
 ## Build and run
 
-Use the prerequisites in the [upstream README](../README.md#build-and-run):
+Use the prerequisites in the [project README](../README.md#build-and-run):
 Rust installed with rustup, Git, platform build tools, and supported graphics.
 On Debian/Ubuntu the listed build packages are `build-essential`,
 `libasound2-dev` and `pkg-config`.
@@ -46,7 +48,8 @@ Magnetron lifting, Boris airstrikes, offline diplomacy, and Cloning Vats.
 - **Waypoints:** hold Z and click destinations; release Z to execute. Click an
   earlier node for a patrol loop. Delete removes a node while planning. Routes
   use whitish lines without numbers, and radar commands retain the selected cell
-  on large maps.
+  on large maps. Their appearance still differs from the original and is the
+  first visual-fidelity item on the [roadmap](../ROADMAP.md).
 - **Cloning Vats:** every owned vat supplies one free infantry clone; multiple
   vats stack. A blocked vat can miss its clone.
 - **Diplomacy:** Tab opens the player panel; AI alliances are set before the match.
